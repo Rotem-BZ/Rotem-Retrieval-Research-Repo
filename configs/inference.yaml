@@ -1,0 +1,32 @@
+defaults:
+  - paths: local
+  - dataset: ???
+  - pipeline/inference@pipeline: ???
+  - _self_
+
+stage:
+  name: inference
+  run_id: ${now:%Y%m%d_%H%M%S}
+  output_dir: ${paths.runs_dir}/${stage.name}/${stage.run_id}
+  predictions_path: ${paths.predictions_dir}/${dataset.name}.jsonl
+
+retrieval:
+  top_k: 5
+
+pipeline_run:
+  inputs: {}
+  query_input:
+    component: retriever
+    parameter: query
+  documents_output:
+    component: retriever
+    field: documents
+  include_outputs_from:
+    - retriever
+  concurrency_limit: 4
+
+hydra:
+  job:
+    chdir: false
+  run:
+    dir: ${paths.runs_dir}/hydra/${stage.name}/${stage.run_id}

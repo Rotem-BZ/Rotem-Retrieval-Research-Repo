@@ -1,0 +1,3 @@
+name: toy
+documents_path: ${paths.project_root}/datasets/toy/documents.jsonl
+queries_path: ${paths.project_root}/datasets/toy/queries.jsonl

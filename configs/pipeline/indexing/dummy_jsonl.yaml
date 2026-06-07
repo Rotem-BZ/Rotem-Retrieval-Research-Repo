@@ -1,0 +1,18 @@
+components:
+  document_source:
+    type: retrieval_research.components.dummy.JsonlDocumentSource
+    init_parameters:
+      documents_path: ${dataset.documents_path}
+  indexer:
+    type: retrieval_research.components.dummy.JsonlDocumentIndexer
+    init_parameters:
+      output_path: ${paths.index_dir}/${dataset.name}.jsonl
+      overwrite: true
+
+connections:
+  - sender: document_source.documents
+    receiver: indexer.documents
+
+max_runs_per_component: 100
+metadata:
+  description: Dummy JSONL indexing pipeline for scaffold validation.

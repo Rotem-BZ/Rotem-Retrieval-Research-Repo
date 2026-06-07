@@ -1,0 +1,6 @@
+project_root: .
+artifacts_dir: ${paths.project_root}/artifacts
+runs_dir: ${paths.artifacts_dir}/runs
+index_dir: ${paths.artifacts_dir}/indexes
+predictions_dir: ${paths.artifacts_dir}/predictions
+metrics_dir: ${paths.artifacts_dir}/metrics

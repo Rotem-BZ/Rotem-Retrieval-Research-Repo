@@ -1,0 +1,11 @@
+components:
+  retriever:
+    type: retrieval_research.components.dummy.JsonlKeywordRetriever
+    init_parameters:
+      index_path: ${paths.index_dir}/${dataset.name}.jsonl
+      top_k: ${retrieval.top_k}
+
+connections: []
+max_runs_per_component: 100
+metadata:
+  description: Dummy keyword retrieval pipeline for scaffold validation.

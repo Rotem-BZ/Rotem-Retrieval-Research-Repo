@@ -1,0 +1,3 @@
+{"id":"doc-python-haystack","content":"Haystack pipelines connect reusable retrieval and generation components.","meta":{"source":"toy","topic":"haystack"}}
+{"id":"doc-hydra-config","content":"Hydra composes experiment configuration from defaults, config groups, and command line overrides.","meta":{"source":"toy","topic":"hydra"}}
+{"id":"doc-index-query","content":"Retrieval experiments usually separate indexing documents from querying and metric evaluation.","meta":{"source":"toy","topic":"retrieval"}}

@@ -1,0 +1,23 @@
+defaults:
+  - paths: local
+  - dataset: ???
+  - _self_
+
+stage:
+  name: evaluation
+  run_id: ${now:%Y%m%d_%H%M%S}
+  output_dir: ${paths.runs_dir}/${stage.name}/${stage.run_id}
+  predictions_path: ${paths.predictions_dir}/${dataset.name}.jsonl
+  metrics_path: ${paths.metrics_dir}/${dataset.name}.json
+
+metrics:
+  - name: recall_at_k
+    k: 5
+  - name: mrr_at_k
+    k: 5
+
+hydra:
+  job:
+    chdir: false
+  run:
+    dir: ${paths.runs_dir}/hydra/${stage.name}/${stage.run_id}
