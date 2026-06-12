@@ -5,6 +5,7 @@ from retrieval_research.components.dummy import (
     JsonlDocumentIndexer,
     JsonlDocumentSource,
     JsonlKeywordRetriever,
+    WeightedDocumentFusion,
 )
 
 __all__ = [
@@ -12,4 +13,5 @@ __all__ = [
     "JsonlDocumentIndexer",
     "JsonlDocumentSource",
     "JsonlKeywordRetriever",
+    "WeightedDocumentFusion",
 ]

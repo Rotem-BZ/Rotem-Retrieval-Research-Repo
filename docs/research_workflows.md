@@ -10,6 +10,170 @@ The scaffold currently includes dummy components only. They are useful because
 they exercise the intended contracts without committing the framework to a
 specific retriever, document store, or evaluator too early.
 
+## Repository Structure
+
+The top-level folders separate experiment configuration, small datasets,
+documentation, source code, and tests:
+
+- `configs/` contains Hydra entry points and reusable config groups.
+- `datasets/` contains local research datasets and toy fixtures.
+- `docs/` contains workflow and design notes.
+- `src/retrieval_research/` contains the Python package.
+- `tests/` contains regression tests for metrics, config composition, and stage
+  behavior.
+
+Inside `src/retrieval_research/`, the main modules are:
+
+- `cli.py` dispatches `rr <stage>` commands to stage runners.
+- `config.py` composes Hydra configs from the repository-level `configs/`
+  directory.
+- `components/` contains Haystack components that can later be shared with
+  production code.
+- `stages/` contains stage orchestration code for indexing, inference, and
+  evaluation.
+- `pipelines.py` converts Hydra pipeline config into Haystack `AsyncPipeline`
+  objects.
+- `io.py` and `metrics.py` contain shared IO and evaluation helpers.
+
+## Design Philosophy
+
+The framework separates four concerns that are often coupled in research repos:
+
+1. **Stage orchestration** decides which workflow is running: indexing,
+   inference, evaluation, or a future stage.
+2. **Pipeline topology** describes the Haystack graph for a stage.
+3. **Component options** describe reusable choices for individual components,
+   such as a query preprocessor or bi-encoder embedder.
+4. **Experiment presets** can capture favorite combinations without replacing
+   the reusable pieces.
+
+The goal is to avoid one config file per combination. For example, if there are
+several query preprocessors and several bi-encoder embedders, do not create
+pipeline configs for every preprocessor/embedder pair. Instead, keep one
+pipeline topology and compose the selected component configs into it.
+
+Pipeline YAML files should stay abstract whenever they represent reusable
+topology. A topology config may name graph nodes and connections, but it should
+not quietly choose a concrete model, checkpoint, vendor, or indexing backend
+unless that choice is truly part of the topology itself. Required implementation
+slots should use Hydra's `???` sentinel so configuration fails early until the
+user selects the missing component config.
+
+For example, an RRF fusion topology can require the user to select both the
+bi-encoder and cross-encoder implementations at launch time:
+
+```yaml
+# configs/pipeline/inference/rrf_fusion.yaml
+defaults:
+  - /component/biencoder@component.biencoder: ???
+  - /component/cross_encoder@component.cross_encoder: ???
+  - /component/fusion@component.fusion: rrf
+  - _self_
+
+components:
+  biencoder: ${component.biencoder}
+  cross_encoder: ${component.cross_encoder}
+  fusion: ${component.fusion}
+
+connections:
+  - sender: biencoder.documents
+    receiver: cross_encoder.documents
+  - sender: biencoder.documents
+    receiver: fusion.biencoder_documents
+  - sender: cross_encoder.documents
+    receiver: fusion.cross_encoder_documents
+
+max_runs_per_component: 100
+metadata: {}
+```
+
+The command line then supplies the model choices separately from the topology:
+
+```bash
+uv run rr inference \
+  dataset=toy \
+  pipeline/inference@pipeline=rrf_fusion \
+  component/biencoder@component.biencoder=sentence_transformers \
+  component/cross_encoder@component.cross_encoder=ms_marco_minilm
+```
+
+This keeps written configs reusable: pipeline configs describe how components
+are wired, component configs describe concrete implementations, and experiment
+presets describe named combinations that are worth saving.
+
+An inference pipeline topology can reference component groups:
+
+```yaml
+# configs/pipeline/inference/biencoder.yaml
+components:
+  query_preprocessor: ${component.query_preprocessor}
+  query_embedder: ${component.query_embedder}
+  retriever:
+    type: my_project.components.VectorRetriever
+    init_parameters:
+      index_path: ${paths.index_dir}/${dataset.name}.jsonl
+      top_k: ${retrieval.top_k}
+
+connections:
+  - sender: query_preprocessor.query
+    receiver: query_embedder.text
+  - sender: query_embedder.embedding
+    receiver: retriever.query_embedding
+
+max_runs_per_component: 100
+metadata: {}
+```
+
+Then reusable component options can live under separate config groups:
+
+```yaml
+# configs/component/query_preprocessor/lowercase.yaml
+type: my_project.components.LowercaseQueryPreprocessor
+init_parameters:
+  strip_whitespace: true
+```
+
+```yaml
+# configs/component/query_embedder/e5_small.yaml
+type: my_project.components.E5QueryEmbedder
+init_parameters:
+  model: intfloat/e5-small-v2
+  prefix: "query: "
+  device: cuda
+```
+
+The command line can then compose the pieces:
+
+```bash
+uv run rr inference \
+  dataset=toy \
+  pipeline/inference@pipeline=biencoder \
+  component/query_preprocessor=lowercase \
+  component/query_embedder=e5_small
+```
+
+For commonly used combinations, add experiment presets that select the dataset,
+pipeline topology, and component options:
+
+```yaml
+# configs/experiment/inference/toy_e5_lowercase.yaml
+defaults:
+  - /dataset: toy
+  - /pipeline/inference@pipeline: biencoder
+  - /component/query_preprocessor: lowercase
+  - /component/query_embedder: e5_small
+```
+
+Then launch the preset with:
+
+```bash
+uv run rr inference experiment/inference=toy_e5_lowercase
+```
+
+As a rule of thumb, use command-line overrides for small parameter changes, use
+component config groups for reusable implementation choices, use pipeline config
+groups for graph topology, and use experiment presets for named recipes.
+
 ## Environment
 
 Install Python dependencies with uv:
@@ -44,6 +208,8 @@ dataset is in:
 
 - `datasets/toy/documents.jsonl`
 - `datasets/toy/queries.jsonl`
+- `datasets/toy/qrels.jsonl`
+- `datasets/toy/input_mapping.json`
 
 The indexing and inference configs each place a Haystack serialized pipeline
 under the `pipeline` field. The Python runner resolves Hydra interpolation,
@@ -112,6 +278,8 @@ small pointer config in `configs/dataset/<name>.yaml`:
 name: my_dataset
 documents_path: ${paths.project_root}/datasets/my_dataset/documents.jsonl
 queries_path: ${paths.project_root}/datasets/my_dataset/queries.jsonl
+qrels_path: ${paths.project_root}/datasets/my_dataset/qrels.jsonl
+input_mapping_path: null
 ```
 
 Document JSONL records should look like:
@@ -123,7 +291,23 @@ Document JSONL records should look like:
 Query JSONL records should look like:
 
 ```json
-{"id":"q-1","text":"Search text.","relevant_document_ids":["doc-1"]}
+{"id":"q-1","text":"Search text."}
+```
+
+Qrels JSONL records should look like:
+
+```json
+{"query_id":"q-1","document_id":"doc-1","relevance":1}
+```
+
+`input_mapping_path` is optional and can be `null`. When present, it should point
+to a JSON object that maps each query id to candidate document ids for workflows
+such as reranking:
+
+```json
+{
+  "q-1": ["doc-1", "doc-7", "doc-9"]
+}
 ```
 
 Then run:

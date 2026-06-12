@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 from retrieval_research.io import read_jsonl, write_jsonl
 from retrieval_research.pipelines import include_outputs, load_async_pipeline, to_container
-from retrieval_research.stages.base import StageContext
+from retrieval_research.stages.base import StageContext, is_dry_run
 
 
 async def run_inference(cfg: DictConfig) -> list[dict[str, Any]]:
@@ -37,7 +37,11 @@ async def run_inference(cfg: DictConfig) -> list[dict[str, Any]]:
             }
         )
 
-    predictions_path = write_jsonl(cfg.stage.predictions_path, predictions)
+    if is_dry_run(cfg):
+        predictions_path = cfg.stage.predictions_path
+    else:
+        predictions_path = write_jsonl(cfg.stage.predictions_path, predictions)
+
     context.write_resolved_config()
     context.write_result(
         {
@@ -50,12 +54,17 @@ async def run_inference(cfg: DictConfig) -> list[dict[str, Any]]:
 
 def _build_query_inputs(cfg: DictConfig, query_text: str) -> dict[str, Any]:
     inputs = deepcopy(to_container(cfg.pipeline_run.inputs) or {})
-    query_input = cfg.pipeline_run.query_input
-    component_name = str(query_input.component)
-    parameter_name = str(query_input.parameter)
 
-    component_inputs = inputs.setdefault(component_name, {})
-    component_inputs[parameter_name] = query_text
+    query_inputs = cfg.pipeline_run.get("query_inputs")
+    if query_inputs is None:
+        query_inputs = [cfg.pipeline_run.query_input]
+
+    for query_input in query_inputs:
+        component_name = str(query_input.component)
+        parameter_name = str(query_input.parameter)
+        component_inputs = inputs.setdefault(component_name, {})
+        component_inputs[parameter_name] = query_text
+
     return inputs
 
 

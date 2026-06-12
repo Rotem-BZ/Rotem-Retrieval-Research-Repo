@@ -1,0 +1,12 @@
+components:
+  fusion:
+    type: retrieval_research.components.dummy.WeightedDocumentFusion
+    init_parameters:
+      weights: ???
+      top_k: ${retrieval.top_k}
+      rrf_k: ${retrieval.rrf_k}
+
+connections: []
+max_runs_per_component: 100
+metadata:
+  description: Abstract weighted RRF fusion topology. Add retrievers and connections with Hydra overrides.

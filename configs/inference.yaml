@@ -12,6 +12,7 @@ stage:
 
 retrieval:
   top_k: 5
+  rrf_k: 60
 
 pipeline_run:
   inputs: {}
