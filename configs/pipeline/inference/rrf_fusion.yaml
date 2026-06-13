@@ -1,6 +1,6 @@
 components:
   fusion:
-    type: retrieval_research.components.fusion.documents.ReciprocalRankFusion
+    type: retrieval_research.components.fusion.reciprocal_rank_fusion.ReciprocalRankFusion
     init_parameters:
       weights: ???
       top_k: ${retrieval.top_k}

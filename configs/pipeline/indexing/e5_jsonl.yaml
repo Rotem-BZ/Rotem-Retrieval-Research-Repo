@@ -1,17 +1,17 @@
 components:
   document_source:
-    type: retrieval_research.components.dummy.JsonlDocumentSource
+    type: retrieval_research.components.jsonl_document_source.JsonlDocumentSource
     init_parameters:
       documents_path: ${dataset.documents_path}
   splitter:
-    type: retrieval_research.components.chunking.langchain.LangChainDocumentSplitter
+    type: retrieval_research.components.chunking.langchain_document_splitter.LangChainDocumentSplitter
     init_parameters:
       splitter_type: RecursiveCharacterTextSplitter
       splitter_kwargs:
         chunk_size: 360
         chunk_overlap: 60
   document_prefixer:
-    type: retrieval_research.components.preprocessing.text.DocumentTextPrefixer
+    type: retrieval_research.components.preprocessing.document_text_prefixer.DocumentTextPrefixer
     init_parameters:
       prefix: "passage: "
       replace_regexes:
@@ -23,7 +23,7 @@ components:
       normalize_embeddings: true
       progress_bar: false
   indexer:
-    type: retrieval_research.components.dummy.JsonlDocumentIndexer
+    type: retrieval_research.components.jsonl_document_indexer.JsonlDocumentIndexer
     init_parameters:
       output_path: ${paths.index_dir}/${dataset.name}_e5.jsonl
       overwrite: true

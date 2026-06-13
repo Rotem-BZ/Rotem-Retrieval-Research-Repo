@@ -1,10 +1,10 @@
 components:
   document_source:
-    type: retrieval_research.components.dummy.JsonlDocumentSource
+    type: retrieval_research.components.jsonl_document_source.JsonlDocumentSource
     init_parameters:
       documents_path: ${dataset.documents_path}
   indexer:
-    type: retrieval_research.components.dummy.JsonlDocumentIndexer
+    type: retrieval_research.components.jsonl_document_indexer.JsonlDocumentIndexer
     init_parameters:
       output_path: ${paths.index_dir}/${dataset.name}.jsonl
       overwrite: true

@@ -49,7 +49,10 @@ def test_http_query_reformulator_posts_query_and_extracts_response(monkeypatch) 
         calls.append({"url": url, **kwargs})
         return FakeResponse()
 
-    monkeypatch.setattr("retrieval_research.components.reformulation.http.requests.post", fake_post)
+    monkeypatch.setattr(
+        "retrieval_research.components.reformulation.http_query_reformulator.requests.post",
+        fake_post,
+    )
 
     reformulator = HttpQueryReformulator(
         url="https://example.test/reformulate",

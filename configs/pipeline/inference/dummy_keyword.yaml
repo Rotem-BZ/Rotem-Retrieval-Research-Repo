@@ -1,6 +1,6 @@
 components:
   retriever:
-    type: retrieval_research.components.dummy.JsonlKeywordRetriever
+    type: retrieval_research.components.jsonl_keyword_retriever.JsonlKeywordRetriever
     init_parameters:
       index_path: ${paths.index_dir}/${dataset.name}.jsonl
       top_k: ${retrieval.top_k}
