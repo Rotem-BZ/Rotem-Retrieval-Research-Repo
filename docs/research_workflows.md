@@ -22,6 +22,9 @@ documentation, source code, and tests:
 - `tests/` contains regression tests for metrics, config composition, and stage
   behavior.
 
+See [components.md](components.md) for the current component inventory and which
+pieces are native Haystack components versus repo-specific adapters.
+
 Inside `src/retrieval_research/`, the main modules are:
 
 - `cli.py` dispatches `rr <stage>` commands to stage runners.
@@ -239,8 +242,12 @@ uv run rr inference dataset=toy pipeline/inference@pipeline=dummy_keyword
 The default inference stage reads the JSONL index and writes:
 
 ```text
-artifacts/predictions/toy.jsonl
+artifacts/predictions/toy.json
 ```
+
+Prediction artifacts are JSON objects keyed first by query id and then by
+document or chunk id. Each document entry contains the retrieved content, score,
+and metadata.
 
 Run evaluation after inference:
 

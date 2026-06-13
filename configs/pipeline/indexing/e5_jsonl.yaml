@@ -1,0 +1,43 @@
+components:
+  document_source:
+    type: retrieval_research.components.dummy.JsonlDocumentSource
+    init_parameters:
+      documents_path: ${dataset.documents_path}
+  splitter:
+    type: retrieval_research.components.chunking.langchain.LangChainDocumentSplitter
+    init_parameters:
+      splitter_type: RecursiveCharacterTextSplitter
+      splitter_kwargs:
+        chunk_size: 360
+        chunk_overlap: 60
+  document_prefixer:
+    type: retrieval_research.components.preprocessing.text.DocumentTextPrefixer
+    init_parameters:
+      prefix: "passage: "
+      replace_regexes:
+        "\\s+": " "
+  embedder:
+    type: haystack.components.embedders.sentence_transformers_document_embedder.SentenceTransformersDocumentEmbedder
+    init_parameters:
+      model: intfloat/e5-small-v2
+      normalize_embeddings: true
+      progress_bar: false
+  indexer:
+    type: retrieval_research.components.dummy.JsonlDocumentIndexer
+    init_parameters:
+      output_path: ${paths.index_dir}/${dataset.name}_e5.jsonl
+      overwrite: true
+
+connections:
+  - sender: document_source.documents
+    receiver: splitter.documents
+  - sender: splitter.documents
+    receiver: document_prefixer.documents
+  - sender: document_prefixer.documents
+    receiver: embedder.documents
+  - sender: embedder.documents
+    receiver: indexer.documents
+
+max_runs_per_component: 100
+metadata:
+  description: E5 indexing pipeline with LangChain chunking, per-chunk passage prefixing, and JSONL embedding persistence.

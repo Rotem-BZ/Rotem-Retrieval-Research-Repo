@@ -46,6 +46,12 @@ def read_jsonl(path: str | Path) -> list[dict[str, Any]]:
     return records
 
 
+def read_json(path: str | Path) -> Any:
+    resolved = project_path(path)
+    with resolved.open("r", encoding="utf-8") as handle:
+        return json.load(handle)
+
+
 def write_json(path: str | Path, payload: Any) -> Path:
     resolved = ensure_parent(path)
     with resolved.open("w", encoding="utf-8") as handle:
@@ -66,6 +72,52 @@ def write_text(path: str | Path, text: str) -> Path:
     resolved = ensure_parent(path)
     resolved.write_text(text, encoding="utf-8")
     return resolved
+
+
+def predictions_to_mapping(predictions: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    payload: dict[str, dict[str, Any]] = {}
+
+    for prediction in predictions:
+        query_id = str(prediction["query_id"])
+        payload[query_id] = {
+            "query": prediction.get("query"),
+            "documents": {
+                str(document["id"]): {
+                    key: value for key, value in document.items() if key != "id"
+                }
+                for document in prediction.get("documents", [])
+                if document.get("id") is not None
+            },
+        }
+
+    return payload
+
+
+def predictions_from_mapping(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    predictions: list[dict[str, Any]] = []
+
+    for query_id, query_payload in payload.items():
+        documents = [
+            {"id": document_id, **dict(document_payload)}
+            for document_id, document_payload in query_payload.get("documents", {}).items()
+        ]
+        predictions.append(
+            {
+                "query_id": query_id,
+                "query": query_payload.get("query"),
+                "documents": documents,
+            }
+        )
+
+    return predictions
+
+
+def read_predictions(path: str | Path) -> list[dict[str, Any]]:
+    return predictions_from_mapping(read_json(path))
+
+
+def write_predictions(path: str | Path, predictions: list[dict[str, Any]]) -> Path:
+    return write_json(path, predictions_to_mapping(predictions))
 
 
 def config_to_yaml(config: DictConfig) -> str:

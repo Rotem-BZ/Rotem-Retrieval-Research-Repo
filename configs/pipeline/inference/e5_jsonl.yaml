@@ -1,0 +1,29 @@
+components:
+  query_preprocessor:
+    type: retrieval_research.components.preprocessing.text.TextPreprocessor
+    init_parameters:
+      prefix: "query: "
+      replace_regexes:
+        "\\s+": " "
+  query_embedder:
+    type: haystack.components.embedders.sentence_transformers_text_embedder.SentenceTransformersTextEmbedder
+    init_parameters:
+      model: intfloat/e5-small-v2
+      normalize_embeddings: true
+      progress_bar: false
+  retriever:
+    type: retrieval_research.components.retrieval.jsonl.JsonlEmbeddingRetriever
+    init_parameters:
+      index_path: ${paths.index_dir}/${dataset.name}_e5.jsonl
+      top_k: ${retrieval.top_k}
+      similarity: cosine
+
+connections:
+  - sender: query_preprocessor.text
+    receiver: query_embedder.text
+  - sender: query_embedder.embedding
+    receiver: retriever.query_embedding
+
+max_runs_per_component: 100
+metadata:
+  description: E5 inference pipeline over the JSONL embedding index.

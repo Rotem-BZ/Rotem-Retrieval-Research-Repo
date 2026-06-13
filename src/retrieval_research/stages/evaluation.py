@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from omegaconf import DictConfig
 
-from retrieval_research.io import read_jsonl, write_json
+from retrieval_research.io import read_jsonl, read_predictions, write_json
 from retrieval_research.metrics import evaluate_rankings
 from retrieval_research.pipelines import to_container
 from retrieval_research.stages.base import StageContext, is_dry_run
@@ -12,7 +12,7 @@ from retrieval_research.stages.base import StageContext, is_dry_run
 
 def run_evaluation(cfg: DictConfig) -> dict[str, float]:
     context = StageContext.from_config(cfg)
-    predictions = read_jsonl(cfg.stage.predictions_path)
+    predictions = read_predictions(cfg.stage.predictions_path)
     qrels = _qrels_from_records(read_jsonl(cfg.dataset.qrels_path))
     metrics = evaluate_rankings(predictions, qrels, to_container(cfg.metrics))
 

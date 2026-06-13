@@ -23,16 +23,23 @@ def _document_from_record(record: dict[str, Any] | Document) -> Document:
         id=record.get("id"),
         content=record.get("content", ""),
         meta=dict(record.get("meta") or {}),
+        embedding=record.get("embedding"),
     )
 
 
 def _document_to_record(document: Document) -> dict[str, Any]:
-    return {
+    record = {
         "id": document.id,
         "content": document.content,
         "meta": dict(document.meta or {}),
         "score": getattr(document, "score", None),
     }
+    embedding = getattr(document, "embedding", None)
+    if embedding is not None:
+        if hasattr(embedding, "tolist") and callable(embedding.tolist):
+            embedding = embedding.tolist()
+        record["embedding"] = embedding
+    return record
 
 
 def _tokens(text: str) -> Counter[str]:

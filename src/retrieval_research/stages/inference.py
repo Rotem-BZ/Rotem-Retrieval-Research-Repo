@@ -9,7 +9,7 @@ from haystack import Document
 from omegaconf import DictConfig
 from tqdm import tqdm
 
-from retrieval_research.io import read_jsonl, write_jsonl
+from retrieval_research.io import read_jsonl, write_predictions
 from retrieval_research.pipelines import include_outputs, load_async_pipeline, to_container
 from retrieval_research.stages.base import StageContext, is_dry_run
 
@@ -40,7 +40,7 @@ async def run_inference(cfg: DictConfig) -> list[dict[str, Any]]:
     if is_dry_run(cfg):
         predictions_path = cfg.stage.predictions_path
     else:
-        predictions_path = write_jsonl(cfg.stage.predictions_path, predictions)
+        predictions_path = write_predictions(cfg.stage.predictions_path, predictions)
 
     context.write_resolved_config()
     context.write_result(

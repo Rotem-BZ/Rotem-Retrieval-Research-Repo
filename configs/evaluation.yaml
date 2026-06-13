@@ -7,7 +7,7 @@ stage:
   name: evaluation
   run_id: ${now:%Y%m%d_%H%M%S}
   output_dir: ${paths.runs_dir}/${stage.name}/${stage.run_id}
-  predictions_path: ${paths.predictions_dir}/${dataset.name}.jsonl
+  predictions_path: ${paths.predictions_dir}/${dataset.name}.json
   metrics_path: ${paths.metrics_dir}/${dataset.name}.json
 
 metrics:
