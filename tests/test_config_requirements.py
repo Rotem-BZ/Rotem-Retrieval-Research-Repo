@@ -41,4 +41,4 @@ def test_explicit_stage_selections_compose() -> None:
     assert inference_cfg.dataset.name == "toy"
     assert "retriever" in inference_cfg.pipeline.components
     assert evaluation_cfg.dataset.name == "toy"
-    assert evaluation_cfg.dataset.qrels_path.endswith("datasets/toy/qrels.jsonl")
+    assert evaluation_cfg.dataset.qrels_path.endswith("data/processed/toy/qrels.jsonl")

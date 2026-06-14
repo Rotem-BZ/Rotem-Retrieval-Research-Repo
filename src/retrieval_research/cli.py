@@ -14,6 +14,7 @@ from typing import Any
 from omegaconf import DictConfig, open_dict
 
 from retrieval_research.config import compose_stage_config
+from retrieval_research.console import print_stage_result, print_stage_start
 from retrieval_research.stages import STAGE_RUNNERS, StageResult
 
 
@@ -32,7 +33,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     stage_name = args[0]
     overrides = args[1:]
     cfg, result = _run_stage_with_config(stage_name, overrides, dry_run=dry_run)
-    print(_summarize_result(stage_name, result, cfg))
+    print_stage_result(stage_name, _summarize_result(stage_name, result, cfg))
 
 
 def run_stage(
@@ -74,6 +75,7 @@ def _run_stage_with_config(
     cfg = compose_stage_config(stage_name, overrides)
 
     with _dry_run_artifact_context(cfg, dry_run):
+        print_stage_start(stage_name, cfg, overrides=overrides, dry_run=dry_run)
         result = runner(cfg)
 
         if inspect.isawaitable(result):

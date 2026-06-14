@@ -62,7 +62,22 @@ def mrr_at_k(predictions: list[dict[str, Any]], qrels: dict[str, set[str]], k: i
 
 def _retrieved_ids(record: dict[str, Any], k: int) -> list[str]:
     documents = record.get("documents", [])
-    return [document["id"] for document in documents[:k] if document.get("id") is not None]
+    retrieved_ids: list[str] = []
+    seen: set[str] = set()
+
+    for document in documents[:k]:
+        document_id = _evaluation_document_id(document)
+        if document_id is None or document_id in seen:
+            continue
+        retrieved_ids.append(document_id)
+        seen.add(document_id)
+
+    return retrieved_ids
+
+
+def _evaluation_document_id(document: dict[str, Any]) -> str | None:
+    meta = document.get("meta") or {}
+    return meta.get("source_document_id") or document.get("id")
 
 
 def _mean(values: list[float]) -> float:

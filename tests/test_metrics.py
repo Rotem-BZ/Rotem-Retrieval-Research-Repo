@@ -47,3 +47,19 @@ def test_evaluate_rankings() -> None:
         "recall@2": 1.0,
         "mrr@2": 0.75,
     }
+
+
+def test_metrics_use_source_document_id_for_chunk_predictions() -> None:
+    predictions = [
+        {
+            "query_id": "q1",
+            "documents": [
+                {"id": "d2::chunk-0", "meta": {"source_document_id": "d2"}},
+                {"id": "d1::chunk-0", "meta": {"source_document_id": "d1"}},
+                {"id": "d1::chunk-1", "meta": {"source_document_id": "d1"}},
+            ],
+        }
+    ]
+
+    assert recall_at_k(predictions, {"q1": {"d1"}}, 3) == 1.0
+    assert mrr_at_k(predictions, {"q1": {"d1"}}, 3) == 0.5

@@ -12,11 +12,12 @@ specific retriever, document store, or evaluator too early.
 
 ## Repository Structure
 
-The top-level folders separate experiment configuration, small datasets,
+The top-level folders separate experiment configuration, CCDS-style data,
 documentation, source code, and tests:
 
 - `configs/` contains Hydra entry points and reusable config groups.
-- `datasets/` contains local research datasets and toy fixtures.
+- `data/` contains `raw`, `interim`, and `processed` dataset files. Generated
+  data is ignored except for the small checked-in toy fixture.
 - `docs/` contains workflow and design notes.
 - `src/retrieval_research/` contains the Python package.
 - `tests/` contains regression tests for metrics, config composition, and stage
@@ -32,6 +33,8 @@ Inside `src/retrieval_research/`, the main modules are:
   directory.
 - `components/` contains Haystack components that can later be shared with
   production code.
+- `notebooks/` contains notebook-style Python scripts for data preparation and
+  exploration.
 - `stages/` contains stage orchestration code for indexing, inference, and
   evaluation.
 - `pipelines.py` converts Hydra pipeline config into Haystack `AsyncPipeline`
@@ -209,10 +212,15 @@ Config groups provide reusable prefills:
 Dataset records live as data files, not as Hydra config payloads. The toy
 dataset is in:
 
-- `datasets/toy/documents.jsonl`
-- `datasets/toy/queries.jsonl`
-- `datasets/toy/qrels.jsonl`
-- `datasets/toy/input_mapping.json`
+- `data/processed/toy/documents.jsonl`
+- `data/processed/toy/queries.jsonl`
+- `data/processed/toy/qrels.jsonl`
+- `data/processed/toy/input_mapping.json`
+
+BEIR datasets are prepared with the Python notebook script at
+`src/retrieval_research/notebooks/prepare_beir.py`. It downloads raw archives to
+`data/raw`, extracts them to `data/interim`, and writes repo-native JSONL files
+to `data/processed`.
 
 The indexing and inference configs each place a Haystack serialized pipeline
 under the `pipeline` field. The Python runner resolves Hydra interpolation,
@@ -278,14 +286,15 @@ uv run rr inference dataset=toy pipeline/inference@pipeline=dummy_keyword retrie
 uv run rr evaluation dataset=toy metrics='[{name: recall_at_k, k: 10}, {name: mrr_at_k, k: 10}]'
 ```
 
-When new datasets are added, place records under `datasets/<name>/` and create a
-small pointer config in `configs/dataset/<name>.yaml`:
+When new datasets are added, place processed records under
+`data/processed/<name>/` and create a small pointer config in
+`configs/dataset/<name>.yaml`:
 
 ```yaml
 name: my_dataset
-documents_path: ${paths.project_root}/datasets/my_dataset/documents.jsonl
-queries_path: ${paths.project_root}/datasets/my_dataset/queries.jsonl
-qrels_path: ${paths.project_root}/datasets/my_dataset/qrels.jsonl
+documents_path: ${paths.processed_data_dir}/my_dataset/documents.jsonl
+queries_path: ${paths.processed_data_dir}/my_dataset/queries.jsonl
+qrels_path: ${paths.processed_data_dir}/my_dataset/qrels.jsonl
 input_mapping_path: null
 ```
 

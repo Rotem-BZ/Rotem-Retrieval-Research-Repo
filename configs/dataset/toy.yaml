@@ -1,5 +1,5 @@
 name: toy
-documents_path: ${paths.project_root}/datasets/toy/documents.jsonl
-queries_path: ${paths.project_root}/datasets/toy/queries.jsonl
-qrels_path: ${paths.project_root}/datasets/toy/qrels.jsonl
-input_mapping_path: ${paths.project_root}/datasets/toy/input_mapping.json
+documents_path: ${paths.processed_data_dir}/toy/documents.jsonl
+queries_path: ${paths.processed_data_dir}/toy/queries.jsonl
+qrels_path: ${paths.processed_data_dir}/toy/qrels.jsonl
+input_mapping_path: ${paths.processed_data_dir}/toy/input_mapping.json

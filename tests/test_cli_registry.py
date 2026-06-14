@@ -31,7 +31,7 @@ def test_extract_dry_run_removes_flag() -> None:
 
 
 def test_dry_run_redirects_index_artifacts(tmp_path: Path) -> None:
-    documents_path = Path("datasets/toy/documents.jsonl").resolve()
+    documents_path = Path("data/processed/toy/documents.jsonl").resolve()
 
     result = run_stage(
         "indexing",

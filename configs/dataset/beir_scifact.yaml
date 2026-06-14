@@ -1,0 +1,5 @@
+name: beir_scifact
+documents_path: ${paths.processed_data_dir}/beir/scifact/documents.jsonl
+queries_path: ${paths.processed_data_dir}/beir/scifact/queries.jsonl
+qrels_path: ${paths.processed_data_dir}/beir/scifact/qrels.jsonl
+input_mapping_path: ${paths.processed_data_dir}/beir/scifact/input_mapping.json
