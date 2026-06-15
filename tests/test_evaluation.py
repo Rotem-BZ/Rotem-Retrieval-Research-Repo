@@ -17,8 +17,8 @@ def test_qrels_from_records_groups_positive_judgments() -> None:
     )
 
     assert qrels == {
-        "q1": {"d1", "d2"},
-        "q2": {"d4"},
+        "q1": {"d1": 1, "d2": 2},
+        "q2": {"d4": 1},
     }
 
 
@@ -51,8 +51,8 @@ def test_evaluation_reads_prediction_mapping_json(tmp_path: Path) -> None:
                 "metrics_path": str(metrics_path),
             },
             "dataset": {"qrels_path": str(qrels_path)},
-            "metrics": [{"name": "recall_at_k", "k": 1}, {"name": "mrr_at_k", "k": 1}],
+            "metrics": ["Recall@1", "MRR@1"],
         }
     )
 
-    assert run_evaluation(cfg) == {"recall@1": 1.0, "mrr@1": 1.0}
+    assert run_evaluation(cfg) == {"Recall@1": 1.0, "MRR@1": 1.0}

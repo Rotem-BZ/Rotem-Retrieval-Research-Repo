@@ -5,7 +5,7 @@ from __future__ import annotations
 from omegaconf import DictConfig
 
 from retrieval_research.io import read_jsonl, read_predictions, write_json
-from retrieval_research.metrics import evaluate_rankings
+from retrieval_research.metrics import Qrels, evaluate_rankings
 from retrieval_research.pipelines import to_container
 from retrieval_research.stages.base import StageContext, is_dry_run
 
@@ -31,8 +31,8 @@ def run_evaluation(cfg: DictConfig) -> dict[str, float]:
     return metrics
 
 
-def _qrels_from_records(records: list[dict]) -> dict[str, set[str]]:
-    qrels: dict[str, set[str]] = {}
+def _qrels_from_records(records: list[dict]) -> Qrels:
+    qrels: Qrels = {}
 
     for record in records:
         relevance = int(record.get("relevance", 1))
@@ -41,6 +41,6 @@ def _qrels_from_records(records: list[dict]) -> dict[str, set[str]]:
 
         query_id = record["query_id"]
         document_id = record["document_id"]
-        qrels.setdefault(query_id, set()).add(document_id)
+        qrels.setdefault(query_id, {})[document_id] = relevance
 
     return qrels

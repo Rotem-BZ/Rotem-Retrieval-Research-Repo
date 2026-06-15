@@ -11,10 +11,12 @@ stage:
   metrics_path: ${paths.metrics_dir}/${dataset.name}.json
 
 metrics:
-  - name: recall_at_k
-    k: 5
-  - name: mrr_at_k
-    k: 5
+  - Recall@10
+  - Recall@50
+  - Recall@100
+  - MRR@50
+  - NDCG@10
+  - HitRate@10
 
 hydra:
   job:
