@@ -3,13 +3,6 @@ components:
     type: retrieval_research.components.jsonl_document_source.JsonlDocumentSource
     init_parameters:
       documents_path: ${dataset.documents_path}
-  splitter:
-    type: retrieval_research.components.chunking.langchain_document_splitter.LangChainDocumentSplitter
-    init_parameters:
-      splitter_type: RecursiveCharacterTextSplitter
-      splitter_kwargs:
-        chunk_size: 360
-        chunk_overlap: 60
   document_prefixer:
     type: retrieval_research.components.preprocessing.document_text_prefixer.DocumentTextPrefixer
     init_parameters:
@@ -24,7 +17,7 @@ components:
       device:
         type: single
         device: cuda
-      progress_bar: false
+      progress_bar: true
   indexer:
     type: retrieval_research.components.jsonl_document_indexer.JsonlDocumentIndexer
     init_parameters:
@@ -33,8 +26,6 @@ components:
 
 connections:
   - sender: document_source.documents
-    receiver: splitter.documents
-  - sender: splitter.documents
     receiver: document_prefixer.documents
   - sender: document_prefixer.documents
     receiver: embedder.documents
@@ -43,4 +34,4 @@ connections:
 
 max_runs_per_component: 100
 metadata:
-  description: E5 indexing pipeline with LangChain chunking, per-chunk passage prefixing, and JSONL embedding persistence.
+  description: E5 indexing pipeline with document-level passage prefixing and JSONL embedding persistence.
