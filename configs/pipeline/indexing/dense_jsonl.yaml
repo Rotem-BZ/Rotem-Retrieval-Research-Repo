@@ -1,0 +1,19 @@
+defaults:
+  - /choices/embedding_model@_global_.choices.embedding_model: ???
+  - /component/document_source@components.document_source: jsonl
+  - /component/document_preprocessor@components.document_prefixer: prefix_cleanup
+  - /component/document_embedder@components.embedder: sentence_transformers
+  - /component/indexer@components.indexer: jsonl_embeddings
+  - _self_
+
+connections:
+  - sender: document_source.documents
+    receiver: document_prefixer.documents
+  - sender: document_prefixer.documents
+    receiver: embedder.documents
+  - sender: embedder.documents
+    receiver: indexer.documents
+
+max_runs_per_component: 100
+metadata:
+  description: Abstract dense JSONL indexing topology with document-level embeddings.

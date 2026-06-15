@@ -6,9 +6,9 @@ This repo is organized around three ideas:
 2. Experiment selection and parameterization lives in Hydra configs.
 3. Long-running experiment workflows are split into explicit stages.
 
-The scaffold currently includes dummy components only. They are useful because
-they exercise the intended contracts without committing the framework to a
-specific retriever, document store, or evaluator too early.
+The scaffold includes both dummy components and real retrieval components. The
+dummy pieces are still useful because they exercise the intended contracts
+without requiring a model, document store, or external service.
 
 ## Repository Structure
 
@@ -106,6 +106,65 @@ uv run rr inference \
 This keeps written configs reusable: pipeline configs describe how components
 are wired, component configs describe concrete implementations, and experiment
 presets describe named combinations that are worth saving.
+
+### Semantic Choices
+
+Some selections are not themselves Haystack components, but they still define
+the meaning of a pipeline. An embedding model is a good example: it determines
+the checkpoint, query prefix, document prefix, normalization behavior, and
+similarity function used by several components at once.
+
+These selections live under the root `choices` namespace:
+
+```yaml
+choices:
+  embedding_model:
+    name: e5_small_v2
+    artifact_name: e5_small_v2
+    checkpoint: intfloat/e5-small-v2
+    document_prefix: "passage: "
+    query_prefix: "query: "
+    normalize_embeddings: true
+    similarity: cosine
+```
+
+The `pipeline` field in the final resolved config should remain exact Haystack
+pipeline syntax. It should contain `components`, `connections`,
+`max_runs_per_component`, and `metadata`, but not helper objects such as
+`embedding_model`. Pipeline topology configs can still require semantic choices
+by composing them into the root `choices` namespace:
+
+```yaml
+# configs/pipeline/indexing/dense_jsonl.yaml
+defaults:
+  - /choices/embedding_model@_global_.choices.embedding_model: ???
+  - /component/document_preprocessor@components.document_prefixer: prefix_cleanup
+  - /component/document_embedder@components.embedder: sentence_transformers
+  - /component/indexer@components.indexer: jsonl_embeddings
+  - _self_
+```
+
+Because the pipeline config is mounted at `pipeline`, component defaults mounted
+at `components.*` land inside `pipeline.components.*`. The semantic model choice
+lands at root under `choices.embedding_model`, where any component can reference
+it:
+
+```yaml
+# configs/component/document_embedder/sentence_transformers.yaml
+type: haystack.components.embedders.sentence_transformers_document_embedder.SentenceTransformersDocumentEmbedder
+init_parameters:
+  model: ${choices.embedding_model.checkpoint}
+  normalize_embeddings: ${choices.embedding_model.normalize_embeddings}
+```
+
+The same config group can be mounted more than once for future multi-model
+topologies. Prefer role names over numbered names:
+
+```yaml
+choices:
+  candidate_embedding_model: ...
+  rerank_embedding_model: ...
+```
 
 An inference pipeline topology can reference component groups:
 
@@ -206,6 +265,9 @@ Config groups provide reusable prefills:
 
 - `configs/dataset/` contains dataset names and file paths.
 - `configs/paths/` contains artifact layout choices.
+- `configs/choices/` contains semantic experiment choices such as embedding
+  model families and checkpoints.
+- `configs/component/` contains reusable Haystack component fragments.
 - `configs/pipeline/indexing/` contains Haystack indexing pipelines.
 - `configs/pipeline/inference/` contains Haystack inference pipelines.
 
@@ -226,6 +288,54 @@ The indexing and inference configs each place a Haystack serialized pipeline
 under the `pipeline` field. The Python runner resolves Hydra interpolation,
 serializes that field to YAML, loads it with Haystack, and executes it as an
 `AsyncPipeline`.
+
+### Abstract E5 Dense Pipelines
+
+The concrete `pipeline/indexing@pipeline=e5_jsonl` and
+`pipeline/inference@pipeline=e5_jsonl` configs remain available as simple,
+fully written E5 examples. For more composable experiments, use the abstract
+dense topologies and select E5 through `choices/embedding_model`:
+
+```powershell
+uv run rr indexing `
+  dataset=beir_scifact `
+  pipeline/indexing@pipeline=dense_jsonl `
+  choices/embedding_model=e5/small_v2
+```
+
+```powershell
+uv run rr inference `
+  dataset=beir_scifact `
+  pipeline/inference@pipeline=dense_jsonl `
+  choices/embedding_model=e5/small_v2 `
+  pipeline_run.query_input.component=query_preprocessor `
+  pipeline_run.query_input.parameter=text `
+  retrieval.top_k=100
+```
+
+```powershell
+uv run rr evaluation dataset=beir_scifact
+```
+
+To run the same model through the chunked topology, switch both pipeline
+selections:
+
+```powershell
+uv run rr indexing `
+  dataset=beir_scifact `
+  pipeline/indexing@pipeline=dense_chunked_jsonl `
+  choices/embedding_model=e5/small_v2
+```
+
+```powershell
+uv run rr inference `
+  dataset=beir_scifact `
+  pipeline/inference@pipeline=dense_chunked_jsonl `
+  choices/embedding_model=e5/small_v2 `
+  pipeline_run.query_input.component=query_preprocessor `
+  pipeline_run.query_input.parameter=text `
+  retrieval.top_k=100
+```
 
 ## Stage Workflow
 
@@ -283,7 +393,7 @@ Examples:
 ```bash
 uv run rr indexing dataset=toy pipeline/indexing@pipeline=dummy_jsonl
 uv run rr inference dataset=toy pipeline/inference@pipeline=dummy_keyword retrieval.top_k=10
-uv run rr evaluation dataset=toy metrics='[{name: recall_at_k, k: 10}, {name: mrr_at_k, k: 10}]'
+uv run rr evaluation dataset=toy metrics='["Recall@10","MRR@10","NDCG@10","Precision@10","HitRate@10"]'
 ```
 
 When new datasets are added, place processed records under

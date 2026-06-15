@@ -1,0 +1,13 @@
+name: e5_base_v2
+artifact_name: e5_base_v2
+checkpoint: intfloat/e5-base-v2
+document_prefix: "passage: "
+query_prefix: "query: "
+normalize_embeddings: true
+similarity: cosine
+tokenizer_kwargs:
+  model_max_length: 512
+device:
+  type: single
+  device: cuda
+progress_bar: false

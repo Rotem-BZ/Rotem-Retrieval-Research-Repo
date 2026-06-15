@@ -1,0 +1,7 @@
+type: haystack.components.embedders.sentence_transformers_document_embedder.SentenceTransformersDocumentEmbedder
+init_parameters:
+  model: ${choices.embedding_model.checkpoint}
+  normalize_embeddings: ${choices.embedding_model.normalize_embeddings}
+  device: ${choices.embedding_model.device}
+  progress_bar: ${choices.embedding_model.progress_bar}
+  tokenizer_kwargs: ${choices.embedding_model.tokenizer_kwargs}
