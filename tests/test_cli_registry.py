@@ -11,9 +11,10 @@ def test_stage_registry_contains_default_stages() -> None:
 def test_usage_lists_default_stages() -> None:
     help_text = usage()
 
-    assert "Usage: rr" in help_text
-    assert "<stage>" in help_text
+    assert "Usage: stage" in help_text
+    assert "<stage-name>" in help_text
     assert "--dry-run" in help_text
+    assert "build-command" in help_text
     assert "indexing" in help_text
     assert "inference" in help_text
     assert "evaluation" in help_text

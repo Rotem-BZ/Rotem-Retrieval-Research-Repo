@@ -31,22 +31,30 @@ class JsonlEmbeddingRetriever:
         self,
         query_embedding: list[float],
         top_k: int | None = None,
+        candidate_document_ids: list[str] | None = None,
     ) -> dict[str, list[Document]]:
         limit = top_k or self.top_k
         index = self._load_index()
         if not index.documents or limit <= 0:
             return {"documents": []}
 
+        candidate_indices = _candidate_indices(index.documents, candidate_document_ids)
+        if not candidate_indices:
+            return {"documents": []}
+
         scores = _scores(
             query_embedding=query_embedding,
-            embeddings=index.embeddings,
-            embedding_norms=index.embedding_norms,
+            embeddings=index.embeddings[candidate_indices],
+            embedding_norms=index.embedding_norms[candidate_indices],
             similarity=self.similarity,
         )
         top_indices = _top_indices(scores, limit)
         return {
             "documents": [
-                _copy_with_score(index.documents[index_value], float(scores[index_value]))
+                _copy_with_score(
+                    index.documents[candidate_indices[index_value]],
+                    float(scores[index_value]),
+                )
                 for index_value in top_indices
             ]
         }
@@ -142,6 +150,26 @@ def _top_indices(scores: np.ndarray, limit: int) -> list[int]:
     else:
         candidate_indices = np.argpartition(scores, -limit)[-limit:]
     return sorted(candidate_indices.tolist(), key=lambda index: float(scores[index]), reverse=True)
+
+
+def _candidate_indices(
+    documents: list[Document],
+    candidate_document_ids: list[str] | None,
+) -> list[int]:
+    if candidate_document_ids is None:
+        return list(range(len(documents)))
+
+    allowed_ids = set(candidate_document_ids)
+    return [
+        index
+        for index, document in enumerate(documents)
+        if _candidate_document_id(document) in allowed_ids
+    ]
+
+
+def _candidate_document_id(document: Document) -> str | None:
+    meta = document.meta or {}
+    return meta.get("source_document_id") or document.id
 
 
 def _copy_with_score(document: Document, score: float) -> Document:

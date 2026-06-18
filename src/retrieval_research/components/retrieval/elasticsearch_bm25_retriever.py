@@ -34,11 +34,20 @@ class ElasticsearchBM25Retriever:
         self._client = client
 
     @component.output_types(documents=list[Document])
-    def run(self, query: str, top_k: int | None = None) -> dict[str, list[Document]]:
+    def run(
+        self,
+        query: str,
+        top_k: int | None = None,
+        candidate_document_ids: list[str] | None = None,
+    ) -> dict[str, list[Document]]:
         limit = top_k or self.top_k
         response = self._get_client().search(
             index=self.index_name,
-            query={"match": {self.content_field: query}},
+            query=_candidate_filtered_query(
+                match_query={"match": {self.content_field: query}},
+                candidate_document_ids=candidate_document_ids,
+                meta_field=self.meta_field,
+            ),
             size=limit,
         )
         return {
@@ -51,3 +60,35 @@ class ElasticsearchBM25Retriever:
         if self._client is None:
             self._client = create_client(self.hosts)
         return self._client
+
+
+def _candidate_filtered_query(
+    *,
+    match_query: dict[str, Any],
+    candidate_document_ids: list[str] | None,
+    meta_field: str,
+) -> dict[str, Any]:
+    if candidate_document_ids is None:
+        return match_query
+
+    return {
+        "bool": {
+            "must": [match_query],
+            "filter": [
+                {
+                    "bool": {
+                        "should": [
+                            {"ids": {"values": candidate_document_ids}},
+                            {"terms": {f"{meta_field}.source_document_id": candidate_document_ids}},
+                            {
+                                "terms": {
+                                    f"{meta_field}.source_document_id.keyword": candidate_document_ids
+                                }
+                            },
+                        ],
+                        "minimum_should_match": 1,
+                    }
+                }
+            ],
+        }
+    }

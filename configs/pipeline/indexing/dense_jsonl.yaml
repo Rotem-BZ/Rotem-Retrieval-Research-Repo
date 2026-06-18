@@ -1,5 +1,5 @@
 defaults:
-  - /choices/embedding_model@_global_.choices.embedding_model: ???
+  - /selections/embedding_model@_global_.selections.embedding_model: ???
   - /component/document_source@components.document_source: jsonl
   - /component/document_preprocessor@components.document_prefixer: prefix_cleanup
   - /component/document_embedder@components.embedder: sentence_transformers

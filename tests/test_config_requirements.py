@@ -34,11 +34,22 @@ def test_explicit_stage_selections_compose() -> None:
         "inference",
         ["dataset=toy", "pipeline/inference@pipeline=dummy_keyword"],
     )
+    dev_mapping_cfg = compose_stage_config(
+        "inference",
+        [
+            "dataset=toy",
+            "input_mapping=dev_tiny",
+            "pipeline/inference@pipeline=dummy_keyword",
+        ],
+    )
     evaluation_cfg = compose_stage_config("evaluation", ["dataset=toy"])
 
     assert indexing_cfg.dataset.name == "toy"
     assert "indexer" in indexing_cfg.pipeline.components
     assert inference_cfg.dataset.name == "toy"
+    assert inference_cfg.input_mapping.type == "full_dataset"
     assert "retriever" in inference_cfg.pipeline.components
+    assert dev_mapping_cfg.input_mapping.type == "generated"
+    assert dev_mapping_cfg.input_mapping.name == "dev_tiny"
     assert evaluation_cfg.dataset.name == "toy"
     assert evaluation_cfg.dataset.qrels_path.endswith("data/processed/toy/qrels.jsonl")

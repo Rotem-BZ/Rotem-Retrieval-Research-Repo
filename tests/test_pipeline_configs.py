@@ -14,8 +14,11 @@ def test_rrf_fusion_pipeline_config_loads_with_dynamic_weight_socket() -> None:
     )
 
     pipeline = load_async_pipeline(cfg.pipeline)
+    pipeline_config = to_container(cfg.pipeline)
 
     assert "fusion" in pipeline.graph.nodes
+    assert pipeline_config["components"]["fusion"]["init_parameters"]["rrf_k"] == 60
+    assert "rrf_k" not in cfg.retrieval
 
 
 def test_abstract_dense_e5_indexing_config_keeps_pipeline_haystack_shaped() -> None:
@@ -24,7 +27,7 @@ def test_abstract_dense_e5_indexing_config_keeps_pipeline_haystack_shaped() -> N
         [
             "dataset=toy",
             "pipeline/indexing@pipeline=dense_jsonl",
-            "choices/embedding_model=e5/small_v2",
+            "selections/embedding_model=e5/small_v2",
         ],
     )
 
@@ -37,7 +40,7 @@ def test_abstract_dense_e5_indexing_config_keeps_pipeline_haystack_shaped() -> N
         "max_runs_per_component",
         "metadata",
     }
-    assert cfg.choices.embedding_model.checkpoint == "intfloat/e5-small-v2"
+    assert cfg.selections.embedding_model.checkpoint == "intfloat/e5-small-v2"
     assert pipeline_config["components"]["document_prefixer"]["init_parameters"]["prefix"] == "passage: "
     assert pipeline_config["components"]["embedder"]["init_parameters"]["model"] == "intfloat/e5-small-v2"
     assert "embedder" in pipeline.graph.nodes
@@ -49,7 +52,7 @@ def test_abstract_chunked_e5_configs_use_chunked_index_artifact() -> None:
         [
             "dataset=toy",
             "pipeline/indexing@pipeline=dense_chunked_jsonl",
-            "choices/embedding_model=e5/small_v2",
+            "selections/embedding_model=e5/small_v2",
         ],
     )
     inference_cfg = compose_stage_config(
@@ -57,7 +60,7 @@ def test_abstract_chunked_e5_configs_use_chunked_index_artifact() -> None:
         [
             "dataset=toy",
             "pipeline/inference@pipeline=dense_chunked_jsonl",
-            "choices/embedding_model=e5/small_v2",
+            "selections/embedding_model=e5/small_v2",
         ],
     )
 
@@ -79,7 +82,7 @@ def test_abstract_dense_e5_inference_config_prefixes_queries() -> None:
         [
             "dataset=toy",
             "pipeline/inference@pipeline=dense_jsonl",
-            "choices/embedding_model=e5/small_v2",
+            "selections/embedding_model=e5/small_v2",
         ],
     )
 

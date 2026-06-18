@@ -18,10 +18,15 @@ class JsonlKeywordRetriever:
         self.top_k = top_k
 
     @component.output_types(documents=list[Document])
-    def run(self, query: str, top_k: int | None = None) -> dict[str, list[Document]]:
+    def run(
+        self,
+        query: str,
+        top_k: int | None = None,
+        candidate_document_ids: list[str] | None = None,
+    ) -> dict[str, list[Document]]:
         limit = top_k or self.top_k
         query_tokens = tokens(query)
-        documents = self._load_documents()
+        documents = _filter_candidates(self._load_documents(), candidate_document_ids)
 
         scored: list[Document] = []
         for document in documents:
@@ -47,3 +52,23 @@ class JsonlKeywordRetriever:
             )
 
         return read_jsonl_documents(path)
+
+
+def _filter_candidates(
+    documents: list[Document],
+    candidate_document_ids: list[str] | None,
+) -> list[Document]:
+    if candidate_document_ids is None:
+        return documents
+
+    allowed_ids = set(candidate_document_ids)
+    return [
+        document
+        for document in documents
+        if _candidate_document_id(document) in allowed_ids
+    ]
+
+
+def _candidate_document_id(document: Document) -> str | None:
+    meta = document.meta or {}
+    return meta.get("source_document_id") or document.id

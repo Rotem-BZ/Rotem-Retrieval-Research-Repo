@@ -4,7 +4,7 @@ components:
     init_parameters:
       weights: ???
       top_k: ${retrieval.top_k}
-      rrf_k: ${retrieval.rrf_k}
+      rrf_k: 60
 
 connections: []
 max_runs_per_component: 100

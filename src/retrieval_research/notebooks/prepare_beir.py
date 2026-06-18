@@ -146,13 +146,11 @@ def process_beir_dataset(
     documents_path = write_jsonl(processed_dir / "documents.jsonl", documents)
     queries_path = write_jsonl(processed_dir / "queries.jsonl", queries)
     qrels_path = write_jsonl(processed_dir / "qrels.jsonl", qrels)
-    input_mapping_path = write_json(processed_dir / "input_mapping.json", {})
 
     return {
         "documents_path": str(documents_path),
         "queries_path": str(queries_path),
         "qrels_path": str(qrels_path),
-        "input_mapping_path": str(input_mapping_path),
         "document_count": len(documents),
         "query_count": len(queries),
         "qrel_count": len(qrels),
@@ -297,14 +295,6 @@ def write_jsonl(path: Path, records: Iterable[dict[str, Any]]) -> Path:
     with path.open("w", encoding="utf-8") as handle:
         for record in records:
             handle.write(json.dumps(record, ensure_ascii=False) + "\n")
-    return path
-
-
-def write_json(path: Path, payload: Any) -> Path:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as handle:
-        json.dump(payload, handle, indent=2, ensure_ascii=False)
-        handle.write("\n")
     return path
 
 

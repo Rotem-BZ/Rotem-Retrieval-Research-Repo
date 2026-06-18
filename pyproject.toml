@@ -37,7 +37,8 @@ torch-cu126 = [
 ]
 
 [project.scripts]
-rr = "retrieval_research.cli:main"
+stage = "retrieval_research.cli:main"
+build-command = "retrieval_research.command_builder:main"
 
 [tool.uv]
 package = true

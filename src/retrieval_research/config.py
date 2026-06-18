@@ -19,7 +19,7 @@ def compose_stage_config(config_name: str, overrides: Sequence[str] | None = Non
     with initialize_config_dir(
         version_base="1.3",
         config_dir=str(_find_config_dir()),
-        job_name=f"rr-{config_name}",
+        job_name=f"stage-{config_name}",
     ):
         return compose(config_name=config_name, overrides=list(overrides or []))
 

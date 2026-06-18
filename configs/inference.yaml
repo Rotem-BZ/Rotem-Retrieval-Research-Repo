@@ -1,6 +1,7 @@
 defaults:
   - paths: local
   - dataset: ???
+  - input_mapping: full
   - pipeline/inference@pipeline: ???
   - _self_
 
@@ -12,13 +13,16 @@ stage:
 
 retrieval:
   top_k: 5
-  rrf_k: 60
 
 pipeline_run:
   inputs: {}
   query_input:
     component: retriever
     parameter: query
+  candidate_id_input:
+    component: retriever
+    parameter: candidate_document_ids
+  candidate_document_inputs: []
   documents_output:
     component: retriever
     field: documents

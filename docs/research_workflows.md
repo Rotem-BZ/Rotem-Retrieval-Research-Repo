@@ -28,7 +28,9 @@ pieces are native Haystack components versus repo-specific adapters.
 
 Inside `src/retrieval_research/`, the main modules are:
 
-- `cli.py` dispatches `rr <stage>` commands to stage runners.
+- `cli.py` dispatches `stage <stage-name>` commands to stage runners.
+- `command_builder.py` powers `build-command`, an interactive command builder
+  for Hydra selections.
 - `config.py` composes Hydra configs from the repository-level `configs/`
   directory.
 - `components/` contains Haystack components that can later be shared with
@@ -96,7 +98,7 @@ metadata: {}
 The command line then supplies the model choices separately from the topology:
 
 ```bash
-uv run rr inference \
+uv run stage inference \
   dataset=toy \
   pipeline/inference@pipeline=rrf_fusion \
   component/biencoder@component.biencoder=sentence_transformers \
@@ -107,17 +109,17 @@ This keeps written configs reusable: pipeline configs describe how components
 are wired, component configs describe concrete implementations, and experiment
 presets describe named combinations that are worth saving.
 
-### Semantic Choices
+### Semantic Selections
 
 Some selections are not themselves Haystack components, but they still define
 the meaning of a pipeline. An embedding model is a good example: it determines
 the checkpoint, query prefix, document prefix, normalization behavior, and
 similarity function used by several components at once.
 
-These selections live under the root `choices` namespace:
+These selections live under the root `selections` namespace:
 
 ```yaml
-choices:
+selections:
   embedding_model:
     name: e5_small_v2
     artifact_name: e5_small_v2
@@ -131,13 +133,13 @@ choices:
 The `pipeline` field in the final resolved config should remain exact Haystack
 pipeline syntax. It should contain `components`, `connections`,
 `max_runs_per_component`, and `metadata`, but not helper objects such as
-`embedding_model`. Pipeline topology configs can still require semantic choices
-by composing them into the root `choices` namespace:
+`embedding_model`. Pipeline topology configs can still require semantic
+selections by composing them into the root `selections` namespace:
 
 ```yaml
 # configs/pipeline/indexing/dense_jsonl.yaml
 defaults:
-  - /choices/embedding_model@_global_.choices.embedding_model: ???
+  - /selections/embedding_model@_global_.selections.embedding_model: ???
   - /component/document_preprocessor@components.document_prefixer: prefix_cleanup
   - /component/document_embedder@components.embedder: sentence_transformers
   - /component/indexer@components.indexer: jsonl_embeddings
@@ -145,23 +147,23 @@ defaults:
 ```
 
 Because the pipeline config is mounted at `pipeline`, component defaults mounted
-at `components.*` land inside `pipeline.components.*`. The semantic model choice
-lands at root under `choices.embedding_model`, where any component can reference
-it:
+at `components.*` land inside `pipeline.components.*`. The semantic model
+selection lands at root under `selections.embedding_model`, where any component
+can reference it:
 
 ```yaml
 # configs/component/document_embedder/sentence_transformers.yaml
 type: haystack.components.embedders.sentence_transformers_document_embedder.SentenceTransformersDocumentEmbedder
 init_parameters:
-  model: ${choices.embedding_model.checkpoint}
-  normalize_embeddings: ${choices.embedding_model.normalize_embeddings}
+  model: ${selections.embedding_model.checkpoint}
+  normalize_embeddings: ${selections.embedding_model.normalize_embeddings}
 ```
 
 The same config group can be mounted more than once for future multi-model
 topologies. Prefer role names over numbered names:
 
 ```yaml
-choices:
+selections:
   candidate_embedding_model: ...
   rerank_embedding_model: ...
 ```
@@ -210,7 +212,7 @@ init_parameters:
 The command line can then compose the pieces:
 
 ```bash
-uv run rr inference \
+uv run stage inference \
   dataset=toy \
   pipeline/inference@pipeline=biencoder \
   component/query_preprocessor=lowercase \
@@ -232,7 +234,7 @@ defaults:
 Then launch the preset with:
 
 ```bash
-uv run rr inference experiment/inference=toy_e5_lowercase
+uv run stage inference experiment/inference=toy_e5_lowercase
 ```
 
 As a rule of thumb, use command-line overrides for small parameter changes, use
@@ -250,7 +252,13 @@ uv sync --extra dev
 For day-to-day execution, run the stage entry points through uv:
 
 ```bash
-uv run rr indexing dataset=toy pipeline/indexing@pipeline=dummy_jsonl
+uv run stage indexing dataset=toy pipeline/indexing@pipeline=dummy_jsonl
+```
+
+To build and validate a command interactively without running an experiment:
+
+```bash
+uv run build-command
 ```
 
 ## Configuration Layout
@@ -265,7 +273,10 @@ Config groups provide reusable prefills:
 
 - `configs/dataset/` contains dataset names and file paths.
 - `configs/paths/` contains artifact layout choices.
-- `configs/choices/` contains semantic experiment choices such as embedding
+- `configs/input_mapping/` contains reusable inference candidate-set recipes.
+  The default `input_mapping=full` is virtual and uses all dataset queries and
+  documents without writing a giant JSON file.
+- `configs/selections/` contains semantic experiment selections such as embedding
   model families and checkpoints.
 - `configs/component/` contains reusable Haystack component fragments.
 - `configs/pipeline/indexing/` contains Haystack indexing pipelines.
@@ -277,7 +288,6 @@ dataset is in:
 - `data/processed/toy/documents.jsonl`
 - `data/processed/toy/queries.jsonl`
 - `data/processed/toy/qrels.jsonl`
-- `data/processed/toy/input_mapping.json`
 
 BEIR datasets are prepared with the Python notebook script at
 `src/retrieval_research/notebooks/prepare_beir.py`. It downloads raw archives to
@@ -289,49 +299,99 @@ under the `pipeline` field. The Python runner resolves Hydra interpolation,
 serializes that field to YAML, loads it with Haystack, and executes it as an
 `AsyncPipeline`.
 
+### Input Mappings
+
+Inference always resolves an input mapping. By default, `input_mapping=full`
+uses every query and every document in the selected dataset without storing a
+large file of all ids. Generated mappings are selected as reusable recipes at
+the root config level, then materialized for the selected dataset when inference
+first needs them:
+
+```bash
+uv run stage inference \
+  dataset=toy \
+  input_mapping=dev_tiny \
+  pipeline/inference@pipeline=dummy_keyword
+```
+
+Materialized mappings are plain JSON objects keyed by query id:
+
+```json
+{
+  "q-1": ["doc-1", "doc-7", "doc-9"]
+}
+```
+
+If a mapping includes only a subset of queries, inference runs only those
+queries. Candidate ids are passed into retrievers as filters, including dense
+JSONL retrievers; reranking-style pipelines can additionally receive materialized
+candidate `Document` objects through `pipeline_run.candidate_document_inputs`.
+
+Useful built-in recipes live under `configs/input_mapping/`:
+
+- `full`: virtual default; all queries against all documents, with no mapping JSON.
+- `judged_only`: all queries, but only documents with qrel annotations for each query.
+- `dev_tiny`: two-query development pool with easy negatives and cross-query positives.
+- `random_smoke`: two-query smoke-test pool with one random extra document per query.
+
+When inference sees `input_mapping=dev_tiny`, it writes the materialized mapping
+for the selected dataset if it does not already exist:
+
+```text
+data/processed/toy/input_mappings/dev_tiny.<recipe-hash>.json
+data/processed/toy/input_mappings/dev_tiny.<recipe-hash>.meta.json
+```
+
+The mapping JSON remains pure candidate data. The `.meta.json` sidecar records
+the generation seed, recipe hash, source paths, subset sizes, and candidate
+count summary.
+Generation always includes every document with any qrel annotation for each
+selected query. Gold-passage negatives are sampled from documents relevant to a
+different query while excluding every document annotated for the current query.
+
 ### Abstract E5 Dense Pipelines
 
 The concrete `pipeline/indexing@pipeline=e5_jsonl` and
 `pipeline/inference@pipeline=e5_jsonl` configs remain available as simple,
 fully written E5 examples. For more composable experiments, use the abstract
-dense topologies and select E5 through `choices/embedding_model`:
+dense topologies and select E5 through `selections/embedding_model`:
 
 ```powershell
-uv run rr indexing `
+uv run stage indexing `
   dataset=beir_scifact `
   pipeline/indexing@pipeline=dense_jsonl `
-  choices/embedding_model=e5/small_v2
+  selections/embedding_model=e5/small_v2
 ```
 
 ```powershell
-uv run rr inference `
+uv run stage inference `
   dataset=beir_scifact `
   pipeline/inference@pipeline=dense_jsonl `
-  choices/embedding_model=e5/small_v2 `
+  selections/embedding_model=e5/small_v2 `
   pipeline_run.query_input.component=query_preprocessor `
   pipeline_run.query_input.parameter=text `
   retrieval.top_k=100
 ```
 
 ```powershell
-uv run rr evaluation dataset=beir_scifact
+uv run stage evaluation dataset=beir_scifact
 ```
 
 To run the same model through the chunked topology, switch both pipeline
 selections:
 
 ```powershell
-uv run rr indexing `
+uv run stage indexing `
   dataset=beir_scifact `
   pipeline/indexing@pipeline=dense_chunked_jsonl `
-  choices/embedding_model=e5/small_v2
+  selections/embedding_model=e5/small_v2
 ```
 
 ```powershell
-uv run rr inference `
+uv run stage inference `
   dataset=beir_scifact `
   pipeline/inference@pipeline=dense_chunked_jsonl `
-  choices/embedding_model=e5/small_v2 `
+  selections/embedding_model=e5/small_v2 `
   pipeline_run.query_input.component=query_preprocessor `
   pipeline_run.query_input.parameter=text `
   retrieval.top_k=100
@@ -342,7 +402,7 @@ uv run rr inference `
 Run indexing first:
 
 ```bash
-uv run rr indexing dataset=toy pipeline/indexing@pipeline=dummy_jsonl
+uv run stage indexing dataset=toy pipeline/indexing@pipeline=dummy_jsonl
 ```
 
 The default dummy stage writes:
@@ -354,7 +414,7 @@ artifacts/indexes/toy.jsonl
 Run inference after indexing:
 
 ```bash
-uv run rr inference dataset=toy pipeline/inference@pipeline=dummy_keyword
+uv run stage inference dataset=toy pipeline/inference@pipeline=dummy_keyword
 ```
 
 The default inference stage reads the JSONL index and writes:
@@ -370,7 +430,7 @@ and metadata.
 Run evaluation after inference:
 
 ```bash
-uv run rr evaluation dataset=toy
+uv run stage evaluation dataset=toy
 ```
 
 The default evaluator writes:
@@ -391,9 +451,9 @@ small overrides on the command line.
 Examples:
 
 ```bash
-uv run rr indexing dataset=toy pipeline/indexing@pipeline=dummy_jsonl
-uv run rr inference dataset=toy pipeline/inference@pipeline=dummy_keyword retrieval.top_k=10
-uv run rr evaluation dataset=toy metrics='["Recall@10","MRR@10","NDCG@10","Precision@10","HitRate@10"]'
+uv run stage indexing dataset=toy pipeline/indexing@pipeline=dummy_jsonl
+uv run stage inference dataset=toy pipeline/inference@pipeline=dummy_keyword retrieval.top_k=10
+uv run stage evaluation dataset=toy metrics='["Recall@10","MRR@10","NDCG@10","Precision@10","HitRate@10"]'
 ```
 
 When new datasets are added, place processed records under
@@ -405,7 +465,6 @@ name: my_dataset
 documents_path: ${paths.processed_data_dir}/my_dataset/documents.jsonl
 queries_path: ${paths.processed_data_dir}/my_dataset/queries.jsonl
 qrels_path: ${paths.processed_data_dir}/my_dataset/qrels.jsonl
-input_mapping_path: null
 ```
 
 Document JSONL records should look like:
@@ -426,22 +485,12 @@ Qrels JSONL records should look like:
 {"query_id":"q-1","document_id":"doc-1","relevance":1}
 ```
 
-`input_mapping_path` is optional and can be `null`. When present, it should point
-to a JSON object that maps each query id to candidate document ids for workflows
-such as reranking:
-
-```json
-{
-  "q-1": ["doc-1", "doc-7", "doc-9"]
-}
-```
-
 Then run:
 
 ```bash
-uv run rr indexing dataset=my_dataset pipeline/indexing@pipeline=dummy_jsonl
-uv run rr inference dataset=my_dataset pipeline/inference@pipeline=dummy_keyword
-uv run rr evaluation dataset=my_dataset
+uv run stage indexing dataset=my_dataset pipeline/indexing@pipeline=dummy_jsonl
+uv run stage inference dataset=my_dataset pipeline/inference@pipeline=dummy_keyword
+uv run stage evaluation dataset=my_dataset
 ```
 
 ## Replacing Dummy Components
@@ -470,7 +519,7 @@ metadata: {}
 Save it under `configs/pipeline/indexing/my_pipeline.yaml` and select it with:
 
 ```bash
-uv run rr indexing dataset=my_dataset pipeline/indexing@pipeline=my_pipeline
+uv run stage indexing dataset=my_dataset pipeline/indexing@pipeline=my_pipeline
 ```
 
 Inference pipelines follow the same pattern under
@@ -509,3 +558,4 @@ runtime overrides.
 Evaluation is not implemented as a Haystack pipeline yet because metrics often
 need dataset-level aggregation. It is still a first-class stage and can be
 swapped for a richer evaluator once prediction schemas stabilize.
+

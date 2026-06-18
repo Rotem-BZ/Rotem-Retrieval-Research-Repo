@@ -11,9 +11,16 @@ Install and run with uv:
 
 ```bash
 uv sync --extra dev
-uv run rr indexing dataset=toy pipeline/indexing@pipeline=dummy_jsonl
-uv run rr inference dataset=toy pipeline/inference@pipeline=dummy_keyword
-uv run rr evaluation dataset=toy
+uv run stage indexing dataset=toy pipeline/indexing@pipeline=dummy_jsonl
+uv run stage inference dataset=toy pipeline/inference@pipeline=dummy_keyword
+uv run stage evaluation dataset=toy
+```
+
+Use the interactive command builder when you want help assembling Hydra choices:
+
+```bash
+uv run build-command
 ```
 
 See [docs/research_workflows.md](docs/research_workflows.md) for the workflow.
+

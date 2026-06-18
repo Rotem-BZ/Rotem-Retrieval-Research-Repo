@@ -1,5 +1,5 @@
 type: retrieval_research.components.preprocessing.text_preprocessor.TextPreprocessor
 init_parameters:
-  prefix: ${choices.embedding_model.query_prefix}
+  prefix: ${selections.embedding_model.query_prefix}
   replace_regexes:
     "\\s+": " "

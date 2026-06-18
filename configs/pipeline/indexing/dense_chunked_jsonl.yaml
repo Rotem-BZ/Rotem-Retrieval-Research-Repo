@@ -1,5 +1,5 @@
 defaults:
-  - /choices/embedding_model@_global_.choices.embedding_model: ???
+  - /selections/embedding_model@_global_.selections.embedding_model: ???
   - /component/document_source@components.document_source: jsonl
   - /component/chunker@components.splitter: recursive_char
   - /component/document_preprocessor@components.document_prefixer: prefix_cleanup
@@ -10,7 +10,7 @@ defaults:
 components:
   indexer:
     init_parameters:
-      output_path: ${paths.index_dir}/${dataset.name}_${choices.embedding_model.artifact_name}_chunked.jsonl
+      output_path: ${paths.index_dir}/${dataset.name}_${selections.embedding_model.artifact_name}_chunked.jsonl
 
 connections:
   - sender: document_source.documents

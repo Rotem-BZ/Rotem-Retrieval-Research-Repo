@@ -2,4 +2,3 @@ name: beir_scifact_smoke
 documents_path: ${paths.processed_data_dir}/beir/scifact_smoke/documents.jsonl
 queries_path: ${paths.processed_data_dir}/beir/scifact_smoke/queries.jsonl
 qrels_path: ${paths.processed_data_dir}/beir/scifact_smoke/qrels.jsonl
-input_mapping_path: ${paths.processed_data_dir}/beir/scifact_smoke/input_mapping.json

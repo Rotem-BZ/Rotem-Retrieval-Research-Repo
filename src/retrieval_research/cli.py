@@ -49,14 +49,15 @@ def run_stage(
 def usage() -> str:
     stages = "|".join(sorted(STAGE_RUNNERS))
     return (
-        "Usage: rr [--dry-run] <stage> [hydra overrides]\n"
+        "Usage: stage [--dry-run] <stage-name> [hydra overrides]\n"
         f"Stages: {stages}\n"
+        "Use `build-command` to build and validate a command interactively.\n"
         "--dry-run redirects artifact paths to a temporary directory and skips stage output writes.\n"
         "Examples:\n"
-        "  rr indexing dataset=toy pipeline/indexing@pipeline=dummy_jsonl\n"
-        "  rr --dry-run inference dataset=toy pipeline/inference@pipeline=dummy_keyword\n"
-        "  rr inference dataset=toy pipeline/inference@pipeline=dummy_keyword retrieval.top_k=10\n"
-        "  rr evaluation dataset=toy"
+        "  stage indexing dataset=toy pipeline/indexing@pipeline=dummy_jsonl\n"
+        "  stage --dry-run inference dataset=toy pipeline/inference@pipeline=dummy_keyword\n"
+        "  stage inference dataset=toy pipeline/inference@pipeline=dummy_keyword retrieval.top_k=10\n"
+        "  stage evaluation dataset=toy"
     )
 
 
@@ -114,7 +115,7 @@ def _dry_run_artifact_context(cfg: DictConfig, dry_run: bool):
         yield
         return
 
-    with TemporaryDirectory(prefix="rr-dry-run-") as temp_dir:
+    with TemporaryDirectory(prefix="stage-dry-run-") as temp_dir:
         with open_dict(cfg):
             cfg.stage.dry_run = True
             cfg.stage.dry_run_artifacts_dir = str(Path(temp_dir) / "artifacts")

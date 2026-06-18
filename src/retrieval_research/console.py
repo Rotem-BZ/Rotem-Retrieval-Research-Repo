@@ -42,11 +42,19 @@ def _summary_lines(cfg: DictConfig) -> list[str]:
     dataset = cfg.get("dataset")
     if dataset:
         lines.append(f"Dataset: {dataset.get('name', '<unnamed>')}")
-        for key in ("documents_path", "queries_path", "qrels_path", "input_mapping_path"):
+        for key in ("documents_path", "queries_path", "qrels_path"):
             value = dataset.get(key)
             if value:
                 lines.append(f"  {key}: {value}")
 
+    input_mapping = cfg.get("input_mapping")
+    if input_mapping:
+        mapping_type = input_mapping.get("type", "<unknown>")
+        lines.append(f"Input mapping: {mapping_type}")
+        for key in ("name", "path", "metadata_path"):
+            value = input_mapping.get(key)
+            if value:
+                lines.append(f"  {key}: {value}")
     stage = cfg.get("stage")
     if stage:
         for key in ("output_dir", "predictions_path", "metrics_path"):

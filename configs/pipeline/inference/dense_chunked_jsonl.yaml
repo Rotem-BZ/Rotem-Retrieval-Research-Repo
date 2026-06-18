@@ -1,5 +1,5 @@
 defaults:
-  - /choices/embedding_model@_global_.choices.embedding_model: ???
+  - /selections/embedding_model@_global_.selections.embedding_model: ???
   - /component/query_preprocessor@components.query_preprocessor: prefix_cleanup
   - /component/query_embedder@components.query_embedder: sentence_transformers
   - /component/retriever@components.retriever: jsonl_embeddings
@@ -8,7 +8,7 @@ defaults:
 components:
   retriever:
     init_parameters:
-      index_path: ${paths.index_dir}/${dataset.name}_${choices.embedding_model.artifact_name}_chunked.jsonl
+      index_path: ${paths.index_dir}/${dataset.name}_${selections.embedding_model.artifact_name}_chunked.jsonl
 
 connections:
   - sender: query_preprocessor.text
