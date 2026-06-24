@@ -1,12 +1,18 @@
 components:
+  input:
+    type: retrieval_research.components.interface.InferenceInput
+  output:
+    type: retrieval_research.components.interface.InferenceOutput
   fusion:
     type: retrieval_research.components.fusion.reciprocal_rank_fusion.ReciprocalRankFusion
     init_parameters:
       weights: ???
-      top_k: ${retrieval.top_k}
+      top_k: 5
       rrf_k: 60
 
-connections: []
+connections:
+  - sender: fusion.documents
+    receiver: output.documents
 max_runs_per_component: 100
 metadata:
   description: Abstract weighted RRF fusion topology. Add retrievers and connections with Hydra overrides.

@@ -1,0 +1,6 @@
+name: bge_reranker_v2_m3
+artifact_name: bge_reranker_v2_m3
+checkpoint: BAAI/bge-reranker-v2-m3
+scale_score: true
+tokenizer_kwargs:
+  model_max_length: 512

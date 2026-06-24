@@ -2,6 +2,7 @@ import pytest
 from hydra.errors import ConfigCompositionException
 
 from retrieval_research.config import compose_stage_config
+from retrieval_research.stages.base import prepare_stage_run_config
 
 
 def test_indexing_requires_dataset_and_pipeline_selection() -> None:
@@ -53,3 +54,23 @@ def test_explicit_stage_selections_compose() -> None:
     assert dev_mapping_cfg.input_mapping.name == "dev_tiny"
     assert evaluation_cfg.dataset.name == "toy"
     assert evaluation_cfg.dataset.qrels_path.endswith("data/processed/toy/qrels.jsonl")
+
+
+def test_named_inference_run_updates_derived_paths() -> None:
+    cfg = compose_stage_config(
+        "inference",
+        [
+            "dataset=toy",
+            "pipeline/inference@pipeline=dummy_keyword",
+            "stage.run_name=bge",
+        ],
+    )
+
+    original_run_id = str(cfg.stage.run_id)
+    prepare_stage_run_config(cfg)
+
+    assert cfg.stage.run_id == f"bge_{original_run_id}"
+    assert str(cfg.stage.output_dir).endswith(f"artifacts/runs/inference/bge_{original_run_id}")
+    assert str(cfg.stage.predictions_path).endswith(
+        f"artifacts/runs/inference/bge_{original_run_id}/predictions.json"
+    )

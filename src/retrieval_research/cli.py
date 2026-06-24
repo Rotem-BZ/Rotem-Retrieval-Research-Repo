@@ -15,6 +15,7 @@ from omegaconf import DictConfig, open_dict
 
 from retrieval_research.config import compose_stage_config
 from retrieval_research.console import print_stage_result, print_stage_start
+from retrieval_research.stages.base import prepare_stage_run_config
 from retrieval_research.stages import STAGE_RUNNERS, StageResult
 
 
@@ -56,7 +57,8 @@ def usage() -> str:
         "Examples:\n"
         "  stage indexing dataset=toy pipeline/indexing@pipeline=dummy_jsonl\n"
         "  stage --dry-run inference dataset=toy pipeline/inference@pipeline=dummy_keyword\n"
-        "  stage inference dataset=toy pipeline/inference@pipeline=dummy_keyword retrieval.top_k=10\n"
+        "  stage inference dataset=toy pipeline/inference@pipeline=dummy_keyword "
+        "pipeline.components.retriever.init_parameters.top_k=10\n"
         "  stage evaluation dataset=toy"
     )
 
@@ -76,6 +78,11 @@ def _run_stage_with_config(
     cfg = compose_stage_config(stage_name, overrides)
 
     with _dry_run_artifact_context(cfg, dry_run):
+        prepare_stage_run_config(cfg)
+        if stage_name == "evaluation":
+            from retrieval_research.stages.evaluation import prepare_evaluation_config
+
+            prepare_evaluation_config(cfg)
         print_stage_start(stage_name, cfg, overrides=overrides, dry_run=dry_run)
         result = runner(cfg)
 

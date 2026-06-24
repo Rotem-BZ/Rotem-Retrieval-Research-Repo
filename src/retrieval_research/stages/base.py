@@ -6,9 +6,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from omegaconf import DictConfig
+from omegaconf import DictConfig, open_dict
 
 from retrieval_research.io import config_to_yaml, ensure_dir, project_path, write_json, write_text
+
+RUN_NAME_FORBIDDEN_CHARS = {"/", "\\", ":", "*", "?", '"', "<", ">", "|"}
 
 
 @dataclass(frozen=True)
@@ -37,3 +39,38 @@ class StageContext:
 
 def is_dry_run(cfg: DictConfig) -> bool:
     return bool(cfg.stage.get("dry_run", False))
+
+
+def prepare_stage_run_config(cfg: DictConfig) -> None:
+    """Freeze the run id and apply optional user-friendly run naming."""
+
+    if "stage" not in cfg or "run_id" not in cfg.stage:
+        return
+
+    stage_name = str(cfg.stage.name)
+    run_id = named_run_id(cfg.stage.get("run_name"), str(cfg.stage.run_id))
+
+    with open_dict(cfg):
+        cfg.stage.run_id = run_id
+        if "paths" in cfg and "runs_dir" in cfg.paths:
+            cfg.stage.output_dir = f"{cfg.paths.runs_dir}/{stage_name}/{run_id}"
+        if "hydra" in cfg and "run" in cfg.hydra and "dir" in cfg.hydra.run and "paths" in cfg:
+            cfg.hydra.run.dir = f"{cfg.paths.runs_dir}/hydra/{stage_name}/{run_id}"
+        if stage_name == "inference":
+            cfg.stage.predictions_path = f"{cfg.stage.output_dir}/predictions.json"
+        if stage_name == "evaluation":
+            cfg.stage.metrics_path = f"{cfg.stage.output_dir}/metrics.json"
+
+
+def named_run_id(run_name: Any, timestamp_run_id: str) -> str:
+    if run_name is None:
+        return timestamp_run_id
+
+    normalized = str(run_name).strip()
+    if not normalized:
+        return timestamp_run_id
+    if any(char in normalized for char in RUN_NAME_FORBIDDEN_CHARS):
+        forbidden = "".join(sorted(RUN_NAME_FORBIDDEN_CHARS))
+        raise ValueError(f"stage.run_name must not contain path characters: {forbidden}")
+
+    return f"{normalized}_{timestamp_run_id}"

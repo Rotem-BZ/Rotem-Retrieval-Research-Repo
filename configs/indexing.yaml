@@ -6,13 +6,15 @@ defaults:
 
 stage:
   name: indexing
+  run_name: null
   run_id: ${now:%Y%m%d_%H%M%S}
   output_dir: ${paths.runs_dir}/${stage.name}/${stage.run_id}
 
-pipeline_run:
-  inputs: {}
-  include_outputs_from:
-    - indexer
+runtime:
+  progress_bar: true
+  device:
+    type: single
+    device: cuda
   concurrency_limit: 4
 
 hydra:

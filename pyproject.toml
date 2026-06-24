@@ -8,12 +8,29 @@ version = "0.1.0"
 description = "Hydra-driven Haystack research framework for information retrieval experiments."
 readme = "README.md"
 requires-python = ">=3.11"
+license = { file = "LICENSE" }
+authors = [
+  { name = "Rotem BZ" },
+]
+keywords = ["haystack", "hydra", "information-retrieval", "retrieval", "research"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 dependencies = [
+  "elasticsearch-haystack>=6,<7",
   "haystack-ai>=2.30,<3",
   "hydra-core>=1.3,<2",
+  "langchain-text-splitters>=0.3,<1",
   "numpy>=2,<3",
   "omegaconf>=2.3,<3",
   "pyyaml>=6.0,<7",
+  "sentence-transformers>=4.1,<5",
   "torchmetrics>=1.7,<2",
   "tqdm>=4.66,<5",
 ]
@@ -22,13 +39,6 @@ dependencies = [
 dev = [
   "pytest>=8.0,<9",
   "ruff>=0.8,<1",
-]
-elasticsearch = [
-  "elasticsearch-haystack>=6,<7",
-]
-e5 = [
-  "langchain-text-splitters>=0.3,<1",
-  "sentence-transformers>=3,<4",
 ]
 torch-cu126 = [
   "torch==2.11.0",

@@ -1,4 +1,6 @@
 components:
+  output:
+    type: retrieval_research.components.interface.IndexingOutput
   document_source:
     type: retrieval_research.components.jsonl_document_source.JsonlDocumentSource
     init_parameters:
@@ -14,10 +16,8 @@ components:
     init_parameters:
       model: intfloat/e5-small-v2
       normalize_embeddings: true
-      device:
-        type: single
-        device: cuda
-      progress_bar: true
+      device: ${runtime.device}
+      progress_bar: ${runtime.progress_bar}
   indexer:
     type: retrieval_research.components.jsonl_document_indexer.JsonlDocumentIndexer
     init_parameters:
@@ -31,6 +31,10 @@ connections:
     receiver: embedder.documents
   - sender: embedder.documents
     receiver: indexer.documents
+  - sender: indexer.index_path
+    receiver: output.index_path
+  - sender: indexer.indexed_count
+    receiver: output.indexed_count
 
 max_runs_per_component: 100
 metadata:

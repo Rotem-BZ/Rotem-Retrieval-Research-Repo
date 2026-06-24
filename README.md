@@ -1,19 +1,37 @@
 # Retrieval Research
 
-A small research framework for information retrieval experiments with Hydra-managed
-configuration and Haystack `AsyncPipeline` execution.
+![R4 logo](docs/assets/r4-logo.png)
 
-The initial scaffold is intentionally simple: it includes file-backed JSONL
-indexing, a toy keyword retriever, and recall/MRR evaluation so that the
-research workflow can be exercised before production-grade components are added.
+Hydra-managed information retrieval experiments built around Haystack
+`AsyncPipeline` execution.
 
-Install and run with uv:
+The repo provides reusable stage runners for indexing, inference, and
+evaluation; composable Hydra configs for datasets, pipelines, components, and
+model selections; and a checked-in toy dataset for smoke tests.
+
+## Quickstart
+
+Install dependencies with uv:
 
 ```bash
 uv sync --extra dev
-uv run stage indexing dataset=toy pipeline/indexing@pipeline=dummy_jsonl
-uv run stage inference dataset=toy pipeline/inference@pipeline=dummy_keyword
-uv run stage evaluation dataset=toy
+```
+
+Run the toy keyword workflow:
+
+```bash
+uv run stage indexing \
+  dataset=toy \
+  pipeline/indexing@pipeline=dummy_jsonl
+
+uv run stage inference \
+  dataset=toy \
+  pipeline/inference@pipeline=dummy_keyword \
+  stage.run_name=toy_keyword
+
+uv run stage evaluation \
+  dataset=toy \
+  stage.inference_run_name=toy_keyword
 ```
 
 Use the interactive command builder when you want help assembling Hydra choices:
@@ -22,5 +40,13 @@ Use the interactive command builder when you want help assembling Hydra choices:
 uv run build-command
 ```
 
-See [docs/research_workflows.md](docs/research_workflows.md) for the workflow.
+## Repository Layout
+
+- `configs/` contains Hydra entry points and reusable config groups.
+- `data/processed/toy/` contains the small checked-in toy fixture.
+- `docs/` contains workflow and component notes.
+- `src/retrieval_research/` contains the package code.
+- `tests/` contains regression tests for config composition, metrics, IO, and components.
+
+See [docs/research_workflows.md](docs/research_workflows.md) for the full workflow.
 

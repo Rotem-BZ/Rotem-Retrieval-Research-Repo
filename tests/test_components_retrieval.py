@@ -3,7 +3,9 @@ from pathlib import Path
 
 from haystack import Document
 
-from retrieval_research.components.dummy import JsonlDocumentIndexer, JsonlKeywordRetriever
+from retrieval_research.components.jsonl_document_indexer import JsonlDocumentIndexer
+from retrieval_research.components.jsonl_keyword_retriever import JsonlKeywordRetriever
+from retrieval_research.components.ranking import EmbeddingSimilarityRanker
 from retrieval_research.components.retrieval import (
     ElasticsearchBM25Retriever,
     ElasticsearchDocumentIndexer,
@@ -177,3 +179,18 @@ def test_jsonl_embedding_retriever_filters_chunks_by_source_document_id(tmp_path
     result = retriever.run(query_embedding=[0.9, 0.1], candidate_document_ids=["d2"])
 
     assert [document.id for document in result["documents"]] == ["d2::chunk-0"]
+
+
+def test_embedding_similarity_ranker_scores_embedded_documents() -> None:
+    ranker = EmbeddingSimilarityRanker(top_k=1, similarity="cosine")
+
+    result = ranker.run(
+        query_embedding=[0.9, 0.1],
+        documents=[
+            Document(id="near", content="near document", embedding=[1.0, 0.0]),
+            Document(id="far", content="far document", embedding=[0.0, 1.0]),
+        ],
+    )
+
+    assert [document.id for document in result["documents"]] == ["near"]
+    assert result["documents"][0].score > 0.9

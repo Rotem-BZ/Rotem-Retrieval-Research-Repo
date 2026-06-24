@@ -1,4 +1,6 @@
 components:
+  output:
+    type: retrieval_research.components.interface.IndexingOutput
   document_source:
     type: retrieval_research.components.jsonl_document_source.JsonlDocumentSource
     init_parameters:
@@ -12,6 +14,10 @@ components:
 connections:
   - sender: document_source.documents
     receiver: indexer.documents
+  - sender: indexer.index_path
+    receiver: output.index_path
+  - sender: indexer.indexed_count
+    receiver: output.indexed_count
 
 max_runs_per_component: 100
 metadata:

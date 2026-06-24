@@ -1,4 +1,11 @@
+defaults:
+  - _self_
+
 components:
+  input:
+    type: retrieval_research.components.interface.InferenceInput
+  output:
+    type: retrieval_research.components.interface.InferenceOutput
   query_preprocessor:
     type: retrieval_research.components.preprocessing.text_preprocessor.TextPreprocessor
     init_parameters:
@@ -10,19 +17,26 @@ components:
     init_parameters:
       model: intfloat/e5-small-v2
       normalize_embeddings: true
-      progress_bar: false
+      device: ${runtime.device}
+      progress_bar: ${runtime.progress_bar}
   retriever:
     type: retrieval_research.components.retrieval.jsonl_embedding_retriever.JsonlEmbeddingRetriever
     init_parameters:
       index_path: ${paths.index_dir}/${dataset.name}_e5.jsonl
-      top_k: ${retrieval.top_k}
+      top_k: 5
       similarity: cosine
 
 connections:
+  - sender: input.query
+    receiver: query_preprocessor.text
+  - sender: input.candidate_document_ids
+    receiver: retriever.candidate_document_ids
   - sender: query_preprocessor.text
     receiver: query_embedder.text
   - sender: query_embedder.embedding
     receiver: retriever.query_embedding
+  - sender: retriever.documents
+    receiver: output.documents
 
 max_runs_per_component: 100
 metadata:

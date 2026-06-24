@@ -45,5 +45,5 @@ def test_dry_run_redirects_index_artifacts(tmp_path: Path) -> None:
         dry_run=True,
     )
 
-    assert result["indexer"]["indexed_count"] == 4
+    assert result["output"]["indexed_count"] == 4
     assert not tmp_path.joinpath("artifacts").exists()

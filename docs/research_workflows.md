@@ -179,7 +179,7 @@ components:
     type: my_project.components.VectorRetriever
     init_parameters:
       index_path: ${paths.index_dir}/${dataset.name}.jsonl
-      top_k: ${retrieval.top_k}
+      top_k: 5
 
 connections:
   - sender: query_preprocessor.query
@@ -206,7 +206,7 @@ type: my_project.components.E5QueryEmbedder
 init_parameters:
   model: intfloat/e5-small-v2
   prefix: "query: "
-  device: cuda
+  device: ${runtime.device}
 ```
 
 The command line can then compose the pieces:
@@ -260,6 +260,11 @@ To build and validate a command interactively without running an experiment:
 ```bash
 uv run build-command
 ```
+
+After required Hydra choices are selected, the builder can review the selected
+config graph. From there you can switch default choices such as `input_mapping`,
+enter nested YAML configs such as selected embedding models, and render edited
+leaf fields as command-line overrides.
 
 ## Configuration Layout
 
@@ -323,9 +328,9 @@ Materialized mappings are plain JSON objects keyed by query id:
 ```
 
 If a mapping includes only a subset of queries, inference runs only those
-queries. Candidate ids are passed into retrievers as filters, including dense
-JSONL retrievers; reranking-style pipelines can additionally receive materialized
-candidate `Document` objects through `pipeline_run.candidate_document_inputs`.
+queries. Candidate ids and materialized candidate `Document` objects are passed
+to each inference pipeline through the fixed `input` interface component; each
+pipeline decides which internal components consume them.
 
 Useful built-in recipes live under `configs/input_mapping/`:
 
@@ -368,9 +373,7 @@ uv run stage inference `
   dataset=beir_scifact `
   pipeline/inference@pipeline=dense_jsonl `
   selections/embedding_model=e5/small_v2 `
-  pipeline_run.query_input.component=query_preprocessor `
-  pipeline_run.query_input.parameter=text `
-  retrieval.top_k=100
+  pipeline.components.retriever.init_parameters.top_k=100
 ```
 
 ```powershell
@@ -392,10 +395,55 @@ uv run stage inference `
   dataset=beir_scifact `
   pipeline/inference@pipeline=dense_chunked_jsonl `
   selections/embedding_model=e5/small_v2 `
-  pipeline_run.query_input.component=query_preprocessor `
-  pipeline_run.query_input.parameter=text `
-  retrieval.top_k=100
+  pipeline.components.retriever.init_parameters.top_k=100
 ```
+
+### Reranking Pipelines
+
+The inference stage always sends the raw query, candidate ids, and materialized
+candidate documents through the `input` component. That lets reranking pipelines
+reuse the same stage contract.
+
+To rerank a candidate pool with a bi-encoder, use the candidate reranker
+topology. This embeds `input.candidate_documents`, embeds the query, scores by
+embedding similarity, and writes ranked documents through `output`:
+
+```powershell
+uv run stage inference `
+  dataset=beir_scifact `
+  input_mapping=judged_only `
+  pipeline/inference@pipeline=dense_candidate_reranker `
+  selections/embedding_model=e5/small_v2 `
+  pipeline.components.ranker.init_parameters.top_k=10
+```
+
+For larger candidate pools, create or select an `input_mapping` that limits the
+documents per query before reranking. Without a mapping, `input_mapping=full`
+passes every dataset document as a candidate.
+
+To rerank the same candidate pool with a cross-encoder, select a reranker model
+such as BGE reranker v2 M3:
+
+```powershell
+uv run stage inference `
+  dataset=beir_scifact `
+  input_mapping=judged_only `
+  pipeline/inference@pipeline=cross_encoder_candidate_reranker `
+  selections/reranker_model=bge/v2_m3 `
+  stage.run_name=bge_v2_m3 `
+  pipeline.components.ranker.init_parameters.top_k=10
+```
+
+Evaluate a named inference run by passing the same prefix to evaluation:
+
+```powershell
+uv run stage evaluation `
+  dataset=beir_scifact `
+  stage.inference_run_name=bge_v2_m3
+```
+
+If more than one inference run starts with that prefix, evaluation fails and
+lists the matching run ids so you can provide a longer prefix.
 
 ## Stage Workflow
 
@@ -420,7 +468,7 @@ uv run stage inference dataset=toy pipeline/inference@pipeline=dummy_keyword
 The default inference stage reads the JSONL index and writes:
 
 ```text
-artifacts/predictions/toy.json
+artifacts/runs/inference/<run_id>/predictions.json
 ```
 
 Prediction artifacts are JSON objects keyed first by query id and then by
@@ -430,17 +478,27 @@ and metadata.
 Run evaluation after inference:
 
 ```bash
-uv run stage evaluation dataset=toy
+uv run stage evaluation dataset=toy stage.inference_run_name=<run_id-or-prefix>
 ```
 
 The default evaluator writes:
 
 ```text
-artifacts/metrics/toy.json
+artifacts/runs/evaluation/<run_id>/metrics.json
 ```
 
 Each stage also writes a run folder under `artifacts/runs/<stage>/<run_id>/`
 with the resolved config and a small result summary.
+
+Indexing and inference accept an optional `stage.run_name`. When present, the
+stage prepends it to the timestamp run id:
+
+```bash
+uv run stage inference dataset=toy pipeline/inference@pipeline=dummy_keyword stage.run_name=keyword_smoke
+```
+
+This creates a run id like `keyword_smoke_20260623_153000`. Evaluation resolves
+`stage.inference_run_name` as a prefix under `artifacts/runs/inference/`.
 
 ## Mixing Configs
 
@@ -452,7 +510,7 @@ Examples:
 
 ```bash
 uv run stage indexing dataset=toy pipeline/indexing@pipeline=dummy_jsonl
-uv run stage inference dataset=toy pipeline/inference@pipeline=dummy_keyword retrieval.top_k=10
+uv run stage inference dataset=toy pipeline/inference@pipeline=dummy_keyword pipeline.components.retriever.init_parameters.top_k=10
 uv run stage evaluation dataset=toy metrics='["Recall@10","MRR@10","NDCG@10","Precision@10","HitRate@10"]'
 ```
 
@@ -502,6 +560,8 @@ To add a new indexing pipeline, create a config like:
 
 ```yaml
 components:
+  output:
+    type: retrieval_research.components.interface.IndexingOutput
   converter:
     type: my_package.components.MyConverter
     init_parameters: {}
@@ -512,6 +572,10 @@ components:
 connections:
   - sender: converter.documents
     receiver: writer.documents
+  - sender: writer.index_path
+    receiver: output.index_path
+  - sender: writer.indexed_count
+    receiver: output.indexed_count
 max_runs_per_component: 100
 metadata: {}
 ```
@@ -523,24 +587,32 @@ uv run stage indexing dataset=my_dataset pipeline/indexing@pipeline=my_pipeline
 ```
 
 Inference pipelines follow the same pattern under
-`configs/pipeline/inference/`. The inference stage only assumes that one
-configured component receives the query text and one configured component output
-contains retrieved `Document` objects:
+`configs/pipeline/inference/`. The inference stage always sends query and
+candidate data to an `input` component and reads ranked `Document` objects from
+an `output` component. The pipeline graph owns all internal routing:
 
 ```yaml
-pipeline_run:
-  query_input:
-    component: retriever
-    parameter: query
-  documents_output:
-    component: retriever
-    field: documents
+components:
+  input:
+    type: retrieval_research.components.interface.InferenceInput
+  output:
+    type: retrieval_research.components.interface.InferenceOutput
+  retriever:
+    type: my_package.components.MyRetriever
+    init_parameters: {}
+connections:
+  - sender: input.query
+    receiver: retriever.query
+  - sender: input.candidate_document_ids
+    receiver: retriever.candidate_document_ids
+  - sender: retriever.documents
+    receiver: output.documents
 ```
 
 ## Parallel Execution
 
 The first scaffold uses Haystack `AsyncPipeline` for every pipeline invocation
-and passes `pipeline_run.concurrency_limit` into `run_async`. This gives each
+and passes `runtime.concurrency_limit` into `run_async`. This gives each
 pipeline run an explicit concurrency budget.
 
 For larger sweeps, use Hydra overrides and launchers. A future extension can add

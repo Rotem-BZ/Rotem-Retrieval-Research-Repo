@@ -1,0 +1,7 @@
+type: haystack.components.rankers.sentence_transformers_similarity.SentenceTransformersSimilarityRanker
+init_parameters:
+  model: ${selections.reranker_model.checkpoint}
+  device: ${runtime.device}
+  top_k: 10
+  scale_score: ${selections.reranker_model.scale_score}
+  tokenizer_kwargs: ${selections.reranker_model.tokenizer_kwargs}

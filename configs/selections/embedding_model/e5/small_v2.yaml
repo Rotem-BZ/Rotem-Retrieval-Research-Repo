@@ -7,7 +7,3 @@ normalize_embeddings: true
 similarity: cosine
 tokenizer_kwargs:
   model_max_length: 512
-device:
-  type: single
-  device: cuda
-progress_bar: false

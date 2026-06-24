@@ -6,6 +6,10 @@ defaults:
   - /component/indexer@components.indexer: jsonl_embeddings
   - _self_
 
+components:
+  output:
+    type: retrieval_research.components.interface.IndexingOutput
+
 connections:
   - sender: document_source.documents
     receiver: document_prefixer.documents
@@ -13,6 +17,10 @@ connections:
     receiver: embedder.documents
   - sender: embedder.documents
     receiver: indexer.documents
+  - sender: indexer.index_path
+    receiver: output.index_path
+  - sender: indexer.indexed_count
+    receiver: output.indexed_count
 
 max_runs_per_component: 100
 metadata:
