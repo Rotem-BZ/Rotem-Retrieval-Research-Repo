@@ -7,7 +7,7 @@ from pathlib import Path
 
 from haystack import Document, component
 
-from retrieval_research.components.dummy_utils import document_to_record
+from retrieval_research.utils.documents import document_to_record
 
 
 @component
@@ -31,3 +31,4 @@ class JsonlDocumentIndexer:
                 handle.write(json.dumps(document_to_record(document), ensure_ascii=False) + "\n")
 
         return {"index_path": str(path), "indexed_count": len(documents)}
+

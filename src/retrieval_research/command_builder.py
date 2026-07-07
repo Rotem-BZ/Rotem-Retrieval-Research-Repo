@@ -160,7 +160,7 @@ def run_configure(
         default=False,
     )
 
-    _prompt_common_overrides(
+    _prompt_configured_overrides(
         stage_name,
         override_items,
         input_fn=input_fn,
@@ -559,28 +559,54 @@ def _prompt_field_edits(
         _upsert_override(overrides, HydraOverride(compose=f"{field.path}={answer}"))
 
 
-def _prompt_common_overrides(
+def _prompt_configured_overrides(
     stage_name: str,
     overrides: list[HydraOverride],
     *,
     input_fn: InputFn,
     output_fn: OutputFn,
 ) -> None:
-    if stage_name == "evaluation":
-        metrics = list(_compose_for_prompt(stage_name, overrides).metrics)
-        default_text = ", ".join(str(metric) for metric in metrics)
-        answer = input_fn(f"metrics comma-separated [{default_text}]: ").strip()
-        if answer:
-            selected_metrics = [metric.strip() for metric in answer.split(",") if metric.strip()]
-            if not selected_metrics:
-                raise SystemExit("At least one metric is required when overriding metrics.")
-            metrics_json = json.dumps(selected_metrics, separators=(",", ":"))
-            overrides.append(
-                HydraOverride(
-                    compose=f"metrics={metrics_json}",
-                    command=f"metrics='{metrics_json}'",
-                )
-            )
+    cfg = _compose_for_prompt(stage_name, overrides)
+    prompt_configs = OmegaConf.select(
+        cfg,
+        "metadata.command_builder.prompt_overrides",
+        default=[],
+    )
+    prompt_items = _to_plain_value(prompt_configs)
+    if not isinstance(prompt_items, list):
+        return
+
+    for prompt_config in prompt_items:
+        if not isinstance(prompt_config, dict):
+            continue
+
+        path = str(prompt_config.get("path", "")).strip()
+        if not path:
+            continue
+
+        prompt_type = str(prompt_config.get("type", "value"))
+        prompt_text = str(prompt_config.get("prompt", f"{path}: ")).rstrip()
+        current_value = _get_config_value(cfg, path, default=None)
+        default_text = _format_prompt_default(current_value, prompt_type)
+        answer = input_fn(f"{prompt_text} [{default_text}]: ").strip()
+        if not answer:
+            if prompt_config.get("require_non_empty", False):
+                raise SystemExit(f"At least one value is required when overriding {path}.")
+            continue
+
+        if prompt_type == "comma_list":
+            selected_values = [item.strip() for item in answer.split(",") if item.strip()]
+            if prompt_config.get("require_non_empty", False) and not selected_values:
+                raise SystemExit(f"At least one value is required when overriding {path}.")
+
+            value_json = json.dumps(selected_values, separators=(",", ":"))
+            command = None
+            if prompt_config.get("command_quote") == "single":
+                command = f"{path}='{value_json}'"
+            overrides.append(HydraOverride(compose=f"{path}={value_json}", command=command))
+            continue
+
+        overrides.append(HydraOverride(compose=f"{path}={answer}"))
 
 
 def _prompt_free_form_overrides(
@@ -696,6 +722,13 @@ def _format_value(value: Any) -> str:
         return json.dumps(value, separators=(",", ":"))
     except TypeError:
         return str(value)
+
+
+def _format_prompt_default(value: Any, prompt_type: str) -> str:
+    value = _to_plain_value(value)
+    if prompt_type == "comma_list" and isinstance(value, list):
+        return ", ".join(str(item) for item in value)
+    return _format_value(value)
 
 
 def _choice_sort_key(group_dir: Path, path: Path) -> tuple[int, str]:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from haystack import component
 
-from retrieval_research.components.preprocessing.text_utils import apply_text_transforms
+from retrieval_research.utils.text import apply_text_transforms
 
 
 @component

@@ -5,9 +5,9 @@ defaults:
 
 components:
   input:
-    type: retrieval_research.components.interface.InferenceInput
+    type: retrieval_research.components.interfaces.stage_io.InferenceInput
   output:
-    type: retrieval_research.components.interface.InferenceOutput
+    type: retrieval_research.components.interfaces.stage_io.InferenceOutput
 
 connections:
   - sender: input.query

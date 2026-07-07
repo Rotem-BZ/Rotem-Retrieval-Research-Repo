@@ -3,6 +3,15 @@ defaults:
   - dataset: ???
   - _self_
 
+metadata:
+  command_builder:
+    prompt_overrides:
+      - path: metrics
+        prompt: "metrics comma-separated"
+        type: comma_list
+        command_quote: single
+        require_non_empty: true
+
 stage:
   name: evaluation
   run_name: null

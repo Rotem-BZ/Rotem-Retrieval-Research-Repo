@@ -6,7 +6,7 @@ from pathlib import Path
 
 from haystack import Document, component
 
-from retrieval_research.components.dummy_utils import read_jsonl_documents
+from retrieval_research.utils.documents import read_jsonl_documents
 
 
 @component
@@ -23,3 +23,4 @@ class JsonlDocumentSource:
             raise FileNotFoundError(f"Document dataset not found: {path}")
 
         return {"documents": read_jsonl_documents(path)}
+

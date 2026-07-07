@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from haystack import Document, component
 
-from retrieval_research.components.cascade.cascade_utils import rank
+from retrieval_research.utils.documents import sort_documents_by_score
 
 
 @component
@@ -17,4 +17,5 @@ class TopKDocuments:
 
     @component.output_types(documents=list[Document])
     def run(self, documents: list[Document]) -> dict[str, list[Document]]:
-        return {"documents": rank(documents, self.sort_by_score)[: self.top_k]}
+        ranked = sort_documents_by_score(documents) if self.sort_by_score else list(documents)
+        return {"documents": ranked[: self.top_k]}

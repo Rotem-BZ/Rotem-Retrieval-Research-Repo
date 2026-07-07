@@ -1,10 +1,8 @@
-"""Shared helpers for small JSONL-backed toy components."""
+"""Document conversion, scoring, and selection helpers."""
 
 from __future__ import annotations
 
 import json
-import re
-from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +17,7 @@ def document_from_record(record: dict[str, Any] | Document) -> Document:
         id=record.get("id"),
         content=record.get("content", ""),
         meta=dict(record.get("meta") or {}),
+        score=record.get("score"),
         embedding=record.get("embedding"),
     )
 
@@ -48,5 +47,40 @@ def read_jsonl_documents(path: str | Path) -> list[Document]:
     return documents
 
 
-def tokens(text: str) -> Counter[str]:
-    return Counter(re.findall(r"[a-z0-9]+", text.lower()))
+def copy_document_with_score(document: Document, score: float) -> Document:
+    return Document(
+        id=document.id,
+        content=document.content,
+        meta=dict(document.meta or {}),
+        score=score,
+        embedding=getattr(document, "embedding", None),
+    )
+
+
+def document_score(document: Document) -> float:
+    return float(document.score or 0.0)
+
+
+def sort_documents_by_score(documents: list[Document]) -> list[Document]:
+    return sorted(
+        documents,
+        key=lambda document: (document_score(document), document.id or ""),
+        reverse=True,
+    )
+
+
+def candidate_document_id(document: Document) -> str | None:
+    meta = document.meta or {}
+    return meta.get("source_document_id") or document.id
+
+
+def filter_documents_by_candidate_ids(
+    documents: list[Document],
+    candidate_document_ids: list[str] | None,
+) -> list[Document]:
+    if candidate_document_ids is None:
+        return documents
+
+    allowed_ids = set(candidate_document_ids)
+    return [document for document in documents if candidate_document_id(document) in allowed_ids]
+

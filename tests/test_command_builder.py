@@ -205,12 +205,17 @@ def test_render_command_preserves_hydra_override_syntax() -> None:
 
 
 def test_configure_flow_builds_indexing_dummy_command() -> None:
-    result = _run_with_answers(["2", "3", "3", "n", "n", ""])
+    result = _run_with_answers(["2", "3", "3", "n", "n", "toy_index", ""])
 
     assert result.command == (
-        "uv run stage indexing dataset=toy pipeline/indexing@pipeline=dummy_jsonl"
+        "uv run stage indexing dataset=toy pipeline/indexing@pipeline=dummy_jsonl "
+        "stage.run_name=toy_index"
     )
-    assert result.overrides == ("dataset=toy", "pipeline/indexing@pipeline=dummy_jsonl")
+    assert result.overrides == (
+        "dataset=toy",
+        "pipeline/indexing@pipeline=dummy_jsonl",
+        "stage.run_name=toy_index",
+    )
 
 
 def test_configure_flow_builds_inference_dense_command_with_top_k() -> None:
@@ -222,6 +227,7 @@ def test_configure_flow_builds_inference_dense_command_with_top_k() -> None:
             "3",
             "n",
             "n",
+            "toy_dense",
             "pipeline.components.retriever.init_parameters.top_k=100",
             "",
         ]
@@ -230,12 +236,14 @@ def test_configure_flow_builds_inference_dense_command_with_top_k() -> None:
     assert result.command == (
         "uv run stage inference dataset=toy pipeline/inference@pipeline=dense_jsonl "
         "selections/embedding_model=e5/small_v2 "
+        "stage.run_name=toy_dense "
         "pipeline.components.retriever.init_parameters.top_k=100"
     )
     assert result.overrides == (
         "dataset=toy",
         "pipeline/inference@pipeline=dense_jsonl",
         "selections/embedding_model=e5/small_v2",
+        "stage.run_name=toy_dense",
         "pipeline.components.retriever.init_parameters.top_k=100",
     )
 
@@ -254,22 +262,23 @@ def test_configure_flow_builds_evaluation_command_with_metrics() -> None:
 
 
 def test_dense_e5_wizard_output_composes() -> None:
-    result = _run_with_answers(["3", "3", "4", "3", "n", "n", ""])
+    result = _run_with_answers(["3", "3", "4", "3", "n", "n", "toy_dense", ""])
 
     validate_config(result.stage_name, result.overrides)
 
 
 def test_configure_flow_switches_default_input_mapping_choice() -> None:
-    result = _run_with_answers(["3", "3", "5", "y", "4", "2", "2", "6", "n", ""])
+    result = _run_with_answers(["3", "3", "5", "y", "4", "2", "2", "6", "n", "toy_keyword", ""])
 
     assert result.command == (
         "uv run stage inference dataset=toy pipeline/inference@pipeline=dummy_keyword "
-        "input_mapping=dev_tiny"
+        "input_mapping=dev_tiny stage.run_name=toy_keyword"
     )
     assert result.overrides == (
         "dataset=toy",
         "pipeline/inference@pipeline=dummy_keyword",
         "input_mapping=dev_tiny",
+        "stage.run_name=toy_keyword",
     )
 
 
@@ -286,6 +295,7 @@ def test_configure_flow_switches_nested_component_choice_with_mounted_override()
             "1",
             "10",
             "n",
+            "toy_dense",
             "",
         ]
     )
@@ -293,13 +303,15 @@ def test_configure_flow_switches_nested_component_choice_with_mounted_override()
     assert result.command == (
         "uv run stage inference dataset=toy pipeline/inference@pipeline=dense_jsonl "
         "selections/embedding_model=e5/small_v2 "
-        "component/query_preprocessor@pipeline.components.query_preprocessor=prefix_cleanup"
+        "component/query_preprocessor@pipeline.components.query_preprocessor=prefix_cleanup "
+        "stage.run_name=toy_dense"
     )
     assert result.overrides == (
         "dataset=toy",
         "pipeline/inference@pipeline=dense_jsonl",
         "selections/embedding_model=e5/small_v2",
         "component/query_preprocessor@pipeline.components.query_preprocessor=prefix_cleanup",
+        "stage.run_name=toy_dense",
     )
 
 
@@ -318,6 +330,7 @@ def test_configure_flow_edits_nested_selection_field() -> None:
             "9",
             "10",
             "n",
+            "toy_dense",
             "",
         ]
     )
@@ -325,13 +338,15 @@ def test_configure_flow_edits_nested_selection_field() -> None:
     assert result.command == (
         "uv run stage inference dataset=toy pipeline/inference@pipeline=dense_jsonl "
         "selections/embedding_model=e5/small_v2 "
-        "selections.embedding_model.tokenizer_kwargs.model_max_length=256"
+        "selections.embedding_model.tokenizer_kwargs.model_max_length=256 "
+        "stage.run_name=toy_dense"
     )
     assert result.overrides == (
         "dataset=toy",
         "pipeline/inference@pipeline=dense_jsonl",
         "selections/embedding_model=e5/small_v2",
         "selections.embedding_model.tokenizer_kwargs.model_max_length=256",
+        "stage.run_name=toy_dense",
     )
 
 
@@ -352,6 +367,7 @@ def test_configure_flow_shows_updated_value_after_field_edit() -> None:
             "9",
             "10",
             "n",
+            "toy_dense",
             "",
         ],
         include_output=True,
@@ -362,6 +378,7 @@ def test_configure_flow_shows_updated_value_after_field_edit() -> None:
         "pipeline/inference@pipeline=dense_jsonl",
         "selections/embedding_model=e5/small_v2",
         "selections.embedding_model.artifact_name=my_e5",
+        "stage.run_name=toy_dense",
     )
     assert any("selections.embedding_model.artifact_name = my_e5" in line for line in output)
 
@@ -379,6 +396,7 @@ def test_configure_flow_can_list_pipeline_fields_with_list_values() -> None:
             "5",
             "10",
             "n",
+            "toy_dense",
             "",
         ],
         include_output=True,
@@ -388,6 +406,7 @@ def test_configure_flow_can_list_pipeline_fields_with_list_values() -> None:
         "dataset=toy",
         "pipeline/inference@pipeline=dense_jsonl",
         "selections/embedding_model=e5/small_v2",
+        "stage.run_name=toy_dense",
     )
     assert any("pipeline.connections = " in line for line in output)
 

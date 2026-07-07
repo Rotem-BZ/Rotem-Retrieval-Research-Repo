@@ -6,7 +6,7 @@ from typing import Any
 
 from haystack import Document, component
 
-from retrieval_research.components.retrieval.elasticsearch_utils import (
+from retrieval_research.utils.elasticsearch import (
     create_client,
     hit_to_document,
     hits,
@@ -41,13 +41,40 @@ class ElasticsearchBM25Retriever:
         candidate_document_ids: list[str] | None = None,
     ) -> dict[str, list[Document]]:
         limit = top_k or self.top_k
+        search_query: dict[str, Any] = {"match": {self.content_field: query}}
+        if candidate_document_ids is not None:
+            search_query = {
+                "bool": {
+                    "must": [search_query],
+                    "filter": [
+                        {
+                            "bool": {
+                                "should": [
+                                    {"ids": {"values": candidate_document_ids}},
+                                    {
+                                        "terms": {
+                                            f"{self.meta_field}.source_document_id": (
+                                                candidate_document_ids
+                                            )
+                                        }
+                                    },
+                                    {
+                                        "terms": {
+                                            f"{self.meta_field}.source_document_id.keyword": (
+                                                candidate_document_ids
+                                            )
+                                        }
+                                    },
+                                ],
+                                "minimum_should_match": 1,
+                            }
+                        }
+                    ],
+                }
+            }
         response = self._get_client().search(
             index=self.index_name,
-            query=_candidate_filtered_query(
-                match_query={"match": {self.content_field: query}},
-                candidate_document_ids=candidate_document_ids,
-                meta_field=self.meta_field,
-            ),
+            query=search_query,
             size=limit,
         )
         return {
@@ -60,35 +87,3 @@ class ElasticsearchBM25Retriever:
         if self._client is None:
             self._client = create_client(self.hosts)
         return self._client
-
-
-def _candidate_filtered_query(
-    *,
-    match_query: dict[str, Any],
-    candidate_document_ids: list[str] | None,
-    meta_field: str,
-) -> dict[str, Any]:
-    if candidate_document_ids is None:
-        return match_query
-
-    return {
-        "bool": {
-            "must": [match_query],
-            "filter": [
-                {
-                    "bool": {
-                        "should": [
-                            {"ids": {"values": candidate_document_ids}},
-                            {"terms": {f"{meta_field}.source_document_id": candidate_document_ids}},
-                            {
-                                "terms": {
-                                    f"{meta_field}.source_document_id.keyword": candidate_document_ids
-                                }
-                            },
-                        ],
-                        "minimum_should_match": 1,
-                    }
-                }
-            ],
-        }
-    }

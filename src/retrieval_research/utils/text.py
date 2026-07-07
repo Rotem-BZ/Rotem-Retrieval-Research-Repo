@@ -1,4 +1,4 @@
-"""Shared text preprocessing helpers."""
+"""Text processing helpers."""
 
 from __future__ import annotations
 
@@ -22,3 +22,4 @@ def apply_text_transforms(
     if lowercase:
         transformed = transformed.lower()
     return f"{prefix}{transformed}{suffix}"
+

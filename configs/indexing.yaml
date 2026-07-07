@@ -4,9 +4,17 @@ defaults:
   - pipeline/indexing@pipeline: ???
   - _self_
 
+metadata:
+  command_builder:
+    prompt_overrides:
+      - path: stage.run_name
+        prompt: "indexing run name"
+        type: value
+        require_non_empty: true
+
 stage:
   name: indexing
-  run_name: null
+  run_name: ???
   run_id: ${now:%Y%m%d_%H%M%S}
   output_dir: ${paths.runs_dir}/${stage.name}/${stage.run_id}
 

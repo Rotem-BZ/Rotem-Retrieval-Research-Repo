@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from haystack import Document, component
 
-from retrieval_research.components.fusion.fusion_utils import copy_with_score, sort_and_limit
+from retrieval_research.utils.documents import copy_document_with_score, sort_documents_by_score
 
 
 @component
@@ -37,7 +37,10 @@ class ReciprocalRankFusion:
                 )
 
         fused = [
-            copy_with_score(document, fused_scores[document_id])
+            copy_document_with_score(document, fused_scores[document_id])
             for document_id, document in documents_by_id.items()
         ]
-        return {"documents": sort_and_limit(fused, self.top_k)}
+        ranked = sort_documents_by_score(fused)
+        if self.top_k is not None:
+            ranked = ranked[: self.top_k]
+        return {"documents": ranked}

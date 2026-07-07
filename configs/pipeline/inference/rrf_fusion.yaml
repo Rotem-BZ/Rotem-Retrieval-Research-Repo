@@ -1,8 +1,8 @@
 components:
   input:
-    type: retrieval_research.components.interface.InferenceInput
+    type: retrieval_research.components.interfaces.stage_io.InferenceInput
   output:
-    type: retrieval_research.components.interface.InferenceOutput
+    type: retrieval_research.components.interfaces.stage_io.InferenceOutput
   fusion:
     type: retrieval_research.components.fusion.reciprocal_rank_fusion.ReciprocalRankFusion
     init_parameters:

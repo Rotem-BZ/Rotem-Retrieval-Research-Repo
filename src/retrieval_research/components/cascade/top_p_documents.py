@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from haystack import Document, component
 
-from retrieval_research.components.cascade.cascade_utils import rank, score
+from retrieval_research.utils.documents import document_score, sort_documents_by_score
 
 
 @component
@@ -27,11 +27,11 @@ class TopPDocuments:
 
     @component.output_types(documents=list[Document])
     def run(self, documents: list[Document]) -> dict[str, list[Document]]:
-        ranked = rank(documents, self.sort_by_score)
+        ranked = sort_documents_by_score(documents) if self.sort_by_score else list(documents)
         if self.max_documents is not None:
             ranked = ranked[: self.max_documents]
 
-        positive_scores = [max(score(document), 0.0) for document in ranked]
+        positive_scores = [max(document_score(document), 0.0) for document in ranked]
         total = sum(positive_scores)
         if total <= 0:
             return {"documents": ranked[: self.min_documents]}

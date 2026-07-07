@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from haystack import Document, component
 
-from retrieval_research.components.fusion.fusion_utils import copy_with_score, sort_and_limit
+from retrieval_research.utils.documents import copy_document_with_score, sort_documents_by_score
 
 
 @component
@@ -43,20 +43,21 @@ class ScoreFusion:
                     continue
                 score = raw_score
                 if self.normalize_by_source:
-                    score = _min_max(raw_score, min_score, max_score)
+                    score = (
+                        1.0
+                        if max_score == min_score
+                        else (raw_score - min_score) / (max_score - min_score)
+                    )
                 documents_by_id.setdefault(document.id, document)
                 fused_scores[document.id] = fused_scores.get(document.id, 0.0) + (
                     float(weight) * score
                 )
 
         fused = [
-            copy_with_score(document, fused_scores[document_id])
+            copy_document_with_score(document, fused_scores[document_id])
             for document_id, document in documents_by_id.items()
         ]
-        return {"documents": sort_and_limit(fused, self.top_k)}
-
-
-def _min_max(value: float, min_value: float, max_value: float) -> float:
-    if max_value == min_value:
-        return 1.0
-    return (value - min_value) / (max_value - min_value)
+        ranked = sort_documents_by_score(fused)
+        if self.top_k is not None:
+            ranked = ranked[: self.top_k]
+        return {"documents": ranked}

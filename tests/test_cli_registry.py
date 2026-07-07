@@ -41,9 +41,12 @@ def test_dry_run_redirects_index_artifacts(tmp_path: Path) -> None:
             "dataset=toy",
             f'dataset.documents_path="{documents_path.as_posix()}"',
             "pipeline/indexing@pipeline=dummy_jsonl",
+            "stage.run_name=toy_index",
         ],
         dry_run=True,
     )
 
     assert result["output"]["indexed_count"] == 4
+    assert Path(result["output"]["index_path"]).name == "toy_index.jsonl"
+    assert Path(result["output"]["index_path"]).parent.name == "indexes"
     assert not tmp_path.joinpath("artifacts").exists()

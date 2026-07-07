@@ -11,7 +11,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
 
-from omegaconf import DictConfig, open_dict
+from omegaconf import DictConfig, OmegaConf, open_dict
 
 from retrieval_research.config import compose_stage_config
 from retrieval_research.console import print_stage_result, print_stage_start
@@ -34,7 +34,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     stage_name = args[0]
     overrides = args[1:]
     cfg, result = _run_stage_with_config(stage_name, overrides, dry_run=dry_run)
-    print_stage_result(stage_name, _summarize_result(stage_name, result, cfg))
+    print_stage_result(stage_name, _summarize_result(result, cfg))
 
 
 def run_stage(
@@ -55,11 +55,9 @@ def usage() -> str:
         "Use `build-command` to build and validate a command interactively.\n"
         "--dry-run redirects artifact paths to a temporary directory and skips stage output writes.\n"
         "Examples:\n"
-        "  stage indexing dataset=toy pipeline/indexing@pipeline=dummy_jsonl\n"
-        "  stage --dry-run inference dataset=toy pipeline/inference@pipeline=dummy_keyword\n"
-        "  stage inference dataset=toy pipeline/inference@pipeline=dummy_keyword "
-        "pipeline.components.retriever.init_parameters.top_k=10\n"
-        "  stage evaluation dataset=toy"
+        "  stage <stage-name> dataset=toy <required-config-group>=<choice>\n"
+        "  stage --dry-run <stage-name> dataset=toy <required-config-group>=<choice>\n"
+        "  stage <stage-name> dataset=toy some.nested.field=value"
     )
 
 
@@ -79,10 +77,6 @@ def _run_stage_with_config(
 
     with _dry_run_artifact_context(cfg, dry_run):
         prepare_stage_run_config(cfg)
-        if stage_name == "evaluation":
-            from retrieval_research.stages.evaluation import prepare_evaluation_config
-
-            prepare_evaluation_config(cfg)
         print_stage_start(stage_name, cfg, overrides=overrides, dry_run=dry_run)
         result = runner(cfg)
 
@@ -91,12 +85,16 @@ def _run_stage_with_config(
         return cfg, result
 
 
-def _summarize_result(stage_name: str, result: StageResult, cfg: DictConfig) -> Any:
-    if stage_name == "inference" and isinstance(result, list):
-        return {
-            "prediction_count": len(result),
-            "predictions_path": cfg.stage.predictions_path,
+def _summarize_result(result: StageResult, cfg: DictConfig) -> Any:
+    if isinstance(result, list):
+        stage = OmegaConf.to_container(cfg.stage, resolve=True)
+        path_fields = {
+            key: value
+            for key, value in (stage or {}).items()
+            if isinstance(key, str) and key.endswith("_path")
         }
+        count_key = "prediction_count" if "predictions_path" in path_fields else "result_count"
+        return {count_key: len(result), **path_fields}
     return result
 
 

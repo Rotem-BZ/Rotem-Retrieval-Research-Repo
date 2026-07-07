@@ -1,5 +1,7 @@
 import pytest
 from hydra.errors import ConfigCompositionException
+from omegaconf import OmegaConf
+from omegaconf.errors import InterpolationToMissingValueError, MissingMandatoryValue
 
 from retrieval_research.config import compose_stage_config
 from retrieval_research.stages.base import prepare_stage_run_config
@@ -29,11 +31,11 @@ def test_evaluation_requires_dataset_selection() -> None:
 def test_explicit_stage_selections_compose() -> None:
     indexing_cfg = compose_stage_config(
         "indexing",
-        ["dataset=toy", "pipeline/indexing@pipeline=dummy_jsonl"],
+        ["dataset=toy", "pipeline/indexing@pipeline=dummy_jsonl", "stage.run_name=toy_index"],
     )
     inference_cfg = compose_stage_config(
         "inference",
-        ["dataset=toy", "pipeline/inference@pipeline=dummy_keyword"],
+        ["dataset=toy", "pipeline/inference@pipeline=dummy_keyword", "stage.run_name=toy_index"],
     )
     dev_mapping_cfg = compose_stage_config(
         "inference",
@@ -41,6 +43,7 @@ def test_explicit_stage_selections_compose() -> None:
             "dataset=toy",
             "input_mapping=dev_tiny",
             "pipeline/inference@pipeline=dummy_keyword",
+            "stage.run_name=toy_index",
         ],
     )
     evaluation_cfg = compose_stage_config("evaluation", ["dataset=toy"])
@@ -56,7 +59,25 @@ def test_explicit_stage_selections_compose() -> None:
     assert evaluation_cfg.dataset.qrels_path.endswith("data/processed/toy/qrels.jsonl")
 
 
-def test_named_inference_run_updates_derived_paths() -> None:
+def test_indexing_and_inference_require_run_names() -> None:
+    indexing_cfg = compose_stage_config(
+        "indexing",
+        ["dataset=toy", "pipeline/indexing@pipeline=dummy_jsonl"],
+    )
+    inference_cfg = compose_stage_config(
+        "inference",
+        ["dataset=toy", "pipeline/inference@pipeline=dummy_keyword"],
+    )
+
+    missing_run_name_errors = (InterpolationToMissingValueError, MissingMandatoryValue)
+
+    with pytest.raises(missing_run_name_errors, match="stage.run_name"):
+        OmegaConf.to_container(indexing_cfg, resolve=True, throw_on_missing=True)
+    with pytest.raises(missing_run_name_errors, match="stage.run_name"):
+        OmegaConf.to_container(inference_cfg, resolve=True, throw_on_missing=True)
+
+
+def test_named_inference_run_updates_derived_paths_and_prediction_artifact() -> None:
     cfg = compose_stage_config(
         "inference",
         [
@@ -71,6 +92,4 @@ def test_named_inference_run_updates_derived_paths() -> None:
 
     assert cfg.stage.run_id == f"bge_{original_run_id}"
     assert str(cfg.stage.output_dir).endswith(f"artifacts/runs/inference/bge_{original_run_id}")
-    assert str(cfg.stage.predictions_path).endswith(
-        f"artifacts/runs/inference/bge_{original_run_id}/predictions.json"
-    )
+    assert str(cfg.stage.predictions_path).endswith("artifacts/predictions/bge.json")

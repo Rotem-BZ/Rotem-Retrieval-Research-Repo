@@ -56,10 +56,6 @@ def prepare_stage_run_config(cfg: DictConfig) -> None:
             cfg.stage.output_dir = f"{cfg.paths.runs_dir}/{stage_name}/{run_id}"
         if "hydra" in cfg and "run" in cfg.hydra and "dir" in cfg.hydra.run and "paths" in cfg:
             cfg.hydra.run.dir = f"{cfg.paths.runs_dir}/hydra/{stage_name}/{run_id}"
-        if stage_name == "inference":
-            cfg.stage.predictions_path = f"{cfg.stage.output_dir}/predictions.json"
-        if stage_name == "evaluation":
-            cfg.stage.metrics_path = f"{cfg.stage.output_dir}/metrics.json"
 
 
 def named_run_id(run_name: Any, timestamp_run_id: str) -> str:

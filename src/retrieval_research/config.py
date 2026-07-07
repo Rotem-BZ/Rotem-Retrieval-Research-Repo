@@ -29,7 +29,7 @@ def _find_config_dir() -> Path:
 
     for candidate in candidates:
         config_dir = candidate / "configs"
-        if config_dir.joinpath("indexing.yaml").is_file():
+        if config_dir.is_dir() and any(config_dir.glob("*.yaml")):
             return config_dir
 
     searched = ", ".join(str(candidate / "configs") for candidate in candidates)

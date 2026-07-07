@@ -8,7 +8,7 @@ defaults:
 
 components:
   output:
-    type: retrieval_research.components.interface.IndexingOutput
+    type: retrieval_research.components.interfaces.stage_io.IndexingOutput
 
 connections:
   - sender: document_source.documents

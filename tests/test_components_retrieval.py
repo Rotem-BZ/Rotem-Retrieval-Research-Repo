@@ -3,13 +3,15 @@ from pathlib import Path
 
 from haystack import Document
 
-from retrieval_research.components.jsonl_document_indexer import JsonlDocumentIndexer
-from retrieval_research.components.jsonl_keyword_retriever import JsonlKeywordRetriever
+from retrieval_research.components.indexing import (
+    ElasticsearchDocumentIndexer,
+    JsonlDocumentIndexer,
+)
 from retrieval_research.components.ranking import EmbeddingSimilarityRanker
 from retrieval_research.components.retrieval import (
     ElasticsearchBM25Retriever,
-    ElasticsearchDocumentIndexer,
     JsonlEmbeddingRetriever,
+    JsonlKeywordRetriever,
 )
 
 

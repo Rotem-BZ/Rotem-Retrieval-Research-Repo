@@ -40,7 +40,18 @@ class HttpQueryReformulator:
             timeout=self.timeout,
         )
         response.raise_for_status()
-        extracted = _extract_path(response.json(), self.response_path)
+        extracted = response.json()
+        for part in self.response_path.split("."):
+            if not part:
+                continue
+            if isinstance(extracted, dict):
+                extracted = extracted[part]
+            elif isinstance(extracted, list):
+                extracted = extracted[int(part)]
+            else:
+                raise TypeError(
+                    f"Cannot extract '{self.response_path}' from non-container response."
+                )
 
         if isinstance(extracted, list):
             queries = [str(item) for item in extracted]
@@ -48,17 +59,3 @@ class HttpQueryReformulator:
             queries = [str(extracted)]
 
         return {"query": queries[0] if queries else query, "queries": queries}
-
-
-def _extract_path(payload: Any, path: str) -> Any:
-    current = payload
-    for part in path.split("."):
-        if not part:
-            continue
-        if isinstance(current, dict):
-            current = current[part]
-        elif isinstance(current, list):
-            current = current[int(part)]
-        else:
-            raise TypeError(f"Cannot extract '{path}' from non-container response.")
-    return current

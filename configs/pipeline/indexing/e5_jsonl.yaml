@@ -1,8 +1,8 @@
 components:
   output:
-    type: retrieval_research.components.interface.IndexingOutput
+    type: retrieval_research.components.interfaces.stage_io.IndexingOutput
   document_source:
-    type: retrieval_research.components.jsonl_document_source.JsonlDocumentSource
+    type: retrieval_research.components.sources.jsonl_document_source.JsonlDocumentSource
     init_parameters:
       documents_path: ${dataset.documents_path}
   document_prefixer:
@@ -19,9 +19,9 @@ components:
       device: ${runtime.device}
       progress_bar: ${runtime.progress_bar}
   indexer:
-    type: retrieval_research.components.jsonl_document_indexer.JsonlDocumentIndexer
+    type: retrieval_research.components.indexing.jsonl_document_indexer.JsonlDocumentIndexer
     init_parameters:
-      output_path: ${paths.index_dir}/${dataset.name}_e5.jsonl
+      output_path: ${paths.index_dir}/${stage.run_name}.jsonl
       overwrite: true
 
 connections:

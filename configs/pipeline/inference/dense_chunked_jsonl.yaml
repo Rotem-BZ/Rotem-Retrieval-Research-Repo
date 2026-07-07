@@ -7,12 +7,12 @@ defaults:
 
 components:
   input:
-    type: retrieval_research.components.interface.InferenceInput
+    type: retrieval_research.components.interfaces.stage_io.InferenceInput
   output:
-    type: retrieval_research.components.interface.InferenceOutput
+    type: retrieval_research.components.interfaces.stage_io.InferenceOutput
   retriever:
     init_parameters:
-      index_path: ${paths.index_dir}/${dataset.name}_${selections.embedding_model.artifact_name}_chunked.jsonl
+      index_path: ${paths.index_dir}/${stage.run_name}.jsonl
 
 connections:
   - sender: input.query

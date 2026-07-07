@@ -1,12 +1,12 @@
 components:
   input:
-    type: retrieval_research.components.interface.InferenceInput
+    type: retrieval_research.components.interfaces.stage_io.InferenceInput
   output:
-    type: retrieval_research.components.interface.InferenceOutput
+    type: retrieval_research.components.interfaces.stage_io.InferenceOutput
   retriever:
-    type: retrieval_research.components.jsonl_keyword_retriever.JsonlKeywordRetriever
+    type: retrieval_research.components.retrieval.jsonl_keyword_retriever.JsonlKeywordRetriever
     init_parameters:
-      index_path: ${paths.index_dir}/${dataset.name}.jsonl
+      index_path: ${paths.index_dir}/${stage.run_name}.jsonl
       top_k: 5
 
 connections:

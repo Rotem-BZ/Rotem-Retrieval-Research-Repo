@@ -46,3 +46,4 @@ class IndexingOutput:
             "index_path": index_path,
             "indexed_count": indexed_count,
         }
+

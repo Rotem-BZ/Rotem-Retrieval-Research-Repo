@@ -5,10 +5,20 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 from haystack import Document, component
 import numpy as np
+
+from retrieval_research.utils.documents import (
+    candidate_document_id,
+    copy_document_with_score,
+    document_from_record,
+)
+from retrieval_research.utils.embeddings import (
+    embedding_matrix,
+    similarity_scores,
+    top_score_indices,
+)
 
 
 @component
@@ -38,20 +48,29 @@ class JsonlEmbeddingRetriever:
         if not index.documents or limit <= 0:
             return {"documents": []}
 
-        candidate_indices = _candidate_indices(index.documents, candidate_document_ids)
+        if candidate_document_ids is None:
+            candidate_indices = list(range(len(index.documents)))
+        else:
+            allowed_ids = set(candidate_document_ids)
+            candidate_indices = [
+                index
+                for index, document in enumerate(index.documents)
+                if candidate_document_id(document) in allowed_ids
+            ]
         if not candidate_indices:
             return {"documents": []}
 
-        scores = _scores(
+        scores = similarity_scores(
             query_embedding=query_embedding,
             embeddings=index.embeddings[candidate_indices],
             embedding_norms=index.embedding_norms[candidate_indices],
             similarity=self.similarity,
+            dimension_error_context="index embeddings",
         )
-        top_indices = _top_indices(scores, limit)
+        top_indices = top_score_indices(scores, limit)
         return {
             "documents": [
-                _copy_with_score(
+                copy_document_with_score(
                     index.documents[candidate_indices[index_value]],
                     float(scores[index_value]),
                 )
@@ -74,29 +93,19 @@ class JsonlEmbeddingRetriever:
         with path.open("r", encoding="utf-8") as handle:
             for line in handle:
                 if line.strip():
-                    document = _document_from_record(json.loads(line))
+                    document = document_from_record(json.loads(line))
                     embedding = getattr(document, "embedding", None)
                     if embedding is not None:
                         documents.append(document)
                         embeddings.append(list(embedding))
 
-        embedding_matrix = _embedding_matrix(embeddings)
+        matrix = embedding_matrix(embeddings)
         self._index = _EmbeddingIndex(
             documents=documents,
-            embeddings=embedding_matrix,
-            embedding_norms=np.linalg.norm(embedding_matrix, axis=1),
+            embeddings=matrix,
+            embedding_norms=np.linalg.norm(matrix, axis=1),
         )
         return self._index
-
-
-def _document_from_record(record: dict[str, Any]) -> Document:
-    return Document(
-        id=record.get("id"),
-        content=record.get("content", ""),
-        meta=dict(record.get("meta") or {}),
-        score=record.get("score"),
-        embedding=record.get("embedding"),
-    )
 
 
 @dataclass(frozen=True)
@@ -104,79 +113,3 @@ class _EmbeddingIndex:
     documents: list[Document]
     embeddings: np.ndarray
     embedding_norms: np.ndarray
-
-
-def _embedding_matrix(embeddings: list[list[float]]) -> np.ndarray:
-    if not embeddings:
-        return np.empty((0, 0), dtype=np.float32)
-    return np.asarray(embeddings, dtype=np.float32)
-
-
-def _scores(
-    *,
-    query_embedding: list[float],
-    embeddings: np.ndarray,
-    embedding_norms: np.ndarray,
-    similarity: str,
-) -> np.ndarray:
-    query = np.asarray(query_embedding, dtype=np.float32)
-    if embeddings.shape[1] != query.shape[0]:
-        raise ValueError(
-            "Embedding dimensions differ: "
-            f"query has {query.shape[0]} values, index has {embeddings.shape[1]}."
-        )
-
-    if similarity == "dot_product":
-        return embeddings @ query
-    if similarity == "cosine":
-        query_norm = np.linalg.norm(query)
-        if query_norm == 0:
-            return np.zeros(embeddings.shape[0], dtype=np.float32)
-        denominator = embedding_norms * query_norm
-        return np.divide(
-            embeddings @ query,
-            denominator,
-            out=np.zeros(embeddings.shape[0], dtype=np.float32),
-            where=denominator != 0,
-        )
-
-    raise ValueError(f"Unsupported similarity: {similarity}")
-
-
-def _top_indices(scores: np.ndarray, limit: int) -> list[int]:
-    limit = min(limit, scores.shape[0])
-    if limit == scores.shape[0]:
-        candidate_indices = np.arange(scores.shape[0])
-    else:
-        candidate_indices = np.argpartition(scores, -limit)[-limit:]
-    return sorted(candidate_indices.tolist(), key=lambda index: float(scores[index]), reverse=True)
-
-
-def _candidate_indices(
-    documents: list[Document],
-    candidate_document_ids: list[str] | None,
-) -> list[int]:
-    if candidate_document_ids is None:
-        return list(range(len(documents)))
-
-    allowed_ids = set(candidate_document_ids)
-    return [
-        index
-        for index, document in enumerate(documents)
-        if _candidate_document_id(document) in allowed_ids
-    ]
-
-
-def _candidate_document_id(document: Document) -> str | None:
-    meta = document.meta or {}
-    return meta.get("source_document_id") or document.id
-
-
-def _copy_with_score(document: Document, score: float) -> Document:
-    return Document(
-        id=document.id,
-        content=document.content,
-        meta=dict(document.meta or {}),
-        score=score,
-        embedding=getattr(document, "embedding", None),
-    )

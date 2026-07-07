@@ -14,8 +14,8 @@ from typing import Any
 from haystack import Document
 from omegaconf import DictConfig
 
-from retrieval_research.components.dummy_utils import document_from_record
 from retrieval_research.io import project_path, read_json, read_jsonl, write_json
+from retrieval_research.utils.documents import document_from_record
 
 GENERATION_KEYS = (
     "seed",

@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import re
+from collections import Counter
 from pathlib import Path
 
 from haystack import Document, component
 
-from retrieval_research.components.dummy_utils import read_jsonl_documents, tokens
+from retrieval_research.utils.documents import (
+    filter_documents_by_candidate_ids,
+    read_jsonl_documents,
+)
 
 
 @component
@@ -25,12 +30,15 @@ class JsonlKeywordRetriever:
         candidate_document_ids: list[str] | None = None,
     ) -> dict[str, list[Document]]:
         limit = top_k or self.top_k
-        query_tokens = tokens(query)
-        documents = _filter_candidates(self._load_documents(), candidate_document_ids)
+        query_tokens = Counter(re.findall(r"[a-z0-9]+", query.lower()))
+        documents = filter_documents_by_candidate_ids(
+            self._load_documents(),
+            candidate_document_ids,
+        )
 
         scored: list[Document] = []
         for document in documents:
-            document_tokens = tokens(document.content or "")
+            document_tokens = Counter(re.findall(r"[a-z0-9]+", (document.content or "").lower()))
             score = float(sum((query_tokens & document_tokens).values()))
             scored.append(
                 Document(
@@ -53,22 +61,3 @@ class JsonlKeywordRetriever:
 
         return read_jsonl_documents(path)
 
-
-def _filter_candidates(
-    documents: list[Document],
-    candidate_document_ids: list[str] | None,
-) -> list[Document]:
-    if candidate_document_ids is None:
-        return documents
-
-    allowed_ids = set(candidate_document_ids)
-    return [
-        document
-        for document in documents
-        if _candidate_document_id(document) in allowed_ids
-    ]
-
-
-def _candidate_document_id(document: Document) -> str | None:
-    meta = document.meta or {}
-    return meta.get("source_document_id") or document.id

@@ -6,7 +6,7 @@ from typing import Any
 
 from haystack import Document, component
 
-from retrieval_research.components.retrieval.elasticsearch_utils import (
+from retrieval_research.utils.elasticsearch import (
     create_client,
     document_to_source,
 )

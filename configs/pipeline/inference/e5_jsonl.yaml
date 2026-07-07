@@ -3,9 +3,9 @@ defaults:
 
 components:
   input:
-    type: retrieval_research.components.interface.InferenceInput
+    type: retrieval_research.components.interfaces.stage_io.InferenceInput
   output:
-    type: retrieval_research.components.interface.InferenceOutput
+    type: retrieval_research.components.interfaces.stage_io.InferenceOutput
   query_preprocessor:
     type: retrieval_research.components.preprocessing.text_preprocessor.TextPreprocessor
     init_parameters:
@@ -22,7 +22,7 @@ components:
   retriever:
     type: retrieval_research.components.retrieval.jsonl_embedding_retriever.JsonlEmbeddingRetriever
     init_parameters:
-      index_path: ${paths.index_dir}/${dataset.name}_e5.jsonl
+      index_path: ${paths.index_dir}/${stage.run_name}.jsonl
       top_k: 5
       similarity: cosine
 

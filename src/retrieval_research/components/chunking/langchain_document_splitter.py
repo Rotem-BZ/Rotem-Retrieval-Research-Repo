@@ -44,7 +44,11 @@ class LangChainDocumentSplitter:
                 )
                 chunks.append(
                     Document(
-                        id=_chunk_id(document.id, chunk_index),
+                        id=(
+                            None
+                            if document.id is None
+                            else f"{document.id}::chunk-{chunk_index}"
+                        ),
                         content=text,
                         meta=meta,
                         score=getattr(document, "score", None),
@@ -76,9 +80,3 @@ class LangChainDocumentSplitter:
         if hasattr(splitter, "create_documents"):
             return [document.page_content for document in splitter.create_documents([text])]
         raise TypeError("LangChain splitter must define split_text() or create_documents().")
-
-
-def _chunk_id(document_id: str | None, chunk_index: int) -> str | None:
-    if document_id is None:
-        return None
-    return f"{document_id}::chunk-{chunk_index}"

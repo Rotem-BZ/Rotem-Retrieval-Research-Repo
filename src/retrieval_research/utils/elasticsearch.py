@@ -1,4 +1,4 @@
-"""Shared Elasticsearch helpers."""
+"""Elasticsearch helpers shared by indexing and retrieval components."""
 
 from __future__ import annotations
 
@@ -43,3 +43,4 @@ def hit_to_document(hit: dict[str, Any], content_field: str, meta_field: str) ->
         score=hit.get("_score"),
         embedding=source.get("embedding"),
     )
+

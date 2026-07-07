@@ -9,6 +9,7 @@ def test_rrf_fusion_pipeline_config_loads_with_dynamic_weight_socket() -> None:
         [
             "dataset=toy",
             "pipeline/inference@pipeline=rrf_fusion",
+            "stage.run_name=toy_dense",
             "pipeline.components.fusion.init_parameters.weights={lexical:1.0}",
         ],
     )
@@ -27,6 +28,7 @@ def test_abstract_dense_e5_indexing_config_keeps_pipeline_haystack_shaped() -> N
         [
             "dataset=toy",
             "pipeline/indexing@pipeline=dense_jsonl",
+            "stage.run_name=toy_dense",
             "selections/embedding_model=e5/small_v2",
         ],
     )
@@ -57,6 +59,7 @@ def test_abstract_chunked_e5_configs_use_chunked_index_artifact() -> None:
         [
             "dataset=toy",
             "pipeline/indexing@pipeline=dense_chunked_jsonl",
+            "stage.run_name=toy_dense_chunked",
             "selections/embedding_model=e5/small_v2",
         ],
     )
@@ -65,6 +68,7 @@ def test_abstract_chunked_e5_configs_use_chunked_index_artifact() -> None:
         [
             "dataset=toy",
             "pipeline/inference@pipeline=dense_chunked_jsonl",
+            "stage.run_name=toy_dense_chunked",
             "selections/embedding_model=e5/small_v2",
         ],
     )
@@ -74,10 +78,10 @@ def test_abstract_chunked_e5_configs_use_chunked_index_artifact() -> None:
 
     assert "splitter" in indexing_pipeline_config["components"]
     assert indexing_pipeline_config["components"]["indexer"]["init_parameters"]["output_path"].endswith(
-        "toy_e5_small_v2_chunked.jsonl"
+        "toy_dense_chunked.jsonl"
     )
     assert inference_pipeline_config["components"]["retriever"]["init_parameters"]["index_path"].endswith(
-        "toy_e5_small_v2_chunked.jsonl"
+        "toy_dense_chunked.jsonl"
     )
 
 
@@ -87,6 +91,7 @@ def test_abstract_dense_e5_inference_config_prefixes_queries() -> None:
         [
             "dataset=toy",
             "pipeline/inference@pipeline=dense_jsonl",
+            "stage.run_name=toy_dense",
             "selections/embedding_model=e5/small_v2",
         ],
     )
@@ -119,6 +124,7 @@ def test_dense_candidate_reranker_uses_candidate_documents() -> None:
         [
             "dataset=toy",
             "pipeline/inference@pipeline=dense_candidate_reranker",
+            "stage.run_name=toy_dense",
             "selections/embedding_model=e5/small_v2",
         ],
     )
@@ -147,6 +153,7 @@ def test_cross_encoder_candidate_reranker_uses_bge_selection() -> None:
         [
             "dataset=toy",
             "pipeline/inference@pipeline=cross_encoder_candidate_reranker",
+            "stage.run_name=toy_cross_encoder",
             "selections/reranker_model=bge/v2_m3",
         ],
     )
@@ -176,6 +183,7 @@ def test_dummy_keyword_inference_keeps_retriever_query_input() -> None:
         [
             "dataset=toy",
             "pipeline/inference@pipeline=dummy_keyword",
+            "stage.run_name=toy_keyword",
         ],
     )
     pipeline_config = to_container(cfg.pipeline)
