@@ -46,6 +46,8 @@ def prepare_stage_run_config(cfg: DictConfig) -> None:
 
     if "stage" not in cfg or "run_id" not in cfg.stage:
         return
+    if cfg.stage.get("preserve_run_config", False):
+        return
 
     stage_name = str(cfg.stage.name)
     run_id = named_run_id(cfg.stage.get("run_name"), str(cfg.stage.run_id))

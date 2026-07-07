@@ -31,27 +31,29 @@ def main(argv: Sequence[str] | None = None) -> None:
         print(usage())
         return
 
-    stage_name = args[0]
+    config_name = args[0]
     overrides = args[1:]
-    cfg, result = _run_stage_with_config(stage_name, overrides, dry_run=dry_run)
+    stage_name, cfg, result = _run_stage_with_config(config_name, overrides, dry_run=dry_run)
     print_stage_result(stage_name, _summarize_result(result, cfg))
 
 
 def run_stage(
-    stage_name: str,
+    config_name: str,
     overrides: Sequence[str] | None = None,
     *,
     dry_run: bool = False,
 ) -> StageResult:
-    _, result = _run_stage_with_config(stage_name, overrides, dry_run=dry_run)
+    _, _, result = _run_stage_with_config(config_name, overrides, dry_run=dry_run)
     return result
 
 
 def usage() -> str:
     stages = "|".join(sorted(STAGE_RUNNERS))
     return (
-        "Usage: stage [--dry-run] <stage-name> [hydra overrides]\n"
+        "Usage: stage [--dry-run] <stage-name-or-config-name> [hydra overrides]\n"
         f"Stages: {stages}\n"
+        "Materialized configs can be run by config path, for example "
+        "`stage materialized/production/toy_dense_indexing_reference`.\n"
         "Use `build-command` to build and validate a command interactively.\n"
         "--dry-run redirects artifact paths to a temporary directory and skips stage output writes.\n"
         "Examples:\n"
@@ -62,18 +64,22 @@ def usage() -> str:
 
 
 def _run_stage_with_config(
-    stage_name: str,
+    config_name: str,
     overrides: Sequence[str] | None = None,
     *,
     dry_run: bool = False,
-) -> tuple[DictConfig, StageResult]:
+) -> tuple[str, DictConfig, StageResult]:
+    cfg = compose_stage_config(config_name, overrides)
+    stage_name = _stage_name_from_config(cfg, config_name)
+
     try:
         runner = STAGE_RUNNERS[stage_name]
     except KeyError as exc:
         valid_stages = ", ".join(sorted(STAGE_RUNNERS))
-        raise SystemExit(f"Unknown stage '{stage_name}'. Valid stages: {valid_stages}") from exc
-
-    cfg = compose_stage_config(stage_name, overrides)
+        raise SystemExit(
+            f"Config '{config_name}' declares unknown stage '{stage_name}'. "
+            f"Valid stages: {valid_stages}"
+        ) from exc
 
     with _dry_run_artifact_context(cfg, dry_run):
         prepare_stage_run_config(cfg)
@@ -81,8 +87,14 @@ def _run_stage_with_config(
         result = runner(cfg)
 
         if inspect.isawaitable(result):
-            return cfg, asyncio.run(result)
-        return cfg, result
+            return stage_name, cfg, asyncio.run(result)
+        return stage_name, cfg, result
+
+
+def _stage_name_from_config(cfg: DictConfig, config_name: str) -> str:
+    if "stage" not in cfg or "name" not in cfg.stage:
+        raise SystemExit(f"Config '{config_name}' must define stage.name.")
+    return str(cfg.stage.name)
 
 
 def _summarize_result(result: StageResult, cfg: DictConfig) -> Any:
