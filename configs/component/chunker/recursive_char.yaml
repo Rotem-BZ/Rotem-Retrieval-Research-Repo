@@ -1,6 +1,0 @@
-type: retrieval_research.components.chunking.langchain_document_splitter.LangChainDocumentSplitter
-init_parameters:
-  splitter_type: RecursiveCharacterTextSplitter
-  splitter_kwargs:
-    chunk_size: 360
-    chunk_overlap: 60

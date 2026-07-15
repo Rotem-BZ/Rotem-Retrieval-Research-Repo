@@ -1,52 +1,54 @@
-# Retrieval Research
+# Retrieval Research Monorepo
 
-![R4 logo](docs/assets/r4-logo.png)
-
-Hydra-managed information retrieval experiments built around Haystack
+Hydra-managed information-retrieval experiments built around Haystack
 `AsyncPipeline` execution.
 
-The repo provides reusable stage runners for indexing, inference, and
-evaluation; composable Hydra configs for datasets, pipelines, components, and
-model selections; and a checked-in toy dataset for smoke tests.
+The repository is split into independently installable units:
 
-## Quickstart
+- `packages/retrieval-components/` is the reusable, publishable Haystack component
+  library. Its distribution name and version are `retrieval-components==0.1.0`.
+- `packages/retrieval-core/` is internal orchestration shared through an editable
+  path. It owns stages, metrics, artifacts, mappings, and the common Hydra config tree.
+- `projects/` contains research projects. Every project owns a `pyproject.toml` and
+  lockfile, so it can declare its own component-library version.
+- `data/processed/toy/` is the checked-in fixture used by core smoke tests.
 
-Install dependencies with uv:
+Hydra uses the consuming project's `configs/` directory as the primary source and
+the config package shipped by `retrieval-core` as the fallback. A project can add or
+override only the groups it owns.
 
-```bash
+## Query-repetition example
+
+[`projects/query-repetition-e5`](projects/query-repetition-e5/README.md) demonstrates
+the complete pattern. It installs both monorepo dependencies editably, explicitly
+declares `retrieval-components==0.1.0`, adds a project-local `QueryRepeater`
+component, and includes a reproducible E5-small/SciFact baseline comparison.
+
+```powershell
+Set-Location projects/query-repetition-e5
 uv sync --extra dev
+./scripts/run_experiment.ps1
 ```
 
-Run the toy keyword workflow:
+Every run writes immutable outputs, `resolved_config.yaml`, `result.json`, and
+`manifest.json` below the active project's `artifacts/runs/`. Manifests record the
+installed `retrieval-core` and `retrieval-components` distribution versions.
 
-```bash
-uv run stage indexing \
-  dataset=toy \
-  pipeline/indexing@pipeline=dummy_jsonl
+## Development
 
-uv run stage inference \
-  dataset=toy \
-  pipeline/inference@pipeline=dummy_keyword \
-  stage.run_name=toy_keyword
+Each unit is checked independently:
 
-uv run stage evaluation \
-  dataset=toy \
-  stage.inference_run_name=toy_keyword
+```powershell
+uv sync --project packages/retrieval-components --extra dev
+uv run --project packages/retrieval-components pytest packages/retrieval-components/tests
+
+uv sync --project packages/retrieval-core --extra dev
+uv run --project packages/retrieval-core pytest packages/retrieval-core/tests
+
+uv sync --project projects/query-repetition-e5 --extra dev
+uv run --project projects/query-repetition-e5 pytest projects/query-repetition-e5/tests
 ```
 
-Use the interactive command builder when you want help assembling Hydra choices:
-
-```bash
-uv run build-command
-```
-
-## Repository Layout
-
-- `configs/` contains Hydra entry points and reusable config groups.
-- `data/processed/toy/` contains the small checked-in toy fixture.
-- `docs/` contains workflow and component notes.
-- `src/retrieval_research/` contains the package code.
-- `tests/` contains regression tests for config composition, metrics, IO, and components.
-
-See [docs/research_workflows.md](docs/research_workflows.md) for the full workflow.
-
+See [the research workflow guide](docs/research_workflows.md) for stage semantics and
+[the package plan](docs/multiple_projects_package_plan.md) for the architectural
+rationale.

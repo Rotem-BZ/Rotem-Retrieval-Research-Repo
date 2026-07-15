@@ -1,0 +1,83 @@
+# @package _global_
+
+paths:
+  project_root: .
+  data_dir: ./data
+  raw_data_dir: ./data/raw
+  interim_data_dir: ./data/interim
+  processed_data_dir: ./data/processed
+  artifacts_dir: ./artifacts
+  runs_dir: ./artifacts/runs
+  input_mappings_dir: ./artifacts/input_mappings
+dataset:
+  name: toy
+  documents_path: ./data/processed/toy/documents.jsonl
+  queries_path: ./data/processed/toy/queries.jsonl
+  qrels_path: ./data/processed/toy/qrels.jsonl
+selections:
+  embedding_model:
+    name: e5_small_v2
+    artifact_name: e5_small_v2
+    checkpoint: intfloat/e5-small-v2
+    document_prefix: 'passage: '
+    query_prefix: 'query: '
+    normalize_embeddings: true
+    similarity: cosine
+    tokenizer_kwargs:
+      model_max_length: 512
+pipeline:
+  components:
+    document_source:
+      type: retrieval_components.components.sources.jsonl_document_source.JsonlDocumentSource
+      init_parameters:
+        documents_path: ./data/processed/toy/documents.jsonl
+    document_prefixer:
+      type: retrieval_components.components.preprocessing.document_text_prefixer.DocumentTextPrefixer
+      init_parameters:
+        prefix: 'passage: '
+        replace_regexes:
+          \s+: ' '
+    embedder:
+      type: haystack.components.embedders.sentence_transformers_document_embedder.SentenceTransformersDocumentEmbedder
+      init_parameters:
+        model: intfloat/e5-small-v2
+        normalize_embeddings: true
+        device:
+          type: single
+          device: cuda
+        progress_bar: true
+        tokenizer_kwargs:
+          model_max_length: 512
+    indexer:
+      type: retrieval_components.components.indexing.jsonl_document_indexer.JsonlDocumentIndexer
+      init_parameters:
+        output_path: ./artifacts/runs/indexing/20260705_231537/index.jsonl
+        overwrite: false
+    output:
+      type: retrieval_components.components.interfaces.stage_io.IndexingOutput
+  connections:
+  - sender: document_source.documents
+    receiver: document_prefixer.documents
+  - sender: document_prefixer.documents
+    receiver: embedder.documents
+  - sender: embedder.documents
+    receiver: indexer.documents
+  - sender: indexer.index_path
+    receiver: output.index_path
+  - sender: indexer.indexed_count
+    receiver: output.indexed_count
+  max_runs_per_component: 100
+  metadata:
+    description: Abstract dense JSONL indexing topology with document-level embeddings.
+stage:
+  name: indexing
+  run_name: toy_e5_small_v2
+  run_id: '20260705_231537'
+  output_dir: ./artifacts/runs/indexing/20260705_231537
+  preserve_run_config: true
+runtime:
+  progress_bar: true
+  device:
+    type: single
+    device: cuda
+  concurrency_limit: 4

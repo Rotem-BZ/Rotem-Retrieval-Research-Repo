@@ -1,0 +1,49 @@
+[build-system]
+requires = ["hatchling>=1.26"]
+build-backend = "hatchling.build"
+
+[project]
+name = "retrieval-core"
+version = "0.1.0"
+description = "Internal Hydra-driven orchestration for retrieval experiments."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = [
+  "haystack-ai>=2.30,<3",
+  "hydra-core>=1.3,<2",
+  "numpy>=2,<3",
+  "omegaconf>=2.3,<3",
+  "pyyaml>=6,<7",
+  "torchmetrics>=1.7,<2",
+  "tqdm>=4.66,<5",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8,<9",
+  "retrieval-components==0.1.0",
+  "ruff>=0.8,<1",
+]
+
+[project.scripts]
+stage = "retrieval_core.cli:main"
+build-command = "retrieval_core.command_builder:main"
+prepare-beir = "retrieval_core.notebooks.prepare_beir:main"
+
+[tool.uv]
+package = true
+
+[tool.uv.sources]
+retrieval-components = { path = "../retrieval-components", editable = true }
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/retrieval_core", "src/hydra_plugins"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "../retrieval-components/src"]

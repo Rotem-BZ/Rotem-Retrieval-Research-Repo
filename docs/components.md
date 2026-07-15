@@ -2,12 +2,12 @@
 
 This repo prefers native Haystack components when they already cover the
 contract, and adds project components only for missing glue or research-specific
-behavior. The current local environment has Haystack 2.30.0 installed.
+behavior. The component package supports Haystack 2.30 and later 2.x releases.
 
 | Need | Haystack status | Repo component |
 | --- | --- | --- |
-| Bi-encoder document/text models | Exists: `SentenceTransformersDocumentEmbedder`, `SentenceTransformersTextEmbedder`, retrievers such as `InMemoryEmbeddingRetriever` and `TextEmbeddingRetriever` | `retrieval_research.components.models` re-exports the Haystack classes for categorized imports |
-| Cross encoder ranking | Exists: `SentenceTransformersSimilarityRanker`, `TransformersSimilarityRanker` | `retrieval_research.components.models` re-exports the Haystack classes |
+| Bi-encoder document/text models | Exists: `SentenceTransformersDocumentEmbedder`, `SentenceTransformersTextEmbedder`, retrievers such as `InMemoryEmbeddingRetriever` and `TextEmbeddingRetriever` | `retrieval_components.components.models` re-exports the Haystack classes for categorized imports |
+| Cross encoder ranking | Exists: `SentenceTransformersSimilarityRanker`, `TransformersSimilarityRanker` | `retrieval_components.components.models` re-exports the Haystack classes |
 | Document character cleanup | Exists: `DocumentCleaner`, `TextCleaner` | `DocumentTextPrefixer` adds missing prefix/suffix support |
 | Query character cleanup | Exists: `TextCleaner` | `TextPreprocessor` adds prefix/suffix plus small regex cleanup |
 | Document chunking | Exists: `DocumentSplitter`, `RecursiveDocumentSplitter` | `LangChainDocumentSplitter` adapts optional `langchain_text_splitters` splitters |

@@ -1,0 +1,33 @@
+defaults:
+  - /selections/embedding_model@_global_.selections.embedding_model: ???
+  - /component/document_source@components.document_source: jsonl
+  - /component/chunker@components.splitter: recursive_char
+  - /component/document_preprocessor@components.document_prefixer: prefix_cleanup
+  - /component/document_embedder@components.embedder: sentence_transformers
+  - /component/indexer@components.indexer: jsonl_embeddings
+  - _self_
+
+components:
+  output:
+    type: retrieval_components.components.interfaces.stage_io.IndexingOutput
+  indexer:
+    init_parameters:
+      output_path: ${stage.output_dir}/index.jsonl
+
+connections:
+  - sender: document_source.documents
+    receiver: splitter.documents
+  - sender: splitter.documents
+    receiver: document_prefixer.documents
+  - sender: document_prefixer.documents
+    receiver: embedder.documents
+  - sender: embedder.documents
+    receiver: indexer.documents
+  - sender: indexer.index_path
+    receiver: output.index_path
+  - sender: indexer.indexed_count
+    receiver: output.indexed_count
+
+max_runs_per_component: 100
+metadata:
+  description: Abstract dense JSONL indexing topology with chunked document embeddings.

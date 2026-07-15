@@ -12,29 +12,28 @@ without requiring a model, document store, or external service.
 
 ## Repository Structure
 
-The top-level folders separate experiment configuration, CCDS-style data,
-documentation, source code, and tests:
+The monorepo separates reusable components, shared orchestration, and isolated
+research projects:
 
-- `configs/` contains Hydra entry points and reusable config groups.
+- `packages/retrieval-core/src/retrieval_core/configs/` contains shared Hydra entry
+  points and reusable config groups.
 - `data/` contains `raw`, `interim`, and `processed` dataset files. Generated
   data is ignored except for the small checked-in toy fixture.
 - `docs/` contains workflow and design notes.
-- `src/retrieval_research/` contains the Python package.
-- `tests/` contains regression tests for metrics, config composition, and stage
-  behavior.
+- `packages/retrieval-core/` contains stage orchestration and its regression tests.
+- `packages/retrieval-components/` contains reusable Haystack components and tests.
+- `projects/` contains independently locked experiments and their config overlays.
 
 See [components.md](components.md) for the current component inventory and which
 pieces are native Haystack components versus repo-specific adapters.
 
-Inside `src/retrieval_research/`, the main modules are:
+Inside `packages/retrieval-core/src/retrieval_core/`, the main modules are:
 
 - `cli.py` dispatches `stage <stage-name>` commands to stage runners.
 - `command_builder.py` powers `build-command`, an interactive command builder
   for Hydra selections.
-- `config.py` composes Hydra configs from the repository-level `configs/`
-  directory.
-- `components/` contains Haystack components that can later be shared with
-  production code.
+- `config.py` composes a project's primary configs with the packaged core fallback.
+- reusable components live separately under `packages/retrieval-components/`.
 - `notebooks/` contains notebook-style Python scripts for data preparation and
   exploration.
 - `stages/` contains stage orchestration code for indexing, inference, and
@@ -178,7 +177,7 @@ components:
   retriever:
     type: my_project.components.VectorRetriever
     init_parameters:
-      index_path: ${paths.index_dir}/${dataset.name}.jsonl
+      index_path: ${stage.index_path}
       top_k: 5
 
 connections:
@@ -215,6 +214,7 @@ The command line can then compose the pieces:
 uv run stage inference \
   dataset=toy \
   pipeline/inference@pipeline=biencoder \
+  stage.indexing_run_id=<exact-indexing-run-id> \
   component/query_preprocessor=lowercase \
   component/query_embedder=e5_small
 ```
@@ -234,7 +234,7 @@ defaults:
 Then launch the preset with:
 
 ```bash
-uv run stage inference experiment/inference=toy_e5_lowercase
+uv run stage inference experiment/inference=toy_e5_lowercase stage.indexing_run_id=<exact-indexing-run-id>
 ```
 
 As a rule of thumb, use command-line overrides for small parameter changes, use
@@ -273,6 +273,7 @@ Hydra config entry points live at the top of `configs/`:
 - `configs/indexing.yaml`
 - `configs/inference.yaml`
 - `configs/evaluation.yaml`
+- `configs/prepare_mapping.yaml`
 
 Config groups provide reusable prefills:
 
@@ -295,7 +296,7 @@ dataset is in:
 - `data/processed/toy/qrels.jsonl`
 
 BEIR datasets are prepared with the Python notebook script at
-`src/retrieval_research/notebooks/prepare_beir.py`. It downloads raw archives to
+`packages/retrieval-core/src/retrieval_core/notebooks/prepare_beir.py`. It downloads raw archives to
 `data/raw`, extracts them to `data/interim`, and writes repo-native JSONL files
 to `data/processed`.
 
@@ -309,15 +310,17 @@ serializes that field to YAML, loads it with Haystack, and executes it as an
 Inference always resolves an input mapping. By default, `input_mapping=full`
 uses every query and every document in the selected dataset without storing a
 large file of all ids. Generated mappings are selected as reusable recipes at
-the root config level, then materialized for the selected dataset when inference
-first needs them:
+the root config level and prepared explicitly before inference:
 
 ```bash
-uv run stage inference \
+uv run stage prepare_mapping \
   dataset=toy \
-  input_mapping=dev_tiny \
-  pipeline/inference@pipeline=dummy_keyword
+  input_mapping=dev_tiny
 ```
+
+The prepared mapping can then be reused by any number of inference runs that
+select `input_mapping=dev_tiny`. Its content-addressed cache key includes both
+the recipe and SHA-256 fingerprints of the documents, queries, and qrels files.
 
 Materialized mappings are plain JSON objects keyed by query id:
 
@@ -339,12 +342,11 @@ Useful built-in recipes live under `configs/input_mapping/`:
 - `dev_tiny`: two-query development pool with easy negatives and cross-query positives.
 - `random_smoke`: two-query smoke-test pool with one random extra document per query.
 
-When inference sees `input_mapping=dev_tiny`, it writes the materialized mapping
-for the selected dataset if it does not already exist:
+Prepared mappings are stored outside the dataset tree:
 
 ```text
-data/processed/toy/input_mappings/dev_tiny.<recipe-hash>.json
-data/processed/toy/input_mappings/dev_tiny.<recipe-hash>.meta.json
+artifacts/input_mappings/toy/dev_tiny.<cache-key>.json
+artifacts/input_mappings/toy/dev_tiny.<cache-key>.meta.json
 ```
 
 The mapping JSON remains pure candidate data. The `.meta.json` sidecar records
@@ -372,12 +374,13 @@ uv run stage indexing `
 uv run stage inference `
   dataset=beir_scifact `
   pipeline/inference@pipeline=dense_jsonl `
+  stage.indexing_run_id=<exact-indexing-run-id> `
   selections/embedding_model=e5/small_v2 `
   pipeline.components.retriever.init_parameters.top_k=100
 ```
 
 ```powershell
-uv run stage evaluation dataset=beir_scifact
+uv run stage evaluation dataset=beir_scifact stage.inference_run_id=<exact-inference-run-id>
 ```
 
 To run the same model through the chunked topology, switch both pipeline
@@ -394,6 +397,7 @@ uv run stage indexing `
 uv run stage inference `
   dataset=beir_scifact `
   pipeline/inference@pipeline=dense_chunked_jsonl `
+  stage.indexing_run_id=<exact-indexing-run-id> `
   selections/embedding_model=e5/small_v2 `
   pipeline.components.retriever.init_parameters.top_k=100
 ```
@@ -409,6 +413,8 @@ topology. This embeds `input.candidate_documents`, embeds the query, scores by
 embedding similarity, and writes ranked documents through `output`:
 
 ```powershell
+uv run stage prepare_mapping dataset=beir_scifact input_mapping=judged_only
+
 uv run stage inference `
   dataset=beir_scifact `
   input_mapping=judged_only `
@@ -434,38 +440,44 @@ uv run stage inference `
   pipeline.components.ranker.init_parameters.top_k=10
 ```
 
-Evaluate a named inference run by passing the same prefix to evaluation:
+Evaluate a completed inference run by passing its exact run id:
 
 ```powershell
 uv run stage evaluation `
   dataset=beir_scifact `
-  stage.inference_run_name=bge_v2_m3
+  stage.inference_run_id=<exact-inference-run-id>
 ```
 
-If more than one inference run starts with that prefix, evaluation fails and
-lists the matching run ids so you can provide a longer prefix.
+Prefixes are intentionally not resolved: exact ids keep lineage unambiguous.
 
 ## Stage Workflow
 
 Run indexing first:
 
 ```bash
-uv run stage indexing dataset=toy pipeline/indexing@pipeline=dummy_jsonl
+uv run stage indexing \
+  dataset=toy \
+  pipeline/indexing@pipeline=dummy_jsonl \
+  stage.run_name=toy_keyword
 ```
 
-The default dummy stage writes:
+The command prints an exact run id and writes the index inside that immutable run:
 
 ```text
-artifacts/indexes/toy.jsonl
+artifacts/runs/indexing/<indexing-run-id>/index.jsonl
 ```
 
-Run inference after indexing:
+Pass that exact indexing run id to inference:
 
 ```bash
-uv run stage inference dataset=toy pipeline/inference@pipeline=dummy_keyword
+uv run stage inference \
+  dataset=toy \
+  pipeline/inference@pipeline=dummy_keyword \
+  stage.indexing_run_id=<exact-indexing-run-id> \
+  stage.run_name=toy_keyword
 ```
 
-The default inference stage reads the JSONL index and writes:
+Inference writes predictions inside its own immutable run directory:
 
 ```text
 artifacts/runs/inference/<run_id>/predictions.json
@@ -478,7 +490,7 @@ and metadata.
 Run evaluation after inference:
 
 ```bash
-uv run stage evaluation dataset=toy stage.inference_run_name=<run_id-or-prefix>
+uv run stage evaluation dataset=toy stage.inference_run_id=<exact-inference-run-id>
 ```
 
 The default evaluator writes:
@@ -487,18 +499,37 @@ The default evaluator writes:
 artifacts/runs/evaluation/<run_id>/metrics.json
 ```
 
-Each stage also writes a run folder under `artifacts/runs/<stage>/<run_id>/`
-with the resolved config and a small result summary.
+Each saved run contains its outputs, `resolved_config.yaml`, `result.json`, and a
+`manifest.json` with exact input references, artifact paths, the resolved-config
+hash, package/Python versions, and Git commit when available.
 
-Indexing and inference accept an optional `stage.run_name`. When present, the
-stage prepends it to the timestamp run id:
+All stages accept an optional `stage.run_name` label. When present, the stage
+prepends it to the unique timestamp run id without using it as an artifact key:
 
 ```bash
-uv run stage inference dataset=toy pipeline/inference@pipeline=dummy_keyword stage.run_name=keyword_smoke
+uv run stage inference \
+  dataset=toy \
+  pipeline/inference@pipeline=dummy_keyword \
+  stage.indexing_run_id=<exact-indexing-run-id> \
+  stage.run_name=keyword_smoke
 ```
 
-This creates a run id like `keyword_smoke_20260623_153000`. Evaluation resolves
-`stage.inference_run_name` as a prefix under `artifacts/runs/inference/`.
+This creates a run id like `keyword_smoke_20260623_153000_123456`. Upstream
+references always use the complete id.
+
+Use `--validate` to compose the config, resolve exact upstream references, check
+input files, and load the Haystack graph without executing components or writing
+a run:
+
+```bash
+uv run stage --validate inference \
+  dataset=toy \
+  pipeline/inference@pipeline=dummy_keyword \
+  stage.indexing_run_id=<exact-indexing-run-id>
+```
+
+Use `--dry-run` to execute against real inputs while redirecting all outputs to
+a temporary directory. No run record or durable output is saved.
 
 ## Mixing Configs
 
@@ -510,8 +541,8 @@ Examples:
 
 ```bash
 uv run stage indexing dataset=toy pipeline/indexing@pipeline=dummy_jsonl
-uv run stage inference dataset=toy pipeline/inference@pipeline=dummy_keyword pipeline.components.retriever.init_parameters.top_k=10
-uv run stage evaluation dataset=toy metrics='["Recall@10","MRR@10","NDCG@10","Precision@10","HitRate@10"]'
+uv run stage inference dataset=toy pipeline/inference@pipeline=dummy_keyword stage.indexing_run_id=<exact-indexing-run-id> pipeline.components.retriever.init_parameters.top_k=10
+uv run stage evaluation dataset=toy stage.inference_run_id=<exact-inference-run-id> metrics='["Recall@10","MRR@10","NDCG@10","Precision@10","HitRate@10"]'
 ```
 
 When new datasets are added, place processed records under
@@ -547,28 +578,29 @@ Then run:
 
 ```bash
 uv run stage indexing dataset=my_dataset pipeline/indexing@pipeline=dummy_jsonl
-uv run stage inference dataset=my_dataset pipeline/inference@pipeline=dummy_keyword
-uv run stage evaluation dataset=my_dataset
+uv run stage inference dataset=my_dataset pipeline/inference@pipeline=dummy_keyword stage.indexing_run_id=<exact-indexing-run-id>
+uv run stage evaluation dataset=my_dataset stage.inference_run_id=<exact-inference-run-id>
 ```
 
 ## Replacing Dummy Components
 
 Production-ready retrieval code should be added as Haystack components under
-`src/retrieval_research/components/` or imported from a production package.
+`packages/retrieval-components/src/retrieval_components/components/` or imported
+from another production package.
 
 To add a new indexing pipeline, create a config like:
 
 ```yaml
 components:
   output:
-    type: retrieval_research.components.interface.IndexingOutput
+    type: retrieval_components.components.interfaces.IndexingOutput
   converter:
     type: my_package.components.MyConverter
     init_parameters: {}
   writer:
     type: my_package.components.MyIndexer
     init_parameters:
-      output_path: ${paths.index_dir}/${dataset.name}
+      output_path: ${stage.output_dir}/index
 connections:
   - sender: converter.documents
     receiver: writer.documents
@@ -594,9 +626,9 @@ an `output` component. The pipeline graph owns all internal routing:
 ```yaml
 components:
   input:
-    type: retrieval_research.components.interface.InferenceInput
+    type: retrieval_components.components.interfaces.InferenceInput
   output:
-    type: retrieval_research.components.interface.InferenceOutput
+    type: retrieval_components.components.interfaces.InferenceOutput
   retriever:
     type: my_package.components.MyRetriever
     init_parameters: {}

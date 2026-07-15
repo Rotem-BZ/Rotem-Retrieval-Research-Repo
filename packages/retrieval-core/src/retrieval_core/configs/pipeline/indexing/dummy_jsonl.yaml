@@ -1,0 +1,24 @@
+components:
+  output:
+    type: retrieval_components.components.interfaces.stage_io.IndexingOutput
+  document_source:
+    type: retrieval_components.components.sources.jsonl_document_source.JsonlDocumentSource
+    init_parameters:
+      documents_path: ${dataset.documents_path}
+  indexer:
+    type: retrieval_components.components.indexing.jsonl_document_indexer.JsonlDocumentIndexer
+    init_parameters:
+      output_path: ${stage.output_dir}/index.jsonl
+      overwrite: true
+
+connections:
+  - sender: document_source.documents
+    receiver: indexer.documents
+  - sender: indexer.index_path
+    receiver: output.index_path
+  - sender: indexer.indexed_count
+    receiver: output.indexed_count
+
+max_runs_per_component: 100
+metadata:
+  description: Dummy JSONL indexing pipeline for scaffold validation.

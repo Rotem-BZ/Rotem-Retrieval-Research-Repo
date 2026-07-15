@@ -1,0 +1,22 @@
+defaults:
+  - /selections/reranker_model@_global_.selections.reranker_model: ???
+  - /component/ranker@components.ranker: sentence_transformers_similarity
+  - _self_
+
+components:
+  input:
+    type: retrieval_components.components.interfaces.stage_io.InferenceInput
+  output:
+    type: retrieval_components.components.interfaces.stage_io.InferenceOutput
+
+connections:
+  - sender: input.query
+    receiver: ranker.query
+  - sender: input.candidate_documents
+    receiver: ranker.documents
+  - sender: ranker.documents
+    receiver: output.documents
+
+max_runs_per_component: 100
+metadata:
+  description: Cross-encoder reranking over materialized inference candidate documents.

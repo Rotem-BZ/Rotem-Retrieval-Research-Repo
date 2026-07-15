@@ -1,0 +1,40 @@
+defaults:
+  - paths: local
+  - dataset: ???
+  - _self_
+
+metadata:
+  command_builder:
+    prompt_overrides:
+      - path: stage.inference_run_id
+        prompt: "exact inference run id"
+        type: value
+        require_non_empty: true
+      - path: metrics
+        prompt: "metrics comma-separated"
+        type: comma_list
+        command_quote: single
+        require_non_empty: true
+
+stage:
+  name: evaluation
+  run_name: null
+  inference_run_id: null
+  run_id: ${now:%Y%m%d_%H%M%S_%f}
+  output_dir: ${paths.runs_dir}/${stage.name}/${stage.run_id}
+  predictions_path: null
+  metrics_path: ${stage.output_dir}/metrics.json
+
+metrics:
+  - Recall@10
+  - Recall@50
+  - Recall@100
+  - MRR@50
+  - NDCG@10
+  - HitRate@10
+
+hydra:
+  job:
+    chdir: false
+  run:
+    dir: ${paths.runs_dir}/hydra/${stage.name}/${stage.run_id}

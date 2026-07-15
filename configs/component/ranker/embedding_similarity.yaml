@@ -1,4 +1,0 @@
-type: retrieval_research.components.ranking.embedding_similarity_ranker.EmbeddingSimilarityRanker
-init_parameters:
-  top_k: 10
-  similarity: ${selections.embedding_model.similarity}

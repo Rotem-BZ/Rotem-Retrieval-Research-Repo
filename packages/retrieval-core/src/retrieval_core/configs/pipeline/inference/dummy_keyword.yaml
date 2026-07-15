@@ -1,0 +1,21 @@
+components:
+  input:
+    type: retrieval_components.components.interfaces.stage_io.InferenceInput
+  output:
+    type: retrieval_components.components.interfaces.stage_io.InferenceOutput
+  retriever:
+    type: retrieval_components.components.retrieval.jsonl_keyword_retriever.JsonlKeywordRetriever
+    init_parameters:
+      index_path: ${stage.index_path}
+      top_k: 5
+
+connections:
+  - sender: input.query
+    receiver: retriever.query
+  - sender: input.candidate_document_ids
+    receiver: retriever.candidate_document_ids
+  - sender: retriever.documents
+    receiver: output.documents
+max_runs_per_component: 100
+metadata:
+  description: Dummy keyword retrieval pipeline for scaffold validation.

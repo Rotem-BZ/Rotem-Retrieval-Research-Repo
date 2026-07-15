@@ -1,0 +1,38 @@
+defaults:
+  - paths: local
+  - dataset: ???
+  - input_mapping: full
+  - _self_
+  - pipeline/inference@pipeline: ???
+
+metadata:
+  command_builder:
+    prompt_overrides:
+      - path: stage.indexing_run_id
+        prompt: "exact indexing run id (leave blank for pipelines without an index)"
+        type: value
+      - path: stage.run_name
+        prompt: "inference run name"
+        type: value
+
+stage:
+  name: inference
+  run_name: null
+  run_id: ${now:%Y%m%d_%H%M%S_%f}
+  output_dir: ${paths.runs_dir}/${stage.name}/${stage.run_id}
+  predictions_path: ${stage.output_dir}/predictions.json
+  indexing_run_id: null
+  index_path: null
+
+runtime:
+  progress_bar: true
+  device:
+    type: single
+    device: cuda
+  concurrency_limit: 4
+
+hydra:
+  job:
+    chdir: false
+  run:
+    dir: ${paths.runs_dir}/hydra/${stage.name}/${stage.run_id}

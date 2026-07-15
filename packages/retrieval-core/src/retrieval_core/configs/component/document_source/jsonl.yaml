@@ -1,0 +1,3 @@
+type: retrieval_components.components.sources.jsonl_document_source.JsonlDocumentSource
+init_parameters:
+  documents_path: ${dataset.documents_path}
