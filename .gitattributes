@@ -12,3 +12,5 @@
 *.zip binary
 *.gz binary
 *.parquet binary
+
+*.ipynb filter=nbstripout diff=ipynb

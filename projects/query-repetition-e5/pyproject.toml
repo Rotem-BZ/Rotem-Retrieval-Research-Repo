@@ -16,6 +16,8 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+  "nbstripout>=0.9,<1",
+  "pre-commit>=4,<5",
   "pytest>=8,<9",
   "ruff>=0.8,<1",
 ]
