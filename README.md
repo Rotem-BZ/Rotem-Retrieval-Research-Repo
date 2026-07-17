@@ -3,6 +3,61 @@
 Hydra-managed information-retrieval experiments built around Haystack
 `AsyncPipeline` execution.
 
+## Quick start
+
+Install [Git](https://git-scm.com/) and [uv](https://docs.astral.sh/uv/), then run
+the following commands from a terminal on Windows or Linux:
+
+```shell
+git clone https://github.com/Rotem-BZ/Rotem-Retrieval-Research-Repo.git
+cd Rotem-Retrieval-Research-Repo/projects/query-repetition-e5
+uv sync --extra dev
+uv run nbstripout --install --attributes ../../.gitattributes
+uv run pre-commit install --install-hooks
+uv run stage --help
+```
+
+Each project owns its environment and resolves the shared monorepo packages through
+editable local dependencies. Run stage commands through `uv run` from the project
+directory so project-specific components and configuration are available.
+
+The setup also installs two repository-local Git protections. `nbstripout` keeps
+notebook outputs in the working copy but strips them from commits, while the
+pre-commit hook rejects newly added files larger than 10 MiB unless they are tracked
+with Git LFS. Check the setup at any time with:
+
+```shell
+uv run nbstripout --status
+uv run pre-commit run --all-files
+```
+
+For example, after creating an index, inference can be launched with:
+
+```shell
+uv run stage inference dataset=beir_scifact pipeline/inference@pipeline=dense_query_repetition selections/embedding_model=e5/small_v2 runtime.device.device=cpu stage.indexing_run_id=YOUR_EXACT_INDEXING_RUN_ID runtime.query_concurrency_limit=8
+```
+
+## Hyperparameter sweeps
+
+From any project directory, prepare an immutable set of fully resolved configurations
+interactively:
+
+```shell
+uv run prepare-sweep
+```
+
+Prepared sweeps are stored below `artifacts/sweeps/`. On Linux with GNU Screen
+installed, select and launch any subset with:
+
+```shell
+uv run run-sweep
+```
+
+The launcher displays ready, waiting, running, succeeded, and failed runs; accepts
+selections such as `1,3,4-7`; asks for the maximum number of executing experiments;
+launches the selected Screen sessions; and exits. Waiting sessions form persistent
+dependency lanes, so the concurrency cap remains effective after the launcher exits.
+
 The repository is split into independently installable units:
 
 - `packages/retrieval-components/` is the reusable, publishable Haystack component
@@ -33,6 +88,26 @@ uv sync --extra dev
 Every run writes immutable outputs, `resolved_config.yaml`, `result.json`, and
 `manifest.json` below the active project's `artifacts/runs/`. Manifests record the
 installed `retrieval-core` and `retrieval-components` distribution versions.
+
+## Create a research project
+
+Generate another isolated baseline-versus-treatment project from the repository
+Cookiecutter:
+
+```powershell
+uvx cookiecutter templates/retrieval-project --output-dir projects
+Set-Location projects/<project-slug>
+uv sync --extra dev
+uv run nbstripout --install --attributes ../../.gitattributes
+uv run pre-commit install --install-hooks
+uv run pytest
+```
+
+The generated treatment starts as an identity transform so its first run can verify
+baseline parity. Implement the project-specific behavior in the generated component
+and update its focused test before running the research comparison. See the
+[`retrieval-project` template](templates/retrieval-project/README.md) for its prompts
+and assumptions.
 
 ## Development
 
