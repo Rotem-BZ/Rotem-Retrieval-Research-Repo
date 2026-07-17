@@ -57,9 +57,17 @@ the whole design: editable local dependencies, an exact component version, a cus
 component, a project-only Hydra pipeline, independent tests and lockfile, and a
 baseline-versus-treatment experiment script.
 
+## New-project scaffold
+
+[`templates/retrieval-project`](../templates/retrieval-project/README.md) turns that
+pattern into a Cookiecutter. It creates an independently lockable package with
+editable monorepo dependencies, a project-local component and Hydra pipeline,
+component and composition tests, and a shared-index comparison runner. The generated
+identity treatment doubles as an end-to-end baseline-parity check before the project
+implements its actual treatment.
+
 ## Deferred work
 
 - Split heavy integrations into optional dependency profiles.
 - Redesign dataset ownership and preparation across projects.
 - Establish publication automation and a compatibility policy for config schemas.
-- Add a reusable new-project scaffold after a second project validates the layout.

@@ -1,0 +1,12 @@
+{
+  "project_name": "My Retrieval Experiment",
+  "project_slug": "{{ cookiecutter.project_name.lower().replace(' ', '-').replace('_', '-') }}",
+  "package_name": "{{ cookiecutter.project_slug.replace('-', '_') }}",
+  "project_short_description": "Compare a project-local retrieval treatment with a shared-index baseline.",
+  "pipeline_name": "dense_experiment",
+  "component_class_name": "QueryTransformer",
+  "beir_dataset": "scifact",
+  "dataset_config": "beir_scifact",
+  "embedding_model": "e5/small_v2",
+  "retrieval_components_version": "0.1.0"
+}
