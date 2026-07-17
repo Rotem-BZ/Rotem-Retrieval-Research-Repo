@@ -125,6 +125,7 @@ def run_configure(
     input_fn: InputFn = input,
     output_fn: OutputFn = print,
     config_dir: Path | None = None,
+    allow_dry_run: bool = True,
 ) -> BuiltCommand:
     """Run the interactive command builder and print the final command."""
 
@@ -153,12 +154,14 @@ def run_configure(
         config_dir=config_dir,
     )
 
-    dry_run = _prompt_yes_no(
-        "Use --dry-run? [y/N]: ",
-        input_fn=input_fn,
-        output_fn=output_fn,
-        default=False,
-    )
+    dry_run = False
+    if allow_dry_run:
+        dry_run = _prompt_yes_no(
+            "Use --dry-run? [y/N]: ",
+            input_fn=input_fn,
+            output_fn=output_fn,
+            default=False,
+        )
 
     _prompt_configured_overrides(
         stage_name,

@@ -643,13 +643,52 @@ connections:
 
 ## Parallel Execution
 
-The first scaffold uses Haystack `AsyncPipeline` for every pipeline invocation
-and passes `runtime.concurrency_limit` into `run_async`. This gives each
-pipeline run an explicit concurrency budget.
+The inference stage runs independent queries concurrently. Configure the number
+of simultaneous query runs with `runtime.query_concurrency_limit`; predictions
+are still written in dataset order. Each invocation uses Haystack
+`AsyncPipeline` and receives `runtime.concurrency_limit`, which controls the
+concurrency budget within that individual pipeline run.
 
 For larger sweeps, use Hydra overrides and launchers. A future extension can add
 Hydra launcher configs for local multiprocessing, Slurm, Kubernetes, or cloud
 batch systems without changing component code.
+
+### Prepared Screen sweeps
+
+The repository includes a two-phase workflow for local hyperparameter sweeps. Run
+the preparer from the project whose environment and config tree should be used:
+
+```bash
+uv run prepare-sweep
+```
+
+The interactive preparer first uses the normal command builder to choose a valid
+base stage configuration. It then prompts for one or more Hydra fields or override
+paths, short labels, YAML value lists, and Cartesian or zipped combination mode.
+Every combination is composed, validated, assigned a descriptive name such as
+`lr-0.01--chunksize-14--model-E5-base`, and written as a fully resolved config under
+`artifacts/sweeps/<sweep-id>/configs/`. The folder is published only after every
+configuration validates successfully.
+
+On Linux, install GNU Screen and launch a prepared subset interactively:
+
+```bash
+uv run run-sweep
+```
+
+The launcher highlights existing run states and accepts selections such as
+`1,3,4-7`, as well as `ready` and `all`. It asks for a maximum number of
+executing experiments, assigns selected runs to that many persistent lanes, launches
+all selected Screen sessions, and exits. The first run in each lane starts immediately;
+later workers wait for their predecessor's terminal status using a polling sleep.
+A failed, cancelled, or lost predecessor releases its lane because lane dependencies
+represent execution capacity rather than experimental data dependencies.
+
+The cap applies to executing experiments, not to Screen processes: waiting sessions
+remain visible and can be attached to while they consume negligible compute. Lane
+tails are kept below `artifacts/sweeps/.launcher/`, allowing later launcher invocations
+to append work without exceeding the existing cap. The cap cannot be changed until
+all current lanes are terminal.
 
 ## Design Notes
 

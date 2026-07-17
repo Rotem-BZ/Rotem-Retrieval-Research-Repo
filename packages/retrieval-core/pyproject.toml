@@ -30,6 +30,8 @@ dev = [
 stage = "retrieval_core.cli:main"
 build-command = "retrieval_core.command_builder:main"
 prepare-beir = "retrieval_core.notebooks.prepare_beir:main"
+prepare-sweep = "retrieval_core.sweeps.prepare:main"
+run-sweep = "retrieval_core.sweeps.launcher:main"
 
 [tool.uv]
 package = true

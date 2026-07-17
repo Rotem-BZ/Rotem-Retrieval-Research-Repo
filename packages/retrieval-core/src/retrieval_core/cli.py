@@ -77,6 +77,28 @@ def validate_stage(
     return result
 
 
+def resolve_stage_config(
+    config_name: str,
+    overrides: Sequence[str] | None = None,
+    *,
+    config_dir: str | Path | None = None,
+) -> tuple[str, DictConfig]:
+    """Compose, prepare, and validate a stage configuration without executing it."""
+
+    cfg = compose_stage_config(config_name, overrides, config_dir=config_dir)
+    stage_name = _stage_name_from_config(cfg, config_name)
+    if stage_name not in STAGE_RUNNERS:
+        valid_stages = ", ".join(sorted(STAGE_RUNNERS))
+        raise SystemExit(
+            f"Config '{config_name}' declares unknown stage '{stage_name}'. "
+            f"Valid stages: {valid_stages}"
+        )
+
+    _prepare_stage_config(stage_name, cfg)
+    _validate_prepared_stage_config(stage_name, cfg)
+    return stage_name, cfg
+
+
 def usage() -> str:
     stages = "|".join(sorted(STAGE_RUNNERS))
     return (
@@ -134,16 +156,11 @@ def _validate_stage_with_config(
     *,
     config_dir: str | Path | None = None,
 ) -> tuple[str, DictConfig, dict[str, Any]]:
-    cfg = compose_stage_config(config_name, overrides, config_dir=config_dir)
-    stage_name = _stage_name_from_config(cfg, config_name)
-    if stage_name not in STAGE_RUNNERS:
-        valid_stages = ", ".join(sorted(STAGE_RUNNERS))
-        raise SystemExit(
-            f"Config '{config_name}' declares unknown stage '{stage_name}'. "
-            f"Valid stages: {valid_stages}"
-        )
+    stage_name, cfg = resolve_stage_config(config_name, overrides, config_dir=config_dir)
+    return stage_name, cfg, {"valid": True, "stage": stage_name}
 
-    _prepare_stage_config(stage_name, cfg)
+
+def _validate_prepared_stage_config(stage_name: str, cfg: DictConfig) -> None:
     _validate_dataset_paths(cfg)
     OmegaConf.to_container(cfg, resolve=True, throw_on_missing=True)
 
@@ -158,8 +175,6 @@ def _validate_stage_with_config(
             raise FileNotFoundError(f"Predictions file does not exist: {predictions_path}")
     elif stage_name == "prepare_mapping":
         validate_input_mapping_config(cfg, require_generated=True)
-
-    return stage_name, cfg, {"valid": True, "stage": stage_name}
 
 
 def _prepare_stage_config(stage_name: str, cfg: DictConfig) -> None:
