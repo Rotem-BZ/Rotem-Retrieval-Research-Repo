@@ -1,0 +1,4 @@
+interface:
+  display_name: "Implement New Stage"
+  short_description: "Add a complete retrieval workflow stage"
+  default_prompt: "Use $implement-new-stage to add a new workflow stage to this repository."

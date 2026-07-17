@@ -1,0 +1,4 @@
+interface:
+  display_name: "Implement New Component"
+  short_description: "Add a tested retrieval component safely"
+  default_prompt: "Use $implement-new-component to add a new retrieval component to this repository."
