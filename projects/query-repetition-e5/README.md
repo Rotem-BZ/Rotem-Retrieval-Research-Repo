@@ -43,6 +43,18 @@ The script downloads and converts BEIR SciFact, validates both pipeline graphs,
 creates one shared E5-small index, runs baseline and repeated-query inference against
 that exact index, evaluates both runs, and prints per-metric deltas.
 
+To run only the repeated-query pipeline directly on Windows or Linux, prepare the
+dataset and index once, then launch inference from this project directory:
+
+```shell
+uv run prepare-beir --data-dir data --dataset scifact
+uv run stage indexing dataset=beir_scifact pipeline/indexing@pipeline=dense_jsonl selections/embedding_model=e5/small_v2 runtime.device.device=cpu stage.run_id=e5-small-index
+uv run stage inference dataset=beir_scifact pipeline/inference@pipeline=dense_query_repetition selections/embedding_model=e5/small_v2 runtime.device.device=cpu stage.indexing_run_id=e5-small-index runtime.query_concurrency_limit=8
+```
+
+Indexing run IDs are immutable. Change `e5-small-index` before repeating the indexing
+command, and pass the same new ID to `stage.indexing_run_id` during inference.
+
 The important comparison is the sign and size of the delta, especially for
 `NDCG@10`, `Recall@10`, and `MRR@50`. Because this is one dataset and one run, treat
 small differences as a prompt for broader evaluation rather than a general result.

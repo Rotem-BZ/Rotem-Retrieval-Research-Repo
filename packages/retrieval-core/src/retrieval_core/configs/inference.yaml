@@ -29,6 +29,7 @@ runtime:
   device:
     type: single
     device: cuda
+  query_concurrency_limit: 4
   concurrency_limit: 4
 
 hydra:
