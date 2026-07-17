@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from omegaconf import DictConfig
 
-from retrieval_core.pipelines import load_async_pipeline
 from retrieval_core.stages.base import StageContext
+from retrieval_core.utils.pipelines import load_async_pipeline
 
 INDEXING_OUTPUT_COMPONENT = "output"
 

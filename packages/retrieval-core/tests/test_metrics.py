@@ -1,6 +1,6 @@
 import pytest
 
-from retrieval_core.metrics import evaluate_rankings
+from retrieval_core.utils.evaluation import evaluate_rankings
 
 
 PREDICTIONS = [

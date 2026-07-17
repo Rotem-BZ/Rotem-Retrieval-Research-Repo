@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import subprocess
 import sys
 from importlib.metadata import PackageNotFoundError, version
@@ -11,7 +10,8 @@ from typing import Any
 
 from omegaconf import DictConfig
 
-from retrieval_core.io import config_to_yaml, project_path, read_json
+from retrieval_core.utils.hashing import sha256_text
+from retrieval_core.utils.io import config_to_yaml, project_path, read_json
 
 MANIFEST_SCHEMA_VERSION = 1
 RUN_ID_FORBIDDEN_CHARS = {"/", "\\", ":", "*", "?", '"', "<", ">", "|"}
@@ -86,7 +86,7 @@ def run_manifest(
         "artifacts": {name: str(project_path(path)) for name, path in artifacts.items()},
         "inputs": dict(inputs or {}),
         "configuration": {
-            "sha256": hashlib.sha256(resolved_config.encode("utf-8")).hexdigest(),
+            "sha256": sha256_text(resolved_config),
         },
         "code": {
             "git_commit": _git_commit(),

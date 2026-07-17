@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from retrieval_core.io import (
+from retrieval_core.utils.io import (
     predictions_from_mapping,
     predictions_to_mapping,
     read_predictions,

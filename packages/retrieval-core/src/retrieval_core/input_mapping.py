@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import random
 from collections.abc import Iterable
@@ -14,7 +13,8 @@ from typing import Any
 from haystack import Document
 from omegaconf import DictConfig
 
-from retrieval_core.io import project_path, read_json, read_jsonl, write_json_atomic
+from retrieval_core.utils.hashing import file_sha256, sha256_text
+from retrieval_core.utils.io import project_path, read_json, read_jsonl, write_json_atomic
 
 GENERATION_KEYS = (
     "seed",
@@ -166,12 +166,8 @@ def input_mapping_generation_params(mapping_cfg: DictConfig) -> dict[str, Any]:
         "query_subset_size": _optional_int(mapping_cfg.get("query_subset_size")),
         "document_subset_size": _optional_int(mapping_cfg.get("document_subset_size")),
         "random_docs_per_query": int(mapping_cfg.get("random_docs_per_query", 0)),
-        "easy_negative_docs_per_query": int(
-            mapping_cfg.get("easy_negative_docs_per_query", 0)
-        ),
-        "gold_passage_docs_per_query": int(
-            mapping_cfg.get("gold_passage_docs_per_query", 0)
-        ),
+        "easy_negative_docs_per_query": int(mapping_cfg.get("easy_negative_docs_per_query", 0)),
+        "gold_passage_docs_per_query": int(mapping_cfg.get("gold_passage_docs_per_query", 0)),
     }
     return {key: params[key] for key in GENERATION_KEYS}
 
@@ -184,7 +180,7 @@ def input_mapping_recipe_hash(mapping_cfg: DictConfig) -> str:
         sort_keys=True,
         separators=(",", ":"),
     )
-    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:12]
+    return sha256_text(payload)[:12]
 
 
 def input_mapping_cache_key(
@@ -200,7 +196,7 @@ def input_mapping_cache_key(
         "sources": source_fingerprints or input_mapping_source_fingerprints(cfg),
     }
     serialized = json.dumps(payload, sort_keys=True, separators=(",", ":"))
-    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()[:16]
+    return sha256_text(serialized)[:16]
 
 
 def input_mapping_source_fingerprints(cfg: DictConfig) -> dict[str, dict[str, Any]]:
@@ -215,7 +211,7 @@ def input_mapping_source_fingerprints(cfg: DictConfig) -> dict[str, dict[str, An
             raise FileNotFoundError(f"Dataset {name} file does not exist: {path}")
         fingerprints[name] = {
             "path": path.as_posix(),
-            "sha256": _file_sha256(path),
+            "sha256": file_sha256(path),
             "size_bytes": path.stat().st_size,
         }
     return fingerprints
@@ -239,7 +235,9 @@ def materialized_mapping_path(
     return project_path(cfg.paths.input_mappings_dir) / str(cfg.dataset.name) / filename
 
 
-def prepare_generated_input_mapping(cfg: DictConfig, *, persist: bool = True) -> tuple[GeneratedInputMapping, Path, bool]:
+def prepare_generated_input_mapping(
+    cfg: DictConfig, *, persist: bool = True
+) -> tuple[GeneratedInputMapping, Path, bool]:
     """Generate or reuse a content-addressed input mapping for later inference runs."""
 
     mapping_cfg = cfg.get("input_mapping")
@@ -341,7 +339,9 @@ def generate_input_mapping(
             for document_id in document_ids
             if document_id in annotated_by_query.get(query_id, set())
         ]
-        missing_required = [document_id for document_id in included if document_id not in active_document_set]
+        missing_required = [
+            document_id for document_id in included if document_id not in active_document_set
+        ]
         if missing_required:
             raise ValueError(
                 f"Document subset excludes annotated documents for query {query_id}: "
@@ -519,7 +519,9 @@ def _active_document_ids(
             f"Requested {document_subset_size} documents, but only {len(document_ids)} exist."
         )
 
-    remaining_pool = [document_id for document_id in document_ids if document_id not in required_document_ids]
+    remaining_pool = [
+        document_id for document_id in document_ids if document_id not in required_document_ids
+    ]
     sampled = set(required_document_ids)
     sampled.update(rng.sample(remaining_pool, document_subset_size - len(sampled)))
     return [document_id for document_id in document_ids if document_id in sampled]
@@ -564,13 +566,17 @@ def _gold_negative_pool(
     active_document_ids: list[str],
 ) -> list[str]:
     current_annotations = annotated_by_query.get(query_id, set())
-    positive_elsewhere = set().union(
-        *(
-            document_ids
-            for other_query_id, document_ids in positive_by_query.items()
-            if other_query_id != query_id
+    positive_elsewhere = (
+        set().union(
+            *(
+                document_ids
+                for other_query_id, document_ids in positive_by_query.items()
+                if other_query_id != query_id
+            )
         )
-    ) if positive_by_query else set()
+        if positive_by_query
+        else set()
+    )
     return [
         document_id
         for document_id in active_document_ids
@@ -586,11 +592,3 @@ def _optional_int(value: Any) -> int | None:
 
 def _mapping_file_stem(name: str) -> str:
     return name.replace("\\", "/").replace("/", "__")
-
-
-def _file_sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()

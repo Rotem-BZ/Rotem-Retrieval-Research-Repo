@@ -1,8 +1,8 @@
 import pytest
 from hydra.errors import ConfigCompositionException
 
-from retrieval_core.config import compose_stage_config
 from retrieval_core.stages.base import prepare_stage_run_config
+from retrieval_core.utils.config import compose_stage_config
 
 
 def test_indexing_requires_dataset_and_pipeline_selection() -> None:

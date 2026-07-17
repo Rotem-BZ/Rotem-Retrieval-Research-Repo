@@ -72,6 +72,14 @@ Hydra uses the consuming project's `configs/` directory as the primary source an
 the config package shipped by `retrieval-core` as the fallback. A project can add or
 override only the groups it owns.
 
+## Research workflow
+
+See [the research workflow guide](docs/research_workflows.md) for the complete
+experiment lifecycle: preregistering an experiment card, composing Hydra configs,
+validating and running immutable stages, reusing exact artifacts, analyzing
+predictions in a notebook, generating an evidence-led report, and launching
+prepared sweeps.
+
 ## Query-repetition example
 
 [`projects/query-repetition-e5`](projects/query-repetition-e5/README.md) demonstrates
@@ -124,6 +132,5 @@ uv sync --project projects/query-repetition-e5 --extra dev
 uv run --project projects/query-repetition-e5 pytest projects/query-repetition-e5/tests
 ```
 
-See [the research workflow guide](docs/research_workflows.md) for stage semantics and
-[the package plan](docs/multiple_projects_package_plan.md) for the architectural
-rationale.
+See [the package plan](docs/multiple_projects_package_plan.md) for the architectural
+rationale behind the monorepo split.

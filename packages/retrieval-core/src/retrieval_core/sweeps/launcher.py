@@ -8,11 +8,9 @@ import re
 import sys
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from retrieval_core.io import read_json, write_json_atomic
 from retrieval_core.sweeps.models import (
     ACTIVE_STATES,
     TERMINAL_STATES,
@@ -25,6 +23,8 @@ from retrieval_core.sweeps.models import (
     status_path,
 )
 from retrieval_core.sweeps.screen import launch_screen, list_screen_sessions, require_screen
+from retrieval_core.utils.io import read_json, write_json_atomic
+from retrieval_core.utils.time import utc_now
 
 REGISTRY_SCHEMA_VERSION = 1
 SELECTION_RANGE = re.compile(r"^(\d+)-(\d+)$")
@@ -105,7 +105,9 @@ def launch_interactively(
         except ValueError as exc:
             raise SystemExit(str(exc)) from exc
     selected_runs = [run for run in plan.runs if run.index in selected_indices]
-    eligible_runs = [run for run in selected_runs if states[run.index] in {"ready", "launch_failed"}]
+    eligible_runs = [
+        run for run in selected_runs if states[run.index] in {"ready", "launch_failed"}
+    ]
     skipped_runs = [run for run in selected_runs if run not in eligible_runs]
     if skipped_runs:
         print("")
@@ -118,7 +120,9 @@ def launch_interactively(
 
     registry_path, lock_path = launcher_registry_paths(Path(plan.project_root))
     default_cap = registry_max_parallel(registry_path) or 1
-    cap = max_parallel or prompt_positive_int(f"Maximum parallel experiments [{default_cap}]: ", default_cap)
+    cap = max_parallel or prompt_positive_int(
+        f"Maximum parallel experiments [{default_cap}]: ", default_cap
+    )
     if cap < 1:
         raise SystemExit("--max-parallel must be a positive integer.")
 
@@ -237,7 +241,9 @@ def launch_runs(
             sessions.add(session_name)
             launched.append(session_name)
             dependency = predecessor["run_name"] if predecessor else "none"
-            print(f"Launched {run.index}. {run.name} (lane {lane_index + 1}, waits for {dependency})")
+            print(
+                f"Launched {run.index}. {run.name} (lane {lane_index + 1}, waits for {dependency})"
+            )
     return launched
 
 
@@ -281,7 +287,9 @@ def parse_selection(
     if normalized == "all":
         return sorted(known_indices)
     if normalized == "ready":
-        return sorted(index for index, state in states.items() if state in {"ready", "launch_failed"})
+        return sorted(
+            index for index, state in states.items() if state in {"ready", "launch_failed"}
+        )
     if not normalized:
         raise ValueError("Run selection cannot be empty.")
 
@@ -368,9 +376,7 @@ def registry_max_parallel(path: Path) -> int | None:
     return int(value) if value else None
 
 
-def prepare_registry(
-    registry: dict[str, Any], *, max_parallel: int, sessions: set[str]
-) -> None:
+def prepare_registry(registry: dict[str, Any], *, max_parallel: int, sessions: set[str]) -> None:
     lanes = list(registry.get("lanes", []))
     active = any(active_tail(tail, sessions) is not None for tail in lanes)
     existing_cap = registry.get("max_parallel")
@@ -456,10 +462,6 @@ def prompt_yes_no(prompt: str, *, default: bool) -> bool:
         if answer in {"n", "no"}:
             return False
         print("Enter y or n.")
-
-
-def utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat()
 
 
 if __name__ == "__main__":

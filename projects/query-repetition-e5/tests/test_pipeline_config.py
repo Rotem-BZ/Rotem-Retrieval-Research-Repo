@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from retrieval_core.config import compose_stage_config
-from retrieval_core.pipelines import load_async_pipeline
+from retrieval_core.utils.config import compose_stage_config
+from retrieval_core.utils.pipelines import load_async_pipeline
 
 
 CONFIG_DIR = Path(__file__).parents[1] / "configs"

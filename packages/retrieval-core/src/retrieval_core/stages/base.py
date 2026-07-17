@@ -8,8 +8,8 @@ from typing import Any
 
 from omegaconf import DictConfig, open_dict
 
-from retrieval_core.artifacts import run_manifest
-from retrieval_core.io import config_to_yaml, project_path, write_json, write_text
+from retrieval_core.utils.artifacts import run_manifest
+from retrieval_core.utils.io import config_to_yaml, project_path, write_json, write_text
 
 RUN_NAME_FORBIDDEN_CHARS = {"/", "\\", ":", "*", "?", '"', "<", ">", "|"}
 

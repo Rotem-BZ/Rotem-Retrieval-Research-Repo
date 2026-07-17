@@ -9,15 +9,15 @@ from haystack import AsyncPipeline, Document
 from omegaconf import DictConfig, open_dict
 from tqdm import tqdm
 
-from retrieval_core.artifacts import artifact_for_run
 from retrieval_core.input_mapping import (
     InferenceMapping,
     resolve_inference_mapping,
     validate_input_mapping_config,
 )
-from retrieval_core.io import project_path, write_predictions
-from retrieval_core.pipelines import load_async_pipeline
 from retrieval_core.stages.base import StageContext, is_dry_run
+from retrieval_core.utils.artifacts import artifact_for_run
+from retrieval_core.utils.io import project_path, write_predictions
+from retrieval_core.utils.pipelines import load_async_pipeline
 
 INFERENCE_INPUT_COMPONENT = "input"
 INFERENCE_OUTPUT_COMPONENT = "output"
@@ -172,7 +172,9 @@ def validate_inference_inputs(cfg: DictConfig) -> None:
             )
         resolved = project_path(index_path)
         if not resolved.is_file():
-            raise FileNotFoundError(f"Index for component {component_name!r} does not exist: {resolved}")
+            raise FileNotFoundError(
+                f"Index for component {component_name!r} does not exist: {resolved}"
+            )
 
 
 def _build_query_inputs(

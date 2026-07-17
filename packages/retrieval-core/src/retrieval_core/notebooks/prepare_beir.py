@@ -24,6 +24,8 @@ try:
 except ImportError:  # pragma: no cover - optional runtime convenience
     certifi = None
 
+from retrieval_core.utils.io import write_jsonl
+
 # %%
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DATA_DIR = PROJECT_ROOT / "data"
@@ -69,9 +71,7 @@ def prepare_beir_dataset(
     resolved_data_dir = Path(data_dir).resolve() if data_dir is not None else DATA_DIR
     raw_dir = resolved_data_dir / "raw" / "beir" / dataset_name
     interim_dir = resolved_data_dir / "interim" / "beir" / dataset_name
-    processed_dir = resolved_data_dir / "processed" / "beir" / (
-        processed_name or dataset_name
-    )
+    processed_dir = resolved_data_dir / "processed" / "beir" / (processed_name or dataset_name)
 
     raw_dir.mkdir(parents=True, exist_ok=True)
     interim_dir.mkdir(parents=True, exist_ok=True)
@@ -104,14 +104,17 @@ def download(url: str, archive_path: Path, *, force: bool = False) -> bool:
         return False
 
     context = ssl.create_default_context(cafile=certifi.where()) if certifi else None
-    with urllib.request.urlopen(url, context=context) as response, archive_path.open(
-        "wb"
-    ) as handle:
+    with (
+        urllib.request.urlopen(url, context=context) as response,
+        archive_path.open("wb") as handle,
+    ):
         shutil.copyfileobj(response, handle)
     return True
 
 
-def extract(archive_path: Path, interim_dir: Path, dataset_name: str, *, force: bool = False) -> Path:
+def extract(
+    archive_path: Path, interim_dir: Path, dataset_name: str, *, force: bool = False
+) -> Path:
     expected_root = interim_dir / dataset_name
     if expected_root.joinpath("corpus.jsonl").is_file() and not force:
         return expected_root
@@ -293,14 +296,6 @@ def select_documents(
             seen.add(document["id"])
 
     return selected
-
-
-def write_jsonl(path: Path, records: Iterable[dict[str, Any]]) -> Path:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as handle:
-        for record in records:
-            handle.write(json.dumps(record, ensure_ascii=False) + "\n")
-    return path
 
 
 # %%

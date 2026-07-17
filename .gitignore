@@ -7,6 +7,8 @@ __pycache__/
 .mypy_cache/
 
 artifacts/
+!packages/retrieval-core/src/retrieval_core/utils/artifacts/
+!packages/retrieval-core/src/retrieval_core/utils/artifacts/*.py
 data/*
 !data/processed/
 data/processed/*

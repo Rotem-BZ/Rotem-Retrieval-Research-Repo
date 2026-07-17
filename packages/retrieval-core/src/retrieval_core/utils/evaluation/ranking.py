@@ -63,7 +63,9 @@ def evaluate_rankings(
     if not metric_specs:
         return {}
 
-    tensors = _build_retrieval_tensors(predictions, qrels, max_k=max(spec.k for spec in metric_specs))
+    tensors = _build_retrieval_tensors(
+        predictions, qrels, max_k=max(spec.k for spec in metric_specs)
+    )
     if tensors is None:
         return {spec.label: 0.0 for spec in metric_specs}
 
@@ -87,7 +89,9 @@ def _parse_metric_spec(metric_config: str) -> MetricSpec:
 
     match = _METRIC_PATTERN.match(metric_config.strip())
     if match is None:
-        raise ValueError(f"Unsupported metric format: {metric_config!r}. Use strings like 'Recall@10'.")
+        raise ValueError(
+            f"Unsupported metric format: {metric_config!r}. Use strings like 'Recall@10'."
+        )
 
     raw_name = re.sub(r"[\s_-]+", "", match.group("name")).lower()
     name = _METRIC_ALIASES.get(raw_name)

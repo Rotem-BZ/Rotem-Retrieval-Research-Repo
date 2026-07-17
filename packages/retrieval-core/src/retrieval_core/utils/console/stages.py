@@ -7,7 +7,7 @@ from typing import Any
 
 from omegaconf import DictConfig
 
-from retrieval_core.io import config_to_yaml
+from retrieval_core.utils.io import config_to_yaml
 
 
 def print_stage_start(

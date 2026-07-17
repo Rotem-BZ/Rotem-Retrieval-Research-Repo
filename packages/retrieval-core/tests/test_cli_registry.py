@@ -8,8 +8,8 @@ from retrieval_core.cli import (
     usage,
     validate_stage,
 )
-from retrieval_core.io import read_json
 from retrieval_core.stages import STAGE_RUNNERS
+from retrieval_core.utils.io import read_json
 
 
 def test_stage_registry_contains_default_stages() -> None:

@@ -6,6 +6,7 @@ baseline-versus-treatment pattern. Generated projects contain:
 - an independently locked Python package;
 - editable links to `retrieval-core` and `retrieval-components`;
 - one project-local Haystack query component and Hydra pipeline;
+- a Jupyter notebook that loads inference runs into plotting DataFrames;
 - focused component and pipeline-composition tests; and
 - a PowerShell runner that builds one shared index, evaluates both arms, and prints
   metric deltas.

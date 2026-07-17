@@ -13,7 +13,7 @@ from retrieval_core.input_mapping import (
     resolve_inference_mapping,
     write_generated_mapping,
 )
-from retrieval_core.io import read_json, write_json, write_jsonl
+from retrieval_core.utils.io import read_json, write_json, write_jsonl
 
 
 DOCUMENTS = [

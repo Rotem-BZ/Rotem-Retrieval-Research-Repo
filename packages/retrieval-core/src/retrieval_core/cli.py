@@ -13,15 +13,15 @@ from typing import Any
 
 from omegaconf import DictConfig, OmegaConf, open_dict
 
-from retrieval_core.config import compose_stage_config
-from retrieval_core.console import print_stage_result, print_stage_start
 from retrieval_core.input_mapping import validate_input_mapping_config
-from retrieval_core.io import project_path
-from retrieval_core.pipelines import load_async_pipeline
 from retrieval_core.stages import STAGE_RUNNERS, StageResult
 from retrieval_core.stages.base import prepare_stage_run_config
 from retrieval_core.stages.evaluation import prepare_evaluation_config
 from retrieval_core.stages.inference import prepare_inference_config, validate_inference_inputs
+from retrieval_core.utils.config import compose_stage_config
+from retrieval_core.utils.console import print_stage_result, print_stage_start
+from retrieval_core.utils.io import project_path
+from retrieval_core.utils.pipelines import load_async_pipeline
 
 
 def main(argv: Sequence[str] | None = None) -> None:
@@ -275,9 +275,7 @@ def _dry_run_artifact_context(cfg: DictConfig, dry_run: bool):
     with TemporaryDirectory(prefix="stage-dry-run-") as temp_dir:
         with open_dict(cfg):
             cfg.stage.dry_run = True
-            cfg.stage.output_dir = str(
-                Path(temp_dir) / str(cfg.stage.name) / str(cfg.stage.run_id)
-            )
+            cfg.stage.output_dir = str(Path(temp_dir) / str(cfg.stage.name) / str(cfg.stage.run_id))
             if "predictions_path" in cfg.stage:
                 cfg.stage.predictions_path = f"{cfg.stage.output_dir}/predictions.json"
             if "metrics_path" in cfg.stage:

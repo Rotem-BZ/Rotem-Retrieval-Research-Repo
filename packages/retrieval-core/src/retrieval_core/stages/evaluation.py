@@ -5,11 +5,11 @@ from __future__ import annotations
 from omegaconf import DictConfig
 from omegaconf import open_dict
 
-from retrieval_core.artifacts import artifact_for_run
-from retrieval_core.io import project_path, read_jsonl, read_predictions, write_json
-from retrieval_core.metrics import Qrels, evaluate_rankings
-from retrieval_core.pipelines import to_container
 from retrieval_core.stages.base import StageContext, is_dry_run
+from retrieval_core.utils.artifacts import artifact_for_run
+from retrieval_core.utils.evaluation import Qrels, evaluate_rankings
+from retrieval_core.utils.io import project_path, read_jsonl, read_predictions, write_json
+from retrieval_core.utils.pipelines import to_container
 
 
 def run_evaluation(cfg: DictConfig) -> dict[str, float]:

@@ -8,7 +8,6 @@ import json
 import shutil
 import uuid
 from collections.abc import Callable, Sequence
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -17,8 +16,6 @@ from omegaconf import OmegaConf, open_dict
 
 from retrieval_core.cli import resolve_stage_config
 from retrieval_core.command_builder import BuiltCommand, run_configure
-from retrieval_core.config import find_config_dir
-from retrieval_core.io import config_to_yaml
 from retrieval_core.sweeps.models import (
     SWEEP_SCHEMA_VERSION,
     SweepParameter,
@@ -26,10 +23,13 @@ from retrieval_core.sweeps.models import (
     SweepRun,
     choice_name,
     save_plan,
-    sha256_text,
     slugify,
     unique_choice_name,
 )
+from retrieval_core.utils.config import find_config_dir
+from retrieval_core.utils.hashing import sha256_text
+from retrieval_core.utils.io import config_to_yaml
+from retrieval_core.utils.time import utc_now, utc_timestamp
 
 InputFn = Callable[[str], str]
 OutputFn = Callable[[str], None]
@@ -76,7 +76,7 @@ def prepare_sweep(
     default_name = f"{built.stage_name}-sweep"
     entered_name = input_fn(f"Sweep name [{default_name}]: ").strip() or default_name
     sweep_name = slugify(entered_name, fallback=default_name)
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    timestamp = utc_timestamp()
     sweep_id = f"{sweep_name}--{timestamp}"
 
     output_fn("")
@@ -197,7 +197,7 @@ def materialize_sweep(
         sweep_id=sweep_id,
         name=sweep_name,
         stage=built.stage_name,
-        created_at=datetime.now(timezone.utc).isoformat(),
+        created_at=utc_now(),
         project_root=str(project_root),
         source_config_dir=str(config_dir),
         combination_mode=combination_mode,
@@ -242,9 +242,7 @@ def prompt_values(
     path: str, *, input_fn: InputFn = input, output_fn: OutputFn = print
 ) -> list[Any]:
     while True:
-        answer = input_fn(
-            f"Values for {path} as a YAML list (for example [0.001, 0.01]): "
-        ).strip()
+        answer = input_fn(f"Values for {path} as a YAML list (for example [0.001, 0.01]): ").strip()
         try:
             values = yaml.safe_load(answer)
         except yaml.YAMLError as exc:
@@ -256,9 +254,7 @@ def prompt_values(
         return values
 
 
-def prompt_combination_mode(
-    *, input_fn: InputFn = input, output_fn: OutputFn = print
-) -> str:
+def prompt_combination_mode(*, input_fn: InputFn = input, output_fn: OutputFn = print) -> str:
     output_fn("")
     output_fn("Combination mode:")
     output_fn("  1. Cartesian product")

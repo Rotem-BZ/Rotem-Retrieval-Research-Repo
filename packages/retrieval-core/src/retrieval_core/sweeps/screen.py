@@ -57,4 +57,3 @@ def launch_screen(
 
 def session_exists(session_name: str, *, executable: str = "screen") -> bool:
     return session_name in list_screen_sessions(executable=executable)
-

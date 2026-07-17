@@ -3,13 +3,12 @@ from pathlib import Path
 import pytest
 from omegaconf import OmegaConf
 
-from retrieval_core.io import write_predictions
-from retrieval_core.io import write_json
 from retrieval_core.stages.evaluation import (
     _qrels_from_records,
     inference_predictions_path_for_run_id,
     run_evaluation,
 )
+from retrieval_core.utils.io import write_json, write_predictions
 
 
 def test_qrels_from_records_groups_positive_judgments() -> None:

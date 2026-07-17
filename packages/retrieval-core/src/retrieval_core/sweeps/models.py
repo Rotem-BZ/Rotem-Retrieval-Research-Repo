@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
-import os
 import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -12,7 +10,8 @@ from typing import Any
 
 import yaml
 
-from retrieval_core.io import read_json, write_json_atomic
+from retrieval_core.utils.io import read_json, write_json_atomic
+from retrieval_core.utils.hashing import sha256_text
 
 SWEEP_SCHEMA_VERSION = 1
 TERMINAL_STATES = {"succeeded", "failed", "launch_failed", "cancelled", "lost"}
@@ -139,7 +138,7 @@ def choice_name(
     full_name = "--".join(parts)
     if len(full_name) <= max_length:
         return full_name
-    digest = hashlib.sha256(full_name.encode("utf-8")).hexdigest()[:10]
+    digest = sha256_text(full_name)[:10]
     return f"{full_name[: max_length - len(digest) - 2].rstrip('-')}--{digest}"
 
 
@@ -147,7 +146,7 @@ def unique_choice_name(name: str, values: tuple[Any, ...], existing: set[str]) -
     if name not in existing:
         return name
     serialized = json.dumps(values, sort_keys=True, default=str, separators=(",", ":"))
-    digest = hashlib.sha256(serialized.encode("utf-8")).hexdigest()[:8]
+    digest = sha256_text(serialized)[:8]
     candidate = f"{name}--{digest}"
     suffix = 2
     while candidate in existing:
@@ -156,21 +155,9 @@ def unique_choice_name(name: str, values: tuple[Any, ...], existing: set[str]) -
     return candidate
 
 
-def sha256_text(text: str) -> str:
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()
-
-
 def screen_name(sweep_id: str, run_name: str, *, max_length: int = 75) -> str:
     full_name = f"rr-{slugify(sweep_id)}--{slugify(run_name)}"
     if len(full_name) <= max_length:
         return full_name
-    digest = hashlib.sha256(full_name.encode("utf-8")).hexdigest()[:10]
+    digest = sha256_text(full_name)[:10]
     return f"{full_name[: max_length - len(digest) - 2].rstrip('-')}--{digest}"
-
-
-def atomic_write_yaml(path: Path, payload: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
-    temporary.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
-    temporary.replace(path)
-

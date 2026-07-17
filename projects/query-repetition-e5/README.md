@@ -58,3 +58,16 @@ command, and pass the same new ID to `stage.indexing_run_id` during inference.
 The important comparison is the sign and size of the delta, especially for
 `NDCG@10`, `Recall@10`, and `MRR@50`. Because this is one dataset and one run, treat
 small differences as a prompt for broader evaluation rather than a general result.
+
+## Analyze predictions
+
+Open [`notebooks/analyze_predictions.ipynb`](notebooks/analyze_predictions.ipynb).
+Add readable labels and exact inference run IDs to `RUNS`, then run the cells. The
+notebook resolves each run's prediction artifact through its manifest and builds:
+
+- `predictions_df`, one row per retrieved result with rank, score, content, metadata,
+  and matched qrel relevance; and
+- `query_summary_df`, one row per run and query with retrieval depth, relevant counts,
+  first relevant rank, reciprocal rank, recall, and query-length fields.
+
+Use these DataFrames directly for project-specific plots below the final notebook cell.

@@ -6,7 +6,6 @@ import argparse
 import time
 import traceback
 from collections.abc import Callable, Sequence
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -16,11 +15,12 @@ from retrieval_core.sweeps.models import (
     load_plan,
     read_status,
     run_by_name,
-    sha256_text,
     status_path,
     update_status,
 )
 from retrieval_core.sweeps.screen import session_exists
+from retrieval_core.utils.hashing import sha256_text
+from retrieval_core.utils.time import utc_now
 
 
 def main(argv: Sequence[str] | None = None) -> None:
@@ -71,9 +71,7 @@ def run_worker(
         config_path = directory / run.config_file
         config_text = config_path.read_text(encoding="utf-8")
         if sha256_text(config_text) != run.config_sha256:
-            raise ValueError(
-                f"Prepared config checksum changed for {run.name!r}: {config_path}"
-            )
+            raise ValueError(f"Prepared config checksum changed for {run.name!r}: {config_path}")
 
         update_status(
             own_status_path,
@@ -152,10 +150,6 @@ def system_exit_code(exc: BaseException) -> int:
         if isinstance(exc.code, int):
             return exc.code
     return 1
-
-
-def utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat()
 
 
 if __name__ == "__main__":

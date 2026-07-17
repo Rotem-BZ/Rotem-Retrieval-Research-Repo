@@ -8,12 +8,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-import yaml
 from omegaconf import OmegaConf
 from omegaconf.errors import MissingMandatoryValue
 
-from retrieval_core.config import compose_stage_config, config_roots, find_config_dir
 from retrieval_core.stages import STAGE_RUNNERS
+from retrieval_core.utils.config import compose_stage_config, config_roots, find_config_dir
+from retrieval_core.utils.io import read_yaml_mapping
 
 InputFn = Callable[[str], str]
 OutputFn = Callable[[str], None]
@@ -219,7 +219,7 @@ def discover_config_choices(group: str, config_dir: Path | None = None) -> list[
 def extract_required_defaults(path: Path) -> list[RequiredDefault]:
     """Read required `???` defaults from a Hydra YAML config."""
 
-    payload = _read_yaml(path)
+    payload = read_yaml_mapping(path)
     defaults = payload.get("defaults", [])
     required: list[RequiredDefault] = []
 
@@ -236,7 +236,7 @@ def extract_required_defaults(path: Path) -> list[RequiredDefault]:
 def extract_default_entries(path: Path) -> list[DefaultEntry]:
     """Read selectable Hydra defaults from a YAML config."""
 
-    payload = _read_yaml(path)
+    payload = read_yaml_mapping(path)
     defaults = payload.get("defaults", [])
     entries: list[DefaultEntry] = []
 
@@ -281,9 +281,7 @@ def collect_selected_configs(
             if choice_name is None:
                 continue
             try:
-                path = _resolve_config_path(
-                    f"{entry.group}/{choice_name}.yaml", config_dir
-                )
+                path = _resolve_config_path(f"{entry.group}/{choice_name}.yaml", config_dir)
             except FileNotFoundError:
                 continue
 
@@ -322,7 +320,7 @@ def editable_fields(config: SelectedConfig) -> list[EditableField]:
 
     payload = {
         key: value
-        for key, value in _read_yaml(config.path).items()
+        for key, value in read_yaml_mapping(config.path).items()
         if key not in {"defaults", "metadata"}
     }
     fields: list[EditableField] = []
@@ -761,7 +759,7 @@ def _parse_positive_int(value: str, name: str) -> int:
 
 
 def _config_description(path: Path) -> str | None:
-    metadata = _read_yaml(path).get("metadata")
+    metadata = read_yaml_mapping(path).get("metadata")
     if isinstance(metadata, dict):
         description = metadata.get("description")
         if description:
@@ -775,14 +773,6 @@ def _resolve_config_path(relative_path: str, config_dir: Path) -> Path:
         if candidate.is_file():
             return candidate
     raise FileNotFoundError(f"Config does not exist in the active search path: {relative_path}")
-
-
-def _read_yaml(path: Path) -> dict[str, Any]:
-    with path.open("r", encoding="utf-8") as handle:
-        payload = yaml.safe_load(handle) or {}
-    if not isinstance(payload, dict):
-        return {}
-    return payload
 
 
 def _flatten_fields(value: Any, prefix: str = "") -> list[tuple[str, Any]]:
