@@ -50,5 +50,5 @@ under `projects/`.
 Before materializing the generated experiment, create its shared index and replace
 `REPLACE_WITH_EXACT_INDEXING_RUN_ID` in
 `experiments/<project-slug>/configs/matrix.yaml`. Then run
-`uv run prepare-experiment experiments/<project-slug>`; on Linux,
-`uv run run-experiment` chooses the experiment and any subset of its runs.
+`uv run python ../../dev-scripts/prepare_experiment.py experiments/<project-slug>`; on Linux,
+`uv run python ../../dev-scripts/run_experiment.py` chooses the experiment and any subset of its runs.

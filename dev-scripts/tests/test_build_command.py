@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from retrieval_core.command_builder import (
+from build_command import (
     HydraOverride,
     collect_selected_configs,
     discover_config_choices,
@@ -9,11 +9,17 @@ from retrieval_core.command_builder import (
     extract_required_defaults,
     render_command,
     run_configure,
-    validate_config,
 )
 
 
-CONFIG_DIR = Path(__file__).parents[1] / "src" / "retrieval_core" / "configs"
+CONFIG_DIR = (
+    Path(__file__).parents[2]
+    / "packages"
+    / "retrieval-core"
+    / "src"
+    / "retrieval_core"
+    / "configs"
+)
 
 
 def test_discovers_recursive_config_choices() -> None:
@@ -194,18 +200,17 @@ def test_render_command_preserves_hydra_override_syntax() -> None:
             HydraOverride("pipeline/inference@pipeline=dense_jsonl"),
             HydraOverride("selections/embedding_model=e5/small_v2"),
         ],
-        dry_run=True,
     )
 
     assert (
         command
-        == "uv run stage --dry-run inference dataset=toy "
+        == "uv run stage inference dataset=toy "
         "pipeline/inference@pipeline=dense_jsonl selections/embedding_model=e5/small_v2"
     )
 
 
 def test_configure_flow_builds_indexing_dummy_command() -> None:
-    result = _run_with_answers(["2", "3", "3", "n", "n", "toy_index", ""])
+    result = _run_with_answers(["2", "3", "3", "n", "toy_index", ""])
 
     assert result.command == (
         "uv run stage indexing dataset=toy pipeline/indexing@pipeline=dummy_jsonl "
@@ -225,7 +230,6 @@ def test_configure_flow_builds_inference_dense_command_with_top_k() -> None:
             "3",
             "4",
             "3",
-            "n",
             "n",
             "",
             "toy_dense",
@@ -251,7 +255,7 @@ def test_configure_flow_builds_inference_dense_command_with_top_k() -> None:
 
 def test_configure_flow_builds_evaluation_command_with_metrics() -> None:
     result = _run_with_answers(
-        ["1", "3", "n", "n", "inference_20260101", "Recall@10,MRR@10,NDCG@10", ""]
+        ["1", "3", "n", "inference_20260101", "Recall@10,MRR@10,NDCG@10", ""]
     )
 
     assert result.command == (
@@ -266,15 +270,9 @@ def test_configure_flow_builds_evaluation_command_with_metrics() -> None:
     )
 
 
-def test_dense_e5_wizard_output_composes() -> None:
-    result = _run_with_answers(["3", "3", "4", "3", "n", "n", "", "toy_dense", ""])
-
-    validate_config(result.stage_name, result.overrides)
-
-
 def test_configure_flow_switches_default_input_mapping_choice() -> None:
     result = _run_with_answers(
-        ["3", "3", "5", "y", "4", "2", "2", "6", "n", "", "toy_keyword", ""]
+        ["3", "3", "5", "y", "4", "2", "2", "6", "", "toy_keyword", ""]
     )
 
     assert result.command == (
@@ -301,7 +299,6 @@ def test_configure_flow_switches_nested_component_choice_with_mounted_override()
             "2",
             "1",
             "10",
-            "n",
             "",
             "toy_dense",
             "",
@@ -337,7 +334,6 @@ def test_configure_flow_edits_nested_selection_field() -> None:
             "256",
             "9",
             "10",
-            "n",
             "",
             "toy_dense",
             "",
@@ -375,7 +371,6 @@ def test_configure_flow_shows_updated_value_after_field_edit() -> None:
             "",
             "9",
             "10",
-            "n",
             "",
             "toy_dense",
             "",
@@ -405,7 +400,6 @@ def test_configure_flow_can_list_pipeline_fields_with_list_values() -> None:
             "3",
             "5",
             "10",
-            "n",
             "",
             "toy_dense",
             "",

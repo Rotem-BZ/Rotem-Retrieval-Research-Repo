@@ -44,7 +44,7 @@ can contain its card, reusable `configs/matrix.yaml`, analysis notebook, and rep
 Materialize the matrix into immutable, fully resolved run configs with:
 
 ```shell
-uv run prepare-experiment experiments/<experiment-slug>
+uv run python ../../dev-scripts/prepare_experiment.py experiments/<experiment-slug>
 ```
 
 With no path, the preparer interactively creates a new experiment. On Linux with GNU
@@ -52,7 +52,7 @@ Screen installed, the launcher first chooses a prepared experiment and then a su
 of its runs:
 
 ```shell
-uv run run-experiment
+uv run python ../../dev-scripts/run_experiment.py
 ```
 
 The launcher displays ready, waiting, running, succeeded, and failed runs; accepts
@@ -78,7 +78,7 @@ override only the groups it owns.
 
 See [the research workflow guide](docs/research_workflows.md) for the complete
 experiment lifecycle: preregistering an experiment card, composing Hydra configs,
-validating and running immutable stages, reusing exact artifacts, analyzing
+testing and running immutable stages, reusing exact artifacts, analyzing
 predictions in a notebook, generating an evidence-led report, and launching
 prepared experiments.
 
@@ -128,7 +128,7 @@ uv sync --project packages/retrieval-components --extra dev
 uv run --project packages/retrieval-components pytest packages/retrieval-components/tests
 
 uv sync --project packages/retrieval-core --extra dev
-uv run --project packages/retrieval-core pytest packages/retrieval-core/tests
+uv run --project packages/retrieval-core pytest packages/retrieval-core/tests dev-scripts/tests
 
 uv sync --project projects/query-repetition-e5 --extra dev
 uv run --project projects/query-repetition-e5 pytest projects/query-repetition-e5/tests

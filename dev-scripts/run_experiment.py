@@ -11,18 +11,17 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
-from retrieval_core.sweeps.models import (
+from experiment_models import (
     ACTIVE_STATES,
     TERMINAL_STATES,
     ExperimentPlan,
     ExperimentRun,
     load_plan,
-    log_path,
     read_status,
     screen_name,
     status_path,
 )
-from retrieval_core.sweeps.screen import launch_screen, list_screen_sessions, require_screen
+from screen import launch_screen, list_screen_sessions, require_screen
 from retrieval_core.utils.io import read_json, write_json_atomic
 from retrieval_core.utils.time import utc_now
 
@@ -122,10 +121,25 @@ def launch_interactively(
         return []
 
     registry_path, lock_path = launcher_registry_paths(Path(plan.project_root))
-    default_cap = registry_max_parallel(registry_path) or 1
-    cap = max_parallel or prompt_positive_int(
-        f"Maximum parallel experiments [{default_cap}]: ", default_cap
-    )
+    try:
+        stored_cap = load_registry(registry_path).get("max_parallel")
+        default_cap = int(stored_cap) if stored_cap else 1
+    except (FileNotFoundError, ValueError):
+        default_cap = 1
+    cap = max_parallel
+    while cap is None:
+        answer = input(f"Maximum parallel experiments [{default_cap}]: ").strip()
+        if not answer:
+            cap = default_cap
+            break
+        try:
+            cap = int(answer)
+        except ValueError:
+            print("Enter a positive integer.")
+            continue
+        if cap < 1:
+            print("Enter a positive integer.")
+            cap = None
     if cap < 1:
         raise SystemExit("--max-parallel must be a positive integer.")
 
@@ -172,7 +186,13 @@ def launch_runs(
         prepare_registry(registry, max_parallel=max_parallel, sessions=sessions)
 
         for run in runs:
-            lane_index = choose_lane(registry, sessions)
+            lanes = registry["lanes"]
+            start = int(registry.get("next_lane", 0)) % len(lanes)
+            lane_index = start
+            for candidate in ((start + offset) % len(lanes) for offset in range(len(lanes))):
+                if active_tail(lanes[candidate], sessions) is None:
+                    lane_index = candidate
+                    break
             predecessor = active_tail(registry["lanes"][lane_index], sessions)
             session_name = screen_name(plan.experiment_id, run.name)
             if session_name in sessions:
@@ -180,8 +200,17 @@ def launch_runs(
                 continue
 
             own_status_path = status_path(experiment_dir, run)
-            own_log_path = log_path(experiment_dir, run)
-            wait_for = predecessor_reference(predecessor) if predecessor else None
+            own_log_path = experiment_dir.resolve() / "runs" / run.name / "screen.log"
+            wait_for = (
+                {
+                    "experiment_id": str(predecessor.get("experiment_id", "")),
+                    "run_name": str(predecessor["run_name"]),
+                    "status_path": str(predecessor["status_path"]),
+                    "screen_name": str(predecessor["screen_name"]),
+                }
+                if predecessor
+                else None
+            )
             status_payload = {
                 "state": "launching",
                 "experiment_id": plan.experiment_id,
@@ -206,12 +235,11 @@ def launch_runs(
             }
             registry["lanes"][lane_index] = tail
             registry["next_lane"] = (lane_index + 1) % max_parallel
-            save_registry(registry_path, registry)
+            write_json_atomic(registry_path, registry)
 
             command = [
                 sys.executable,
-                "-m",
-                "retrieval_core.sweeps.worker",
+                str(Path(__file__).with_name("experiment_worker.py")),
                 "--experiment-dir",
                 str(experiment_dir),
                 "--run-name",
@@ -388,18 +416,6 @@ def load_registry(path: Path) -> dict[str, Any]:
     return dict(payload)
 
 
-def save_registry(path: Path, registry: dict[str, Any]) -> None:
-    write_json_atomic(path, registry)
-
-
-def registry_max_parallel(path: Path) -> int | None:
-    try:
-        value = load_registry(path).get("max_parallel")
-    except (FileNotFoundError, ValueError):
-        return None
-    return int(value) if value else None
-
-
 def prepare_registry(registry: dict[str, Any], *, max_parallel: int, sessions: set[str]) -> None:
     lanes = list(registry.get("lanes", []))
     active = any(active_tail(tail, sessions) is not None for tail in lanes)
@@ -418,16 +434,6 @@ def prepare_registry(registry: dict[str, Any], *, max_parallel: int, sessions: s
         raise ValueError("Launcher registry lane count does not match max_parallel.")
 
 
-def choose_lane(registry: dict[str, Any], sessions: set[str]) -> int:
-    lanes = registry["lanes"]
-    start = int(registry.get("next_lane", 0)) % len(lanes)
-    order = [(start + offset) % len(lanes) for offset in range(len(lanes))]
-    for lane_index in order:
-        if active_tail(lanes[lane_index], sessions) is None:
-            return lane_index
-    return start
-
-
 def active_tail(tail: Any, sessions: set[str]) -> dict[str, Any] | None:
     if not isinstance(tail, dict):
         return None
@@ -437,19 +443,6 @@ def active_tail(tail: Any, sessions: set[str]) -> dict[str, Any] | None:
     if str(tail.get("screen_name", "")) not in sessions:
         return None
     return tail
-
-
-def predecessor_reference(tail: dict[str, Any]) -> dict[str, str]:
-    return {
-        "experiment_id": str(tail.get("experiment_id", tail.get("sweep_id", ""))),
-        "run_name": str(tail["run_name"]),
-        "status_path": str(tail["status_path"]),
-        "screen_name": str(tail["screen_name"]),
-    }
-
-
-# Compatibility alias for integrations using the former helper name.
-choose_sweep_dir = choose_experiment_dir
 
 
 @contextmanager
@@ -463,21 +456,6 @@ def launcher_lock(path: Path) -> Iterator[None]:
             yield
         finally:
             fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
-
-
-def prompt_positive_int(prompt: str, default: int) -> int:
-    while True:
-        answer = input(prompt).strip()
-        if not answer:
-            return default
-        try:
-            parsed = int(answer)
-        except ValueError:
-            print("Enter a positive integer.")
-            continue
-        if parsed > 0:
-            return parsed
-        print("Enter a positive integer.")
 
 
 def prompt_yes_no(prompt: str, *, default: bool) -> bool:

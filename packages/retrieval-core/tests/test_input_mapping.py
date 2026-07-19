@@ -61,7 +61,10 @@ def test_file_input_mapping_runs_only_mapped_queries(tmp_path: Path) -> None:
 
     assert [query["id"] for query in mapping.queries] == ["q2"]
     assert mapping.candidate_ids_by_query == {"q2": ["d3", "d4"]}
-    assert [document.id for document in mapping.candidate_documents("q2")] == ["d3", "d4"]
+    assert [mapping.documents_by_id[document_id].id for document_id in mapping.candidate_ids("q2")] == [
+        "d3",
+        "d4",
+    ]
 
 
 def test_generated_recipe_is_prepared_explicitly_and_reused(tmp_path: Path) -> None:

@@ -33,23 +33,17 @@ class DocumentContentFilter:
         rejected: list[Document] = []
 
         for document in documents:
-            target = document.content or ""
-            if self._accepts(target):
+            content = document.content or ""
+            word_count = len(re.findall(r"\b\w+\b", content))
+            accepted = not (
+                (self.min_words is not None and word_count < self.min_words)
+                or (self.max_words is not None and word_count > self.max_words)
+                or (self._include_pattern and not self._include_pattern.search(content))
+                or (self._exclude_pattern and self._exclude_pattern.search(content))
+            )
+            if accepted:
                 kept.append(document)
             else:
                 rejected.append(document)
 
         return {"documents": kept, "rejected_documents": rejected}
-
-    def _accepts(self, content: str) -> bool:
-        word_count = len(re.findall(r"\b\w+\b", content))
-
-        if self.min_words is not None and word_count < self.min_words:
-            return False
-        if self.max_words is not None and word_count > self.max_words:
-            return False
-        if self._include_pattern and not self._include_pattern.search(content):
-            return False
-        if self._exclude_pattern and self._exclude_pattern.search(content):
-            return False
-        return True

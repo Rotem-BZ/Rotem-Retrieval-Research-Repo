@@ -53,8 +53,8 @@ The generated experiment workspace is
 [`experiments/{{ cookiecutter.project_slug }}`](experiments/{{ cookiecutter.project_slug }}).
 After creating a shared index, replace the placeholder index ID in
 `experiments/{{ cookiecutter.project_slug }}/configs/matrix.yaml`, run
-`uv run prepare-experiment experiments/{{ cookiecutter.project_slug }}`, and use
-`uv run run-experiment` on Linux to choose the experiment and its run subset.
+`uv run python ../../dev-scripts/prepare_experiment.py experiments/{{ cookiecutter.project_slug }}`, and use
+`uv run python ../../dev-scripts/run_experiment.py` on Linux to choose the experiment and its run subset.
 
 The default selections are:
 

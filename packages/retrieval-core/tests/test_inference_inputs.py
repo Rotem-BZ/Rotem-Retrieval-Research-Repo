@@ -3,23 +3,7 @@ import asyncio
 from haystack import Document
 
 from retrieval_core.input_mapping import InferenceMapping
-from retrieval_core.stages.inference import _build_query_inputs, _run_queries
-
-
-def test_build_query_inputs_targets_fixed_inference_input_component() -> None:
-    documents = [Document(id="d1", content="one")]
-
-    assert _build_query_inputs(
-        "hydra pipelines",
-        candidate_document_ids=["d1"],
-        candidate_documents=documents,
-    ) == {
-        "input": {
-            "query": "hydra pipelines",
-            "candidate_document_ids": ["d1"],
-            "candidate_documents": documents,
-        }
-    }
+from retrieval_core.stages.inference import _run_queries
 
 
 def test_run_queries_concurrently_and_preserve_input_order() -> None:

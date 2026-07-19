@@ -2,14 +2,8 @@
 
 from __future__ import annotations
 
-from haystack import Document
 import numpy as np
-
-
-def embedding_matrix(embeddings: list[list[float]]) -> np.ndarray:
-    if not embeddings:
-        return np.empty((0, 0), dtype=np.float32)
-    return np.asarray(embeddings, dtype=np.float32)
+from haystack import Document
 
 
 def document_embedding_matrix(documents: list[Document]) -> np.ndarray:
@@ -76,4 +70,3 @@ def top_score_indices(scores: np.ndarray, limit: int | None) -> list[int]:
     else:
         candidate_indices = np.argpartition(scores, -limit)[-limit:]
     return sorted(candidate_indices.tolist(), key=lambda index: float(scores[index]), reverse=True)
-

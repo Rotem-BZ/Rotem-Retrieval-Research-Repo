@@ -31,8 +31,13 @@ class JsonlKeywordRetriever:
     ) -> dict[str, list[Document]]:
         limit = top_k or self.top_k
         query_tokens = Counter(re.findall(r"[a-z0-9]+", query.lower()))
+        path = Path(self.index_path)
+        if not path.exists():
+            raise FileNotFoundError(
+                f"Index not found at {path}. Run the indexing stage before inference."
+            )
         documents = filter_documents_by_candidate_ids(
-            self._load_documents(),
+            read_jsonl_documents(path),
             candidate_document_ids,
         )
 
@@ -51,13 +56,3 @@ class JsonlKeywordRetriever:
 
         scored.sort(key=lambda document: (document.score or 0.0, document.id or ""), reverse=True)
         return {"documents": scored[:limit]}
-
-    def _load_documents(self) -> list[Document]:
-        path = Path(self.index_path)
-        if not path.exists():
-            raise FileNotFoundError(
-                f"Index not found at {path}. Run the indexing stage before inference."
-            )
-
-        return read_jsonl_documents(path)
-

@@ -60,9 +60,3 @@ def config_roots(config_dir: str | Path | None = None) -> tuple[Path, ...]:
     if primary == core:
         return (core,)
     return primary, core
-
-
-def _find_config_dir() -> Path:
-    """Backward-compatible alias for command-builder integrations."""
-
-    return find_config_dir()

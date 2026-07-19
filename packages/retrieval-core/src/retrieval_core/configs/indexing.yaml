@@ -4,13 +4,6 @@ defaults:
   - pipeline/indexing@pipeline: ???
   - _self_
 
-metadata:
-  command_builder:
-    prompt_overrides:
-      - path: stage.run_name
-        prompt: "indexing run name"
-        type: value
-
 stage:
   name: indexing
   run_name: null

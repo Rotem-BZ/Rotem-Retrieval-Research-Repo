@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-from haystack import AsyncPipeline, Document
+from haystack import AsyncPipeline
 from omegaconf import DictConfig, open_dict
 from tqdm import tqdm
 
@@ -14,7 +14,7 @@ from retrieval_core.input_mapping import (
     resolve_inference_mapping,
     validate_input_mapping_config,
 )
-from retrieval_core.stages.base import StageContext, is_dry_run
+from retrieval_core.stages.base import StageContext
 from retrieval_core.utils.artifacts import artifact_for_run
 from retrieval_core.utils.io import project_path, write_predictions
 from retrieval_core.utils.pipelines import load_async_pipeline
@@ -39,10 +39,7 @@ async def run_inference(cfg: DictConfig) -> list[dict[str, Any]]:
         pipeline_concurrency_limit=pipeline_concurrency_limit,
     )
 
-    if is_dry_run(cfg):
-        predictions_path = cfg.stage.predictions_path
-    else:
-        predictions_path = write_predictions(cfg.stage.predictions_path, predictions)
+    predictions_path = write_predictions(cfg.stage.predictions_path, predictions)
 
     context.write_resolved_config()
     context.write_result(
@@ -119,21 +116,33 @@ async def _run_query(
     pipeline_concurrency_limit: int,
 ) -> dict[str, Any]:
     query_id = str(query["id"])
-    inputs = _build_query_inputs(
-        query["text"],
-        candidate_document_ids=inference_mapping.candidate_ids(query_id),
-        candidate_documents=inference_mapping.candidate_documents(query_id),
-    )
     result = await pipeline.run_async(
-        data=inputs,
+        data={
+            INFERENCE_INPUT_COMPONENT: {
+                "query": query["text"],
+                "candidate_document_ids": list(inference_mapping.candidate_ids(query_id)),
+                "candidate_documents": [
+                    inference_mapping.documents_by_id[document_id]
+                    for document_id in inference_mapping.candidate_ids(query_id)
+                ],
+            }
+        },
         include_outputs_from={INFERENCE_OUTPUT_COMPONENT},
         concurrency_limit=pipeline_concurrency_limit,
     )
-    documents = _extract_documents(result)
+    documents = list(result[INFERENCE_OUTPUT_COMPONENT][INFERENCE_DOCUMENTS_FIELD])
     return {
         "query_id": query_id,
         "query": query["text"],
-        "documents": [_document_to_dict(document) for document in documents],
+        "documents": [
+            {
+                "id": document.id,
+                "content": document.content,
+                "meta": dict(document.meta or {}),
+                "score": getattr(document, "score", None),
+            }
+            for document in documents
+        ],
     }
 
 
@@ -155,52 +164,3 @@ def prepare_inference_config(cfg: DictConfig) -> None:
             )
         with open_dict(cfg):
             cfg.stage.index_path = str(resolved)
-
-
-def validate_inference_inputs(cfg: DictConfig) -> None:
-    """Validate file-backed pipeline inputs without executing the pipeline."""
-
-    for component_name, component_cfg in cfg.pipeline.get("components", {}).items():
-        init_parameters = component_cfg.get("init_parameters", {})
-        if "index_path" not in init_parameters:
-            continue
-        index_path = init_parameters.get("index_path")
-        if not index_path:
-            raise ValueError(
-                f"Pipeline component {component_name!r} requires an index. Set either "
-                "stage.indexing_run_id to an exact indexing run id or stage.index_path."
-            )
-        resolved = project_path(index_path)
-        if not resolved.is_file():
-            raise FileNotFoundError(
-                f"Index for component {component_name!r} does not exist: {resolved}"
-            )
-
-
-def _build_query_inputs(
-    query_text: str,
-    *,
-    candidate_document_ids: list[str] | None = None,
-    candidate_documents: list[Document] | None = None,
-) -> dict[str, Any]:
-    return {
-        INFERENCE_INPUT_COMPONENT: {
-            "query": query_text,
-            "candidate_document_ids": list(candidate_document_ids or []),
-            "candidate_documents": list(candidate_documents or []),
-        }
-    }
-
-
-def _extract_documents(result: dict[str, Any]) -> list[Document]:
-    documents = result[INFERENCE_OUTPUT_COMPONENT][INFERENCE_DOCUMENTS_FIELD]
-    return list(documents)
-
-
-def _document_to_dict(document: Document) -> dict[str, Any]:
-    return {
-        "id": document.id,
-        "content": document.content,
-        "meta": dict(document.meta or {}),
-        "score": getattr(document, "score", None),
-    }

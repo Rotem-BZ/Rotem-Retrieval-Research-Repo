@@ -15,19 +15,10 @@ $repeatedEvaluation = "e5-small-repeated-eval-$suffix"
 uv run prepare-beir --data-dir data --dataset scifact
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-uv run stage --validate indexing dataset=beir_scifact pipeline/indexing@pipeline=dense_jsonl selections/embedding_model=e5/small_v2 runtime.device.device=$Device stage.run_id=$indexRun
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
 uv run stage indexing dataset=beir_scifact pipeline/indexing@pipeline=dense_jsonl selections/embedding_model=e5/small_v2 runtime.device.device=$Device stage.run_id=$indexRun
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-uv run stage --validate inference dataset=beir_scifact pipeline/inference@pipeline=dense_jsonl selections/embedding_model=e5/small_v2 runtime.device.device=$Device stage.indexing_run_id=$indexRun stage.run_id=$baselineRun
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
 uv run stage inference dataset=beir_scifact pipeline/inference@pipeline=dense_jsonl selections/embedding_model=e5/small_v2 runtime.device.device=$Device stage.indexing_run_id=$indexRun stage.run_id=$baselineRun
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-uv run stage --validate inference dataset=beir_scifact pipeline/inference@pipeline=dense_query_repetition selections/embedding_model=e5/small_v2 runtime.device.device=$Device stage.indexing_run_id=$indexRun stage.run_id=$repeatedRun
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 uv run stage inference dataset=beir_scifact pipeline/inference@pipeline=dense_query_repetition selections/embedding_model=e5/small_v2 runtime.device.device=$Device stage.indexing_run_id=$indexRun stage.run_id=$repeatedRun

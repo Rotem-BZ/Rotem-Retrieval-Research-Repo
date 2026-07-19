@@ -6,10 +6,7 @@ from typing import Any
 
 from haystack import Document, component
 
-from retrieval_components.utils.elasticsearch import (
-    create_client,
-    document_to_source,
-)
+from retrieval_components.utils.elasticsearch import create_client
 
 
 @component
@@ -34,19 +31,22 @@ class ElasticsearchDocumentIndexer:
 
     @component.output_types(indexed_count=int)
     def run(self, documents: list[Document]) -> dict[str, int]:
-        client = self._get_client()
+        if self._client is None:
+            self._client = create_client(self.hosts)
 
         for document in documents:
-            client.index(
+            source = {
+                self.content_field: document.content,
+                self.meta_field: dict(document.meta or {}),
+            }
+            embedding = getattr(document, "embedding", None)
+            if embedding is not None:
+                source["embedding"] = embedding
+            self._client.index(
                 index=self.index_name,
                 id=document.id,
-                document=document_to_source(document, self.content_field, self.meta_field),
+                document=source,
                 refresh=self.refresh,
             )
 
         return {"indexed_count": len(documents)}
-
-    def _get_client(self) -> Any:
-        if self._client is None:
-            self._client = create_client(self.hosts)
-        return self._client

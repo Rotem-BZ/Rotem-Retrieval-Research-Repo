@@ -84,14 +84,11 @@ uv sync --extra dev
 uv run pytest
 uv run prepare-beir --data-dir data --dataset scifact
 
-uv run stage --validate indexing dataset=beir_scifact pipeline/indexing@pipeline=dense_jsonl selections/embedding_model=e5/small_v2 runtime.device.device=cpu runtime.concurrency_limit=4 stage.run_id=$indexRun
 uv run stage indexing dataset=beir_scifact pipeline/indexing@pipeline=dense_jsonl selections/embedding_model=e5/small_v2 runtime.device.device=cpu runtime.concurrency_limit=4 stage.run_id=$indexRun
 
-uv run prepare-experiment experiments/query-repetition-e5-small-scifact
-uv run run-experiment --experiment query-repetition-e5-small-scifact
+uv run python ../../dev-scripts/prepare_experiment.py experiments/query-repetition-e5-small-scifact
+uv run python ../../dev-scripts/run_experiment.py --experiment query-repetition-e5-small-scifact
 
-uv run stage --validate evaluation dataset=beir_scifact stage.inference_run_id=$baselineRun metrics=$metrics stage.run_id=$baselineEval
-uv run stage --validate evaluation dataset=beir_scifact stage.inference_run_id=$treatmentRun metrics=$metrics stage.run_id=$treatmentEval
 uv run stage evaluation dataset=beir_scifact stage.inference_run_id=$baselineRun metrics=$metrics stage.run_id=$baselineEval
 uv run stage evaluation dataset=beir_scifact stage.inference_run_id=$treatmentRun metrics=$metrics stage.run_id=$treatmentEval
 

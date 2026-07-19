@@ -49,10 +49,6 @@ class RequiredDefault:
 
         return cls(group=group, override_key=override_key)
 
-    def render(self, choice: ConfigChoice) -> "HydraOverride":
-        return HydraOverride(compose=f"{self.override_key}={choice.name}")
-
-
 @dataclass(frozen=True)
 class DefaultEntry:
     """One Hydra defaults-list entry that selects a config file."""
@@ -63,20 +59,6 @@ class DefaultEntry:
     choice_name: str | None
     required: bool = False
 
-    @classmethod
-    def from_default_item(cls, key: str, value: Any) -> "DefaultEntry":
-        group, package = _split_default_key(key)
-        required = value == "???"
-        choice_name = None if required else str(value)
-        return cls(
-            group=group,
-            override_key=RequiredDefault.from_default_key(key).override_key,
-            package=package,
-            choice_name=choice_name,
-            required=required,
-        )
-
-
 @dataclass(frozen=True)
 class HydraOverride:
     """A Hydra override with separate compose and shell command spellings."""
@@ -84,19 +66,13 @@ class HydraOverride:
     compose: str
     command: str | None = None
 
-    @property
-    def command_text(self) -> str:
-        return self.compose if self.command is None else self.command
-
-
 @dataclass(frozen=True)
 class BuiltCommand:
-    """The generated command and the overrides used to validate it."""
+    """A generated stage command and its Hydra overrides."""
 
     stage_name: str
     overrides: tuple[str, ...]
     command: str
-    dry_run: bool = False
 
 
 @dataclass(frozen=True)
@@ -125,7 +101,6 @@ def run_configure(
     input_fn: InputFn = input,
     output_fn: OutputFn = print,
     config_dir: Path | None = None,
-    allow_dry_run: bool = True,
 ) -> BuiltCommand:
     """Run the interactive command builder and print the final command."""
 
@@ -133,7 +108,13 @@ def run_configure(
     output_fn("Retrieval Research command builder")
     output_fn("")
 
-    stage_name = _prompt_stage(input_fn, output_fn)
+    stage_name = _prompt_menu(
+        "Choose stage:",
+        sorted(STAGE_RUNNERS),
+        input_fn=input_fn,
+        output_fn=output_fn,
+        format_item=lambda stage: stage,
+    )
     stage_path = _resolve_config_path(f"{stage_name}.yaml", config_dir)
     override_items: list[HydraOverride] = []
 
@@ -154,33 +135,31 @@ def run_configure(
         config_dir=config_dir,
     )
 
-    dry_run = False
-    if allow_dry_run:
-        dry_run = _prompt_yes_no(
-            "Use --dry-run? [y/N]: ",
-            input_fn=input_fn,
-            output_fn=output_fn,
-            default=False,
-        )
-
     _prompt_configured_overrides(
         stage_name,
         override_items,
         input_fn=input_fn,
         output_fn=output_fn,
     )
-    _prompt_free_form_overrides(
-        override_items,
-        input_fn=input_fn,
-        output_fn=output_fn,
-    )
+    output_fn("Add any extra Hydra overrides one at a time. Press Enter when done.")
+    while answer := input_fn("override: ").strip():
+        override_items.append(HydraOverride(compose=answer))
 
-    return _validate_and_print_command(
-        stage_name,
-        override_items,
-        dry_run=dry_run,
-        output_fn=output_fn,
-    )
+    compose_overrides = tuple(override.compose for override in override_items)
+    try:
+        cfg = compose_stage_config(stage_name, compose_overrides)
+        OmegaConf.to_container(cfg, resolve=True, throw_on_missing=True)
+    except Exception as exc:
+        output_fn("")
+        output_fn("Could not compose the final config:")
+        output_fn(f"  {exc}")
+        raise SystemExit(2) from exc
+
+    command = render_command(stage_name, override_items)
+    output_fn("")
+    output_fn("Command:")
+    output_fn(command)
+    return BuiltCommand(stage_name=stage_name, overrides=compose_overrides, command=command)
 
 
 def main() -> None:
@@ -199,7 +178,13 @@ def discover_config_choices(group: str, config_dir: Path | None = None) -> list[
         if not group_dir.is_dir():
             continue
         paths = group_dir.rglob("*.yaml") if "/" in group else group_dir.glob("*.yaml")
-        for path in sorted(paths, key=lambda item: _choice_sort_key(group_dir, item)):
+        for path in sorted(
+            paths,
+            key=lambda item: (
+                0 if item.relative_to(group_dir).with_suffix("").as_posix() == "full" else 1,
+                item.relative_to(group_dir).with_suffix("").as_posix(),
+            ),
+        ):
             relative = path.relative_to(group_dir).with_suffix("")
             choice_name = relative.as_posix()
             if choice_name in seen:
@@ -233,24 +218,6 @@ def extract_required_defaults(path: Path) -> list[RequiredDefault]:
     return required
 
 
-def extract_default_entries(path: Path) -> list[DefaultEntry]:
-    """Read selectable Hydra defaults from a YAML config."""
-
-    payload = read_yaml_mapping(path)
-    defaults = payload.get("defaults", [])
-    entries: list[DefaultEntry] = []
-
-    for entry in defaults:
-        if not isinstance(entry, dict):
-            continue
-        for key, value in entry.items():
-            if str(key) == "_self_":
-                continue
-            entries.append(DefaultEntry.from_default_item(str(key), value))
-
-    return entries
-
-
 def collect_selected_configs(
     *,
     stage_name: str,
@@ -272,11 +239,35 @@ def collect_selected_configs(
         )
     ]
     seen = {(stage_path.resolve(), "")}
-    override_map = _override_map(overrides)
+    override_map: dict[str, str] = {}
+    for override in overrides:
+        text = override.compose if isinstance(override, HydraOverride) else override
+        if "=" in text:
+            key, value = text.split("=", 1)
+            override_map[key] = value
 
     def visit(parent_path: Path, parent_prefix: str) -> None:
-        for entry in extract_default_entries(parent_path):
-            override_key = _mounted_override_key(parent_prefix, entry)
+        for raw_entry in read_yaml_mapping(parent_path).get("defaults", []):
+            if not isinstance(raw_entry, dict):
+                continue
+            raw_key, value = next(iter(raw_entry.items()))
+            key = str(raw_key)
+            if key == "_self_":
+                continue
+            group, package = _split_default_key(key)
+            required = value == "???"
+            entry = DefaultEntry(
+                group=group,
+                override_key=RequiredDefault.from_default_key(key).override_key,
+                package=package,
+                choice_name=None if required else str(value),
+                required=required,
+            )
+            override_key = (
+                entry.override_key
+                if not entry.package or entry.package.startswith("_global_")
+                else f"{entry.group}@{_join_path(parent_prefix, entry.package)}"
+            )
             choice_name = override_map.get(override_key, entry.choice_name)
             if choice_name is None:
                 continue
@@ -355,38 +346,19 @@ def render_command(
     stage_name: str,
     overrides: Sequence[HydraOverride | str],
     *,
-    dry_run: bool = False,
     prefix: Sequence[str] = ("uv", "run", "stage"),
 ) -> str:
     """Render a copyable command line."""
 
     tokens = list(prefix)
-    if dry_run:
-        tokens.append("--dry-run")
     tokens.append(stage_name)
     tokens.extend(
-        override.command_text if isinstance(override, HydraOverride) else override
+        (override.compose if override.command is None else override.command)
+        if isinstance(override, HydraOverride)
+        else override
         for override in overrides
     )
     return " ".join(tokens)
-
-
-def validate_config(stage_name: str, overrides: Sequence[str]) -> None:
-    """Compose and fully resolve a command-builder result."""
-
-    cfg = compose_stage_config(stage_name, overrides)
-    OmegaConf.to_container(cfg, resolve=True, throw_on_missing=True)
-
-
-def _prompt_stage(input_fn: InputFn, output_fn: OutputFn) -> str:
-    stages = sorted(STAGE_RUNNERS)
-    return _prompt_menu(
-        "Choose stage:",
-        stages,
-        input_fn=input_fn,
-        output_fn=output_fn,
-        format_item=lambda stage: stage,
-    )
 
 
 def _prompt_required_defaults(
@@ -417,7 +389,7 @@ def _prompt_required_defaults(
                 output_fn=output_fn,
                 format_item=_format_choice,
             )
-            overrides.append(required.render(choice))
+            overrides.append(HydraOverride(compose=f"{required.override_key}={choice.name}"))
             selected_override_keys.add(required.override_key)
             pending.append(choice.path)
 
@@ -431,12 +403,16 @@ def _prompt_config_graph_edits(
     output_fn: OutputFn,
     config_dir: Path,
 ) -> None:
-    if not _prompt_yes_no(
-        "Review/edit selected configs? [y/N]: ",
-        input_fn=input_fn,
-        output_fn=output_fn,
-        default=False,
-    ):
+    while True:
+        answer = input_fn("Review/edit selected configs? [y/N]: ").strip().lower()
+        if not answer or answer in {"n", "no"}:
+            review_configs = False
+            break
+        if answer in {"y", "yes"}:
+            review_configs = True
+            break
+        output_fn("Enter y or n.")
+    if not review_configs:
         return
 
     while True:
@@ -555,7 +531,9 @@ def _prompt_field_edits(
             [*fields, None],
             input_fn=input_fn,
             output_fn=output_fn,
-            format_item=lambda item: "Done" if item is None else _format_field(item),
+            format_item=lambda item: (
+                "Done" if item is None else f"{item.path} = {_format_value(item.value)}"
+            ),
         )
         if field is None:
             return
@@ -573,15 +551,35 @@ def _prompt_configured_overrides(
     input_fn: InputFn,
     output_fn: OutputFn,
 ) -> None:
-    cfg = _compose_for_prompt(stage_name, overrides)
-    prompt_configs = OmegaConf.select(
-        cfg,
-        "metadata.command_builder.prompt_overrides",
-        default=[],
-    )
-    prompt_items = _to_plain_value(prompt_configs)
-    if not isinstance(prompt_items, list):
-        return
+    cfg = compose_stage_config(stage_name, _compose_overrides(overrides))
+    prompt_items = {
+        "indexing": [
+            {"path": "stage.run_name", "prompt": "indexing run name", "type": "value"}
+        ],
+        "inference": [
+            {
+                "path": "stage.indexing_run_id",
+                "prompt": "exact indexing run id (leave blank for pipelines without an index)",
+                "type": "value",
+            },
+            {"path": "stage.run_name", "prompt": "inference run name", "type": "value"},
+        ],
+        "evaluation": [
+            {
+                "path": "stage.inference_run_id",
+                "prompt": "exact inference run id",
+                "type": "value",
+                "require_non_empty": True,
+            },
+            {
+                "path": "metrics",
+                "prompt": "metrics comma-separated",
+                "type": "comma_list",
+                "command_quote": "single",
+                "require_non_empty": True,
+            },
+        ],
+    }.get(stage_name, [])
 
     for prompt_config in prompt_items:
         if not isinstance(prompt_config, dict):
@@ -594,7 +592,12 @@ def _prompt_configured_overrides(
         prompt_type = str(prompt_config.get("type", "value"))
         prompt_text = str(prompt_config.get("prompt", f"{path}: ")).rstrip()
         current_value = _get_config_value(cfg, path, default=None)
-        default_text = _format_prompt_default(current_value, prompt_type)
+        plain_value = _to_plain_value(current_value)
+        default_text = (
+            ", ".join(str(item) for item in plain_value)
+            if prompt_type == "comma_list" and isinstance(plain_value, list)
+            else _format_value(plain_value)
+        )
         answer = input_fn(f"{prompt_text} [{default_text}]: ").strip()
         if not answer:
             if prompt_config.get("require_non_empty", False):
@@ -614,48 +617,6 @@ def _prompt_configured_overrides(
             continue
 
         overrides.append(HydraOverride(compose=f"{path}={answer}"))
-
-
-def _prompt_free_form_overrides(
-    overrides: list[HydraOverride],
-    *,
-    input_fn: InputFn,
-    output_fn: OutputFn,
-) -> None:
-    output_fn("Add any extra Hydra overrides one at a time. Press Enter when done.")
-    while True:
-        answer = input_fn("override: ").strip()
-        if not answer:
-            return
-        overrides.append(HydraOverride(compose=answer))
-
-
-def _validate_and_print_command(
-    stage_name: str,
-    overrides: Sequence[HydraOverride],
-    *,
-    dry_run: bool,
-    output_fn: OutputFn,
-) -> BuiltCommand:
-    compose_overrides = tuple(override.compose for override in overrides)
-    try:
-        validate_config(stage_name, compose_overrides)
-    except Exception as exc:
-        output_fn("")
-        output_fn("Could not compose the final config:")
-        output_fn(f"  {exc}")
-        raise SystemExit(2) from exc
-
-    command = render_command(stage_name, overrides, dry_run=dry_run)
-    output_fn("")
-    output_fn("Command:")
-    output_fn(command)
-    return BuiltCommand(
-        stage_name=stage_name,
-        overrides=compose_overrides,
-        command=command,
-        dry_run=dry_run,
-    )
 
 
 def _prompt_menu(
@@ -684,24 +645,6 @@ def _prompt_menu(
         output_fn("Enter a number from the list.")
 
 
-def _prompt_yes_no(
-    prompt: str,
-    *,
-    input_fn: InputFn,
-    output_fn: OutputFn,
-    default: bool,
-) -> bool:
-    while True:
-        answer = input_fn(prompt).strip().lower()
-        if not answer:
-            return default
-        if answer in {"y", "yes"}:
-            return True
-        if answer in {"n", "no"}:
-            return False
-        output_fn("Enter y or n.")
-
-
 def _format_choice(choice: ConfigChoice) -> str:
     if choice.description:
         return f"{choice.name} - {choice.description}"
@@ -717,10 +660,6 @@ def _format_selected_config(config: SelectedConfig) -> str:
     return f"{config.label}{suffix}"
 
 
-def _format_field(field: EditableField) -> str:
-    return f"{field.path} = {_format_value(field.value)}"
-
-
 def _format_value(value: Any) -> str:
     value = _to_plain_value(value)
     if isinstance(value, str):
@@ -729,33 +668,6 @@ def _format_value(value: Any) -> str:
         return json.dumps(value, separators=(",", ":"))
     except TypeError:
         return str(value)
-
-
-def _format_prompt_default(value: Any, prompt_type: str) -> str:
-    value = _to_plain_value(value)
-    if prompt_type == "comma_list" and isinstance(value, list):
-        return ", ".join(str(item) for item in value)
-    return _format_value(value)
-
-
-def _choice_sort_key(group_dir: Path, path: Path) -> tuple[int, str]:
-    name = path.relative_to(group_dir).with_suffix("").as_posix()
-    return (0 if name == "full" else 1, name)
-
-
-def _compose_for_prompt(stage_name: str, overrides: Sequence[HydraOverride]):
-    return compose_stage_config(stage_name, _compose_overrides(overrides))
-
-
-def _parse_positive_int(value: str, name: str) -> int:
-    try:
-        parsed = int(value)
-    except ValueError as exc:
-        raise SystemExit(f"{name} must be a positive integer.") from exc
-
-    if parsed <= 0:
-        raise SystemExit(f"{name} must be a positive integer.")
-    return parsed
 
 
 def _config_description(path: Path) -> str | None:
@@ -796,32 +708,12 @@ def _mount_prefix(parent_prefix: str, *, group: str, package: str | None) -> str
     return _join_path(parent_prefix, group.replace("/", "."))
 
 
-def _mounted_override_key(parent_prefix: str, entry: DefaultEntry) -> str:
-    if not entry.package:
-        return entry.override_key
-    if entry.package.startswith("_global_"):
-        return entry.override_key
-
-    return f"{entry.group}@{_join_path(parent_prefix, entry.package)}"
-
-
 def _join_path(prefix: str, suffix: str) -> str:
     if not prefix:
         return suffix
     if not suffix:
         return prefix
     return f"{prefix}.{suffix}"
-
-
-def _override_map(overrides: Sequence[HydraOverride | str]) -> dict[str, str]:
-    mapping: dict[str, str] = {}
-    for override in overrides:
-        text = override.compose if isinstance(override, HydraOverride) else override
-        if "=" not in text:
-            continue
-        key, value = text.split("=", 1)
-        mapping[key] = value
-    return mapping
 
 
 def _compose_overrides(overrides: Sequence[HydraOverride | str]) -> list[str]:

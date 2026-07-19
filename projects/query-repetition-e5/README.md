@@ -48,8 +48,8 @@ The durable experiment workspace is
 It contains the research card, reusable run matrix, and analysis notebook. After
 creating the shared index, update the exact index ID in the experiment's
 [`configs/matrix.yaml`](experiments/query-repetition-e5-small-scifact/configs/matrix.yaml),
-then run `uv run prepare-experiment experiments/query-repetition-e5-small-scifact`.
-On Linux, `uv run run-experiment` first lets you choose the experiment and then the
+then run `uv run python ../../dev-scripts/prepare_experiment.py experiments/query-repetition-e5-small-scifact`.
+On Linux, `uv run python ../../dev-scripts/run_experiment.py` first lets you choose the experiment and then the
 subset of its prepared runs to launch in GNU Screen.
 
 To run only the repeated-query pipeline directly on Windows or Linux, prepare the

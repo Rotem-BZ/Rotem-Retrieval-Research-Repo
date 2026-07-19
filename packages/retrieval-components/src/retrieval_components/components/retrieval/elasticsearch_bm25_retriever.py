@@ -6,11 +6,7 @@ from typing import Any
 
 from haystack import Document, component
 
-from retrieval_components.utils.elasticsearch import (
-    create_client,
-    hit_to_document,
-    hits,
-)
+from retrieval_components.utils.elasticsearch import create_client
 
 
 @component
@@ -72,18 +68,22 @@ class ElasticsearchBM25Retriever:
                     ],
                 }
             }
-        response = self._get_client().search(
+        if self._client is None:
+            self._client = create_client(self.hosts)
+        response = self._client.search(
             index=self.index_name,
             query=search_query,
             size=limit,
         )
         return {
             "documents": [
-                hit_to_document(hit, self.content_field, self.meta_field) for hit in hits(response)
+                Document(
+                    id=hit.get("_id") or hit.get("_source", {}).get("id"),
+                    content=hit.get("_source", {}).get(self.content_field, ""),
+                    meta=dict(hit.get("_source", {}).get(self.meta_field) or {}),
+                    score=hit.get("_score"),
+                    embedding=hit.get("_source", {}).get("embedding"),
+                )
+                for hit in response.get("hits", {}).get("hits", [])
             ]
         }
-
-    def _get_client(self) -> Any:
-        if self._client is None:
-            self._client = create_client(self.hosts)
-        return self._client

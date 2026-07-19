@@ -6,9 +6,9 @@ from pathlib import Path
 import pytest
 from omegaconf import OmegaConf
 
-from retrieval_core.command_builder import BuiltCommand
-from retrieval_core.sweeps import launcher
-from retrieval_core.sweeps.models import (
+import run_experiment as launcher
+from build_command import BuiltCommand
+from experiment_models import (
     EXPERIMENT_SCHEMA_VERSION,
     ExperimentParameter,
     ExperimentPlan,
@@ -19,17 +19,17 @@ from retrieval_core.sweeps.models import (
     status_path,
     update_status,
 )
-from retrieval_core.sweeps.prepare import (
+from prepare_experiment import (
     load_experiment_template,
     materialize_experiment,
     parameter_combinations,
     publish_experiment,
 )
-from retrieval_core.sweeps.worker import wait_for_predecessor
+from experiment_worker import wait_for_predecessor
 from retrieval_core.utils.artifacts import run_manifest
 
-CONFIG_DIR = Path(__file__).parents[1] / "src" / "retrieval_core" / "configs"
-REPOSITORY_ROOT = Path(__file__).parents[3]
+REPOSITORY_ROOT = Path(__file__).parents[2]
+CONFIG_DIR = REPOSITORY_ROOT / "packages" / "retrieval-core" / "src" / "retrieval_core" / "configs"
 
 
 def test_choice_name_describes_parameter_values() -> None:

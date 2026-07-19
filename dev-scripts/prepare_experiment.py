@@ -8,15 +8,15 @@ import json
 import shutil
 import uuid
 from collections.abc import Callable, Mapping, Sequence
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 import yaml
 from omegaconf import OmegaConf, open_dict
 
-from retrieval_core.cli import resolve_stage_config
-from retrieval_core.command_builder import BuiltCommand, run_configure
-from retrieval_core.sweeps.models import (
+from build_command import BuiltCommand, run_configure
+from experiment_models import (
     EXPERIMENT_SCHEMA_VERSION,
     ExperimentParameter,
     ExperimentPlan,
@@ -26,10 +26,16 @@ from retrieval_core.sweeps.models import (
     slugify,
     unique_choice_name,
 )
-from retrieval_core.utils.config import find_config_dir
+from retrieval_core.input_mapping import validate_input_mapping_config
+from retrieval_core.stages import STAGE_RUNNERS
+from retrieval_core.stages.base import prepare_stage_run_config
+from retrieval_core.stages.evaluation import prepare_evaluation_config
+from retrieval_core.stages.inference import prepare_inference_config
+from retrieval_core.utils.config import compose_stage_config, find_config_dir
 from retrieval_core.utils.hashing import sha256_text
-from retrieval_core.utils.io import config_to_yaml
-from retrieval_core.utils.time import utc_now, utc_timestamp
+from retrieval_core.utils.io import config_to_yaml, project_path
+from retrieval_core.utils.pipelines import load_async_pipeline
+from retrieval_core.utils.time import utc_now
 
 InputFn = Callable[[str], str]
 OutputFn = Callable[[str], None]
@@ -87,7 +93,6 @@ def prepare_experiment(
             input_fn=input_fn,
             output_fn=output_fn,
             config_dir=resolved_config_dir,
-            allow_dry_run=False,
         )
         parameters = prompt_experiment_parameters(input_fn=input_fn, output_fn=output_fn)
         combination_mode = (
@@ -101,7 +106,7 @@ def prepare_experiment(
         default_name = f"{built.stage_name}-experiment"
         entered_name = input_fn(f"Experiment name [{default_name}]: ").strip() or default_name
         experiment_name = slugify(entered_name, fallback=default_name)
-        experiment_id = f"{experiment_name}--{utc_timestamp()}"
+        experiment_id = f"{experiment_name}--{datetime.now(timezone.utc):%Y%m%d-%H%M%S}"
         root = (output_root or project_root / "experiments").expanduser().resolve()
         destination = root / experiment_id
 
@@ -146,7 +151,8 @@ def prepare_experiment(
 
     output_fn("")
     output_fn(f"Prepared {len(combinations)} runs in {destination}")
-    output_fn(f"Launch them with: uv run run-experiment {destination}")
+    launcher = Path(__file__).with_name("run_experiment.py")
+    output_fn(f"Launch them with: uv run python {launcher} {destination}")
     return destination
 
 
@@ -169,7 +175,8 @@ def materialize_experiment(
     base_overrides = [
         override
         for override in built.overrides
-        if override_key(override) not in varied_keys | RESERVED_EXPERIMENT_PATHS
+        if override.split("=", 1)[0].lstrip("+~")
+        not in varied_keys | RESERVED_EXPERIMENT_PATHS
     ]
 
     runs: list[ExperimentRun] = []
@@ -193,12 +200,65 @@ def materialize_experiment(
             "stage.run_name=null",
         ]
 
-        output_fn(f"[{index}/{len(combinations)}] validating {run_name}")
-        stage_name, cfg = resolve_stage_config(
+        output_fn(f"[{index}/{len(combinations)}] composing {run_name}")
+        cfg = compose_stage_config(
             built.stage_name,
             overrides,
             config_dir=config_dir,
         )
+        if "stage" not in cfg or "name" not in cfg.stage:
+            raise ValueError(f"Config {built.stage_name!r} must define stage.name.")
+        stage_name = str(cfg.stage.name)
+        if stage_name not in STAGE_RUNNERS:
+            valid_stages = ", ".join(sorted(STAGE_RUNNERS))
+            raise ValueError(f"Unknown stage {stage_name!r}. Valid stages: {valid_stages}")
+
+        prepare_stage_run_config(cfg)
+        if stage_name == "inference":
+            prepare_inference_config(cfg)
+        elif stage_name == "evaluation":
+            prepare_evaluation_config(cfg)
+
+        dataset = cfg.get("dataset")
+        if dataset:
+            for key in ("documents_path", "queries_path", "qrels_path"):
+                configured = dataset.get(key)
+                if configured and not project_path(configured).is_file():
+                    raise FileNotFoundError(
+                        f"Dataset {key} does not exist: {project_path(configured)}"
+                    )
+        OmegaConf.to_container(cfg, resolve=True, throw_on_missing=True)
+        if stage_name in {"indexing", "inference"}:
+            load_async_pipeline(cfg.pipeline)
+        if stage_name == "inference":
+            for component_name, component_cfg in cfg.pipeline.get("components", {}).items():
+                init_parameters = component_cfg.get("init_parameters", {})
+                if "index_path" not in init_parameters:
+                    continue
+                index_path = init_parameters.get("index_path")
+                if not index_path:
+                    raise ValueError(
+                        f"Pipeline component {component_name!r} requires an index. Set either "
+                        "stage.indexing_run_id to an exact indexing run id or stage.index_path."
+                    )
+                if not project_path(index_path).is_file():
+                    raise FileNotFoundError(
+                        f"Index for component {component_name!r} does not exist: "
+                        f"{project_path(index_path)}"
+                    )
+            mapping_path = validate_input_mapping_config(cfg)
+            if mapping_path is not None and not mapping_path.is_file():
+                raise FileNotFoundError(f"Input mapping is not prepared: {mapping_path}")
+        elif stage_name == "evaluation":
+            predictions_path = project_path(cfg.stage.predictions_path)
+            if not predictions_path.is_file():
+                raise FileNotFoundError(f"Predictions file does not exist: {predictions_path}")
+        elif stage_name == "prepare_mapping":
+            mapping_cfg = cfg.get("input_mapping")
+            if not mapping_cfg or str(mapping_cfg.get("type")) != "generated":
+                raise ValueError(
+                    "prepare_mapping requires an input_mapping config with type: generated."
+                )
         if stage_name != built.stage_name:
             raise ValueError(
                 f"Combination {run_name!r} resolved to stage {stage_name!r}, "
@@ -433,10 +493,6 @@ def render_override(path: str, value: Any, *, raw: bool = False) -> str:
     return f"{path}={rendered}"
 
 
-def override_key(override: str) -> str:
-    return override.split("=", 1)[0].lstrip("+~")
-
-
 def default_parameter_label(path: str) -> str:
     normalized = path.split("@", 1)[0].rstrip("/")
     return slugify(normalized.replace("/", ".").rsplit(".", 1)[-1], fallback="parameter")
@@ -451,27 +507,6 @@ def prompt_yes_no(prompt: str, default: bool, input_fn: InputFn = input) -> bool
             return True
         if answer in {"n", "no"}:
             return False
-
-
-# Compatibility API for existing integrations using the former sweep terminology.
-prepare_sweep = prepare_experiment
-prompt_sweep_parameters = prompt_experiment_parameters
-
-
-def materialize_sweep(
-    sweep_dir: Path,
-    *,
-    sweep_id: str,
-    sweep_name: str,
-    **kwargs: Any,
-) -> ExperimentPlan:
-    return materialize_experiment(
-        sweep_dir,
-        experiment_id=sweep_id,
-        experiment_name=sweep_name,
-        **kwargs,
-    )
-
 
 if __name__ == "__main__":
     main()

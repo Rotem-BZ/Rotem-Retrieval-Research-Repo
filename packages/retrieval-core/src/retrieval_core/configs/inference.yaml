@@ -5,16 +5,6 @@ defaults:
   - _self_
   - pipeline/inference@pipeline: ???
 
-metadata:
-  command_builder:
-    prompt_overrides:
-      - path: stage.indexing_run_id
-        prompt: "exact indexing run id (leave blank for pipelines without an index)"
-        type: value
-      - path: stage.run_name
-        prompt: "inference run name"
-        type: value
-
 stage:
   name: inference
   run_name: null

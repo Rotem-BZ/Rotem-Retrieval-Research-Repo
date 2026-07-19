@@ -8,8 +8,8 @@ published.
 
 ## Package structure
 
-Feature modules remain directly under `retrieval_core` (`stages`, `sweeps`,
-`input_mapping`, and the CLI entry points). Shared infrastructure lives under
+Feature modules remain directly under `retrieval_core` (`stages`, `input_mapping`,
+and the stage CLI). Shared infrastructure lives under
 `retrieval_core.utils` and is grouped by responsibility:
 
 - `artifacts`: immutable run manifests and artifact resolution
@@ -24,8 +24,6 @@ Import shared helpers through their focused package, for example
 `from retrieval_core.utils.io import read_json` or
 `from retrieval_core.utils.config import compose_stage_config`.
 
-The `prepare-experiment` and `run-experiment` commands organize resolved run configs
-under a project's `experiments/<slug>/runs/` directory. The `sweeps` module name and
-the older `prepare-sweep`/`run-sweep` entry points are retained for compatibility.
-Stage outputs continue to use `artifacts/runs/` and carry experiment linkage in their
-manifests.
+Developer-only command building and GNU Screen experiment orchestration live in the
+repository-level `dev-scripts/` directory instead of this runtime package. Stage
+outputs use `artifacts/runs/` and carry experiment linkage in their manifests.

@@ -10,31 +10,28 @@ from pathlib import Path
 from typing import Any
 
 from retrieval_core.cli import main as stage_main
-from retrieval_core.sweeps.models import (
+from experiment_models import (
     TERMINAL_STATES,
     load_plan,
     read_status,
-    run_by_name,
     status_path,
     update_status,
 )
-from retrieval_core.sweeps.screen import session_exists
+from screen import session_exists
 from retrieval_core.utils.hashing import sha256_text
 from retrieval_core.utils.time import utc_now
 
 
 def main(argv: Sequence[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Execute one prepared experiment run.")
-    directory_group = parser.add_mutually_exclusive_group(required=True)
-    directory_group.add_argument("--experiment-dir", type=Path)
-    directory_group.add_argument("--sweep-dir", type=Path, help=argparse.SUPPRESS)
+    parser.add_argument("--experiment-dir", required=True, type=Path)
     parser.add_argument("--run-name", required=True)
     parser.add_argument("--poll-seconds", type=float, default=5.0)
     parser.add_argument("--lost-grace-seconds", type=float, default=30.0)
     args = parser.parse_args(argv)
     raise SystemExit(
         run_worker(
-            args.experiment_dir or args.sweep_dir,
+            args.experiment_dir,
             args.run_name,
             poll_seconds=args.poll_seconds,
             lost_grace_seconds=args.lost_grace_seconds,
@@ -51,7 +48,9 @@ def run_worker(
 ) -> int:
     directory = experiment_dir.expanduser().resolve()
     plan = load_plan(directory)
-    run = run_by_name(plan, run_name)
+    run = next((candidate for candidate in plan.runs if candidate.name == run_name), None)
+    if run is None:
+        raise KeyError(f"Experiment {plan.experiment_id!r} has no run named {run_name!r}.")
     own_status_path = status_path(directory, run)
     initial_status = read_status(own_status_path)
     wait_for = initial_status.get("wait_for")
@@ -96,7 +95,13 @@ def run_worker(
             os.chdir(previous_cwd)
     except BaseException as exc:
         traceback.print_exc()
-        exit_code = system_exit_code(exc)
+        exit_code = (
+            exc.code
+            if isinstance(exc, SystemExit) and isinstance(exc.code, int)
+            else 0
+            if isinstance(exc, SystemExit) and exc.code is None
+            else 1
+        )
         update_status(
             own_status_path,
             state="failed",
@@ -143,16 +148,5 @@ def wait_for_predecessor(
                 return "lost"
 
         sleep_fn(poll_seconds)
-
-
-def system_exit_code(exc: BaseException) -> int:
-    if isinstance(exc, SystemExit):
-        if exc.code is None:
-            return 0
-        if isinstance(exc.code, int):
-            return exc.code
-    return 1
-
-
 if __name__ == "__main__":
     main()

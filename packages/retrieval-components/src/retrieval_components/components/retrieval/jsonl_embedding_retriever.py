@@ -15,7 +15,6 @@ from retrieval_components.utils.documents import (
     document_from_record,
 )
 from retrieval_components.utils.embeddings import (
-    embedding_matrix,
     similarity_scores,
     top_score_indices,
 )
@@ -99,7 +98,11 @@ class JsonlEmbeddingRetriever:
                         documents.append(document)
                         embeddings.append(list(embedding))
 
-        matrix = embedding_matrix(embeddings)
+        matrix = (
+            np.asarray(embeddings, dtype=np.float32)
+            if embeddings
+            else np.empty((0, 0), dtype=np.float32)
+        )
         self._index = _EmbeddingIndex(
             documents=documents,
             embeddings=matrix,

@@ -27,11 +27,3 @@ def ensure_parent(path: str | Path) -> Path:
     resolved = project_path(path)
     resolved.parent.mkdir(parents=True, exist_ok=True)
     return resolved
-
-
-def ensure_dir(path: str | Path) -> Path:
-    """Resolve and create a directory."""
-
-    resolved = project_path(path)
-    resolved.mkdir(parents=True, exist_ok=True)
-    return resolved

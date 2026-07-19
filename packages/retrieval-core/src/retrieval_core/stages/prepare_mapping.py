@@ -8,14 +8,11 @@ from retrieval_core.input_mapping import (
     metadata_path_for,
     prepare_generated_input_mapping,
 )
-from retrieval_core.stages.base import StageContext, is_dry_run
+from retrieval_core.stages.base import StageContext
 
 
 def run_prepare_mapping(cfg: DictConfig) -> dict:
-    generated, mapping_path, reused = prepare_generated_input_mapping(
-        cfg,
-        persist=not is_dry_run(cfg),
-    )
+    generated, mapping_path, reused = prepare_generated_input_mapping(cfg)
     metadata_path = metadata_path_for(mapping_path)
     result = {
         "mapping_path": str(mapping_path),

@@ -24,11 +24,28 @@ class LangChainDocumentSplitter:
 
     @component.output_types(documents=list[Document])
     def run(self, documents: list[Document]) -> dict[str, list[Document]]:
-        splitter = self._create_splitter()
+        try:
+            splitters = import_module("langchain_text_splitters")
+        except ImportError as exc:
+            raise ImportError(
+                "LangChainDocumentSplitter requires the optional "
+                "`langchain-text-splitters` package."
+            ) from exc
+        try:
+            splitter_cls = getattr(splitters, self.splitter_type)
+        except AttributeError as exc:
+            raise ValueError(f"Unknown LangChain splitter type: {self.splitter_type}") from exc
+        splitter = splitter_cls(**self.splitter_kwargs)
         chunks: list[Document] = []
 
         for document in documents:
-            split_texts = self._split_text(splitter, document.content or "")
+            text = document.content or ""
+            if hasattr(splitter, "split_text"):
+                split_texts = list(splitter.split_text(text))
+            elif hasattr(splitter, "create_documents"):
+                split_texts = [item.page_content for item in splitter.create_documents([text])]
+            else:
+                raise TypeError("LangChain splitter must define split_text() or create_documents().")
             if not self.keep_empty:
                 split_texts = [text for text in split_texts if text.strip()]
 
@@ -56,27 +73,3 @@ class LangChainDocumentSplitter:
                 )
 
         return {"documents": chunks}
-
-    def _create_splitter(self) -> Any:
-        try:
-            splitters = import_module("langchain_text_splitters")
-        except ImportError as exc:
-            raise ImportError(
-                "LangChainDocumentSplitter requires the optional "
-                "`langchain-text-splitters` package."
-            ) from exc
-
-        try:
-            splitter_cls = getattr(splitters, self.splitter_type)
-        except AttributeError as exc:
-            raise ValueError(f"Unknown LangChain splitter type: {self.splitter_type}") from exc
-
-        return splitter_cls(**self.splitter_kwargs)
-
-    @staticmethod
-    def _split_text(splitter: Any, text: str) -> list[str]:
-        if hasattr(splitter, "split_text"):
-            return list(splitter.split_text(text))
-        if hasattr(splitter, "create_documents"):
-            return [document.page_content for document in splitter.create_documents([text])]
-        raise TypeError("LangChain splitter must define split_text() or create_documents().")

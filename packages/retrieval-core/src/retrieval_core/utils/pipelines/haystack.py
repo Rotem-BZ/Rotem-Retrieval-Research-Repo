@@ -23,9 +23,3 @@ def load_async_pipeline(pipeline_config: DictConfig | dict[str, Any]) -> AsyncPi
     pipeline_dict = to_container(pipeline_config)
     pipeline_yaml = yaml.safe_dump(pipeline_dict, sort_keys=False)
     return AsyncPipeline.loads(pipeline_yaml)
-
-
-def include_outputs(value: ListConfig | list[str] | None) -> set[str] | None:
-    if not value:
-        return None
-    return set(to_container(value))

@@ -17,20 +17,6 @@ MANIFEST_SCHEMA_VERSION = 1
 RUN_ID_FORBIDDEN_CHARS = {"/", "\\", ":", "*", "?", '"', "<", ">", "|"}
 
 
-def run_dir(cfg: DictConfig, stage_name: str, run_id: str) -> Path:
-    """Return one exact run directory, rejecting path-like run identifiers."""
-
-    normalized = str(run_id).strip()
-    if (
-        not normalized
-        or normalized in {".", ".."}
-        or Path(normalized).name != normalized
-        or any(character in normalized for character in RUN_ID_FORBIDDEN_CHARS)
-    ):
-        raise ValueError(f"Run id must be one directory name, got {run_id!r}.")
-    return project_path(cfg.paths.runs_dir) / stage_name / normalized
-
-
 def artifact_for_run(
     cfg: DictConfig,
     *,
@@ -40,7 +26,15 @@ def artifact_for_run(
 ) -> Path:
     """Resolve an artifact from an exact upstream run manifest."""
 
-    directory = run_dir(cfg, stage_name, run_id)
+    normalized = str(run_id).strip()
+    if (
+        not normalized
+        or normalized in {".", ".."}
+        or Path(normalized).name != normalized
+        or any(character in normalized for character in RUN_ID_FORBIDDEN_CHARS)
+    ):
+        raise ValueError(f"Run id must be one directory name, got {run_id!r}.")
+    directory = project_path(cfg.paths.runs_dir) / stage_name / normalized
     if not directory.is_dir():
         raise FileNotFoundError(f"No {stage_name} run exists with id {run_id!r}: {directory}")
 

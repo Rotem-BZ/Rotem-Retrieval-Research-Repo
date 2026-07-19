@@ -156,7 +156,8 @@ def _collapsed_retrieved_scores(record: dict[str, Any]) -> dict[str, float]:
     retrieved_scores: dict[str, float] = {}
 
     for rank, document in enumerate(record.get("documents", []), start=1):
-        document_id = _evaluation_document_id(document)
+        meta = document.get("meta") or {}
+        document_id = meta.get("source_document_id") or document.get("id")
         if document_id is None:
             continue
 
@@ -178,8 +179,3 @@ def _ranking_score(document: dict[str, Any], rank: int) -> float:
         return -float(rank)
 
     return score_value - (rank * 1e-12)
-
-
-def _evaluation_document_id(document: dict[str, Any]) -> str | None:
-    meta = document.get("meta") or {}
-    return meta.get("source_document_id") or document.get("id")

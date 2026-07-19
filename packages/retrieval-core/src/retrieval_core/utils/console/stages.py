@@ -15,48 +15,32 @@ def print_stage_start(
     cfg: DictConfig,
     *,
     overrides: Sequence[str] | None = None,
-    dry_run: bool = False,
-    validate: bool = False,
 ) -> None:
     """Print a concise stage banner followed by the resolved config."""
 
-    print(_rule())
+    print("=" * 88)
     print(f"Stage: {stage_name}")
-    print(f"Dry run: {dry_run}")
-    print(f"Validate only: {validate}")
     if overrides:
         print("Overrides:")
         for override in overrides:
             print(f"  - {override}")
 
-    for line in _summary_lines(cfg):
-        print(line)
-
-    print()
-    print("Resolved config:")
-    print(config_to_yaml(cfg).rstrip())
-    print(_rule())
-
-
-def _summary_lines(cfg: DictConfig) -> list[str]:
-    lines: list[str] = []
-
     dataset = cfg.get("dataset")
     if dataset:
-        lines.append(f"Dataset: {dataset.get('name', '<unnamed>')}")
+        print(f"Dataset: {dataset.get('name', '<unnamed>')}")
         for key in ("documents_path", "queries_path", "qrels_path"):
             value = dataset.get(key)
             if value:
-                lines.append(f"  {key}: {value}")
+                print(f"  {key}: {value}")
 
     input_mapping = cfg.get("input_mapping")
     if input_mapping:
-        mapping_type = input_mapping.get("type", "<unknown>")
-        lines.append(f"Input mapping: {mapping_type}")
+        print(f"Input mapping: {input_mapping.get('type', '<unknown>')}")
         for key in ("name", "path", "metadata_path"):
             value = input_mapping.get(key)
             if value:
-                lines.append(f"  {key}: {value}")
+                print(f"  {key}: {value}")
+
     stage = cfg.get("stage")
     if stage:
         for key in (
@@ -69,22 +53,21 @@ def _summary_lines(cfg: DictConfig) -> list[str]:
         ):
             value = stage.get(key)
             if value:
-                lines.append(f"{key}: {value}")
+                print(f"{key}: {value}")
 
     pipeline = cfg.get("pipeline")
     if pipeline and pipeline.get("components"):
         component_names = ", ".join(str(name) for name in pipeline.components.keys())
-        lines.append(f"Pipeline components: {component_names}")
+        print(f"Pipeline components: {component_names}")
 
-    return lines
-
-
-def _rule() -> str:
-    return "=" * 88
+    print()
+    print("Resolved config:")
+    print(config_to_yaml(cfg).rstrip())
+    print("=" * 88)
 
 
 def print_stage_result(stage_name: str, result: Any) -> None:
-    print(_rule())
+    print("=" * 88)
     print(f"Stage complete: {stage_name}")
     print(result)
-    print(_rule())
+    print("=" * 88)

@@ -40,4 +40,4 @@ uv run --project packages/retrieval-core pytest packages/retrieval-core/tests/te
 uv run --project projects/<project> pytest projects/<project>/tests
 ```
 
-If the component has a Hydra fragment, validate at least one consuming pipeline with `uv run stage --validate ...` from the owning project directory. Do not trigger model downloads or external services merely to claim unit-level verification.
+If the component has a Hydra fragment, exercise at least one consuming pipeline through focused config and pipeline tests. Do not trigger model downloads or external services merely to claim unit-level verification.

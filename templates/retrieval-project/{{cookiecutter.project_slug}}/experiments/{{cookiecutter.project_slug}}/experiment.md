@@ -18,8 +18,8 @@ retrieval depth, runtime, and evaluation procedure fixed.
 
 1. Create the shared index.
 2. Replace `REPLACE_WITH_EXACT_INDEXING_RUN_ID` in `configs/matrix.yaml`.
-3. Run `uv run prepare-experiment experiments/{{ cookiecutter.project_slug }}`.
-4. On Linux, run `uv run run-experiment --experiment {{ cookiecutter.project_slug }}`.
+3. Run `uv run python ../../dev-scripts/prepare_experiment.py experiments/{{ cookiecutter.project_slug }}`.
+4. On Linux, run `uv run python ../../dev-scripts/run_experiment.py --experiment {{ cookiecutter.project_slug }}`.
 5. Record evaluation commands, acceptance criteria, and results here.
 
 The preparer writes `experiment.yaml` and one immutable resolved config per run below

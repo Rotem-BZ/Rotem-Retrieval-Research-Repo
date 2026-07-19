@@ -57,16 +57,14 @@ def save_plan(path: Path, plan: ExperimentPlan) -> None:
 
 
 def load_plan(experiment_dir: str | Path) -> ExperimentPlan:
-    """Load a prepared experiment, accepting legacy ``sweep.yaml`` plans."""
+    """Load a prepared experiment plan."""
 
     directory = Path(experiment_dir).expanduser().resolve()
     plan_path = directory / "experiment.yaml"
-    if not plan_path.is_file():
-        plan_path = directory / "sweep.yaml"
     payload = yaml.safe_load(plan_path.read_text(encoding="utf-8")) or {}
     if payload.get("schema_version") != EXPERIMENT_SCHEMA_VERSION:
         raise ValueError(f"Unsupported experiment schema in {plan_path}.")
-    experiment_id = payload.get("experiment_id", payload.get("sweep_id"))
+    experiment_id = payload.get("experiment_id")
     if not experiment_id:
         raise ValueError(f"Experiment plan has no experiment_id: {plan_path}")
     return ExperimentPlan(
@@ -83,21 +81,9 @@ def load_plan(experiment_dir: str | Path) -> ExperimentPlan:
     )
 
 
-def run_by_name(plan: ExperimentPlan, name: str) -> ExperimentRun:
-    for run in plan.runs:
-        if run.name == name:
-            return run
-    raise KeyError(f"Experiment {plan.experiment_id!r} has no run named {name!r}.")
-
-
 def status_path(experiment_dir: str | Path, run: ExperimentRun | str) -> Path:
     name = run.name if isinstance(run, ExperimentRun) else run
     return Path(experiment_dir).resolve() / "runs" / name / "status.json"
-
-
-def log_path(experiment_dir: str | Path, run: ExperimentRun | str) -> Path:
-    name = run.name if isinstance(run, ExperimentRun) else run
-    return Path(experiment_dir).resolve() / "runs" / name / "screen.log"
 
 
 def read_status(path: str | Path) -> dict[str, Any]:
@@ -114,10 +100,6 @@ def update_status(path: str | Path, **changes: Any) -> dict[str, Any]:
     payload.update(changes)
     write_json_atomic(resolved, payload)
     return payload
-
-
-def is_terminal_status(path: str | Path) -> bool:
-    return str(read_status(path).get("state", "")) in TERMINAL_STATES
 
 
 def slugify(value: Any, *, fallback: str = "value") -> str:
@@ -169,10 +151,3 @@ def screen_name(experiment_id: str, run_name: str, *, max_length: int = 75) -> s
         return full_name
     digest = sha256_text(full_name)[:10]
     return f"{full_name[: max_length - len(digest) - 2].rstrip('-')}--{digest}"
-
-
-# Compatibility aliases for callers that still use the former sweep terminology.
-SWEEP_SCHEMA_VERSION = EXPERIMENT_SCHEMA_VERSION
-SweepParameter = ExperimentParameter
-SweepRun = ExperimentRun
-SweepPlan = ExperimentPlan

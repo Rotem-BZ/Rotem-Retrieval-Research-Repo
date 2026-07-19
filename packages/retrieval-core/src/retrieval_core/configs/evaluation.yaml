@@ -3,19 +3,6 @@ defaults:
   - dataset: ???
   - _self_
 
-metadata:
-  command_builder:
-    prompt_overrides:
-      - path: stage.inference_run_id
-        prompt: "exact inference run id"
-        type: value
-        require_non_empty: true
-      - path: metrics
-        prompt: "metrics comma-separated"
-        type: comma_list
-        command_quote: single
-        require_non_empty: true
-
 stage:
   name: evaluation
   run_name: null

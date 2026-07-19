@@ -21,8 +21,7 @@ of isolated commands:
    and the settings that must remain fixed.
 3. Select or implement the required component, pipeline topology, dataset,
    semantic selections, and input mapping.
-4. Run `stage --validate` before spending compute. Use `--dry-run` when executing
-   real components against temporary outputs is useful.
+4. Exercise configuration and pipeline changes with focused tests before spending compute.
 5. Reuse exact upstream artifacts. A treatment that changes only inference should
    normally share the baseline's index, mapping, dataset, and qrels.
 6. Record the run matrix in `configs/matrix.yaml`, then materialize immutable,
@@ -59,11 +58,10 @@ research projects:
 See [components.md](components.md) for the current component inventory and which
 pieces are native Haystack components versus repo-specific adapters.
 
-Inside `packages/retrieval-core/src/retrieval_core/`, the main modules are:
+The main runtime modules are:
 
 - `cli.py` dispatches `stage <stage-name>` commands to stage runners.
-- `command_builder.py` powers `build-command`, an interactive command builder
-  for Hydra selections.
+- `dev-scripts/` contains the interactive command builder and GNU Screen experiment tools.
 - reusable components live separately under `packages/retrieval-components/`.
 - `input_mapping.py` owns candidate-set recipes and materialized mappings.
 - `notebooks/` contains cell-marked data-preparation scripts such as `prepare_beir.py`.
@@ -261,10 +259,10 @@ uv run stage --help
 The repository-root `data/processed/toy/` fixture is used by retrieval-core smoke
 tests. It is not automatically copied into every generated research project.
 
-To build and validate a command interactively without running an experiment:
+To build a command interactively without running an experiment:
 
 ```bash
-uv run build-command
+uv run python ../../dev-scripts/build_command.py
 ```
 
 After required Hydra choices are selected, the builder can review the selected
@@ -485,14 +483,11 @@ uv run stage prepare_mapping dataset=beir_scifact input_mapping=dev_tiny
 ```
 
 The following single-line commands are shell-neutral examples for the
-query-repetition project. Prepare SciFact first, choose unique ids, and validate
-with the same scientific overrides that will be used for execution:
+query-repetition project. Prepare SciFact first and choose unique ids:
 
 ```text
 uv run prepare-beir --data-dir data --dataset scifact
-uv run stage --validate indexing dataset=beir_scifact pipeline/indexing@pipeline=dense_jsonl selections/embedding_model=e5/small_v2 runtime.device.device=cpu stage.run_id=YOUR_UNIQUE_INDEX_RUN_ID
 uv run stage indexing dataset=beir_scifact pipeline/indexing@pipeline=dense_jsonl selections/embedding_model=e5/small_v2 runtime.device.device=cpu stage.run_id=YOUR_UNIQUE_INDEX_RUN_ID
-uv run stage --validate inference dataset=beir_scifact pipeline/inference@pipeline=dense_jsonl selections/embedding_model=e5/small_v2 runtime.device.device=cpu stage.indexing_run_id=YOUR_UNIQUE_INDEX_RUN_ID stage.run_id=YOUR_UNIQUE_INFERENCE_RUN_ID
 uv run stage inference dataset=beir_scifact pipeline/inference@pipeline=dense_jsonl selections/embedding_model=e5/small_v2 runtime.device.device=cpu stage.indexing_run_id=YOUR_UNIQUE_INDEX_RUN_ID stage.run_id=YOUR_UNIQUE_INFERENCE_RUN_ID
 uv run stage evaluation dataset=beir_scifact stage.inference_run_id=YOUR_UNIQUE_INFERENCE_RUN_ID stage.run_id=YOUR_UNIQUE_EVALUATION_RUN_ID
 ```
@@ -526,23 +521,6 @@ With the generated timestamp id, this creates a run id like
 `stage.run_id` directly, they should normally omit `stage.run_name`; otherwise
 the exact id becomes `<run-name>_<supplied-run-id>`. Upstream references must
 always use the complete stored id.
-
-Use `--validate` to compose the config, resolve exact upstream references, check
-input files, and load the Haystack graph without executing components or writing
-a run:
-
-```bash
-uv run stage --validate inference \
-  dataset=beir_scifact \
-  pipeline/inference@pipeline=dense_jsonl \
-  selections/embedding_model=e5/small_v2 \
-  stage.indexing_run_id=YOUR_EXACT_INDEXING_RUN_ID
-```
-
-Use `--dry-run` to execute against real inputs while redirecting all outputs to
-a temporary directory. No run record or durable output is saved. Unlike
-`--validate`, a dry run executes components and may still consume substantial
-compute.
 
 ## Evaluation, Analysis, and Reporting
 
@@ -735,7 +713,7 @@ Run the preparer from the project whose environment and Hydra config tree should
 used. Pass an existing experiment to materialize its checked-in matrix:
 
 ```bash
-uv run prepare-experiment experiments/<experiment-slug>
+uv run python ../../dev-scripts/prepare_experiment.py experiments/<experiment-slug>
 ```
 
 If that experiment already has `configs/matrix.yaml`, the preparer loads it. Without
@@ -756,7 +734,7 @@ analysis without duplicating artifacts.
 On Linux, install GNU Screen and launch a prepared subset interactively:
 
 ```bash
-uv run run-experiment
+uv run python ../../dev-scripts/run_experiment.py
 ```
 
 The launcher first lists `experiments/*/experiment.yaml`, asks which experiment to
@@ -774,10 +752,6 @@ kept below `artifacts/experiments/.launcher/`, allowing later launcher invocatio
 append work without exceeding the existing cap. The cap cannot be changed until all
 current lanes are terminal.
 
-`prepare-sweep` and `run-sweep` remain compatibility aliases for existing scripts,
-and legacy `sweep.yaml` plans can still be read. New work should use the experiment
-commands and layout.
-
 ## Troubleshooting
 
 - **Hydra cannot find a stage or config group:** run from the intended project
@@ -786,13 +760,13 @@ commands and layout.
   can expose the shared config package.
 - **A required value is `???`:** select the missing config group, usually a
   dataset, pipeline, input mapping, embedding model, or reranker model. The
-  interactive `uv run build-command` flow can discover and validate choices.
+  interactive `uv run python ../../dev-scripts/build_command.py` flow can discover choices.
 - **Inference cannot find an index:** pass the complete immutable indexing run id
   in `stage.indexing_run_id`, or explicitly set `stage.index_path` for a legacy
   artifact. Prefix matching and implicit "latest" resolution are intentionally
   unsupported.
 - **A generated mapping is missing:** run `stage prepare_mapping` with the same
-  dataset and recipe before validating or executing inference.
+  dataset and recipe before executing inference.
 - **The run directory already exists:** choose a new `stage.run_id`. Runs are
   immutable and are never overwritten.
 - **A command works from one directory but not another:** remember that the

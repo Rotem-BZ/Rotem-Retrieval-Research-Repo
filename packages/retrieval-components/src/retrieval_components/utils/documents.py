@@ -22,21 +22,6 @@ def document_from_record(record: dict[str, Any] | Document) -> Document:
     )
 
 
-def document_to_record(document: Document) -> dict[str, Any]:
-    record = {
-        "id": document.id,
-        "content": document.content,
-        "meta": dict(document.meta or {}),
-        "score": getattr(document, "score", None),
-    }
-    embedding = getattr(document, "embedding", None)
-    if embedding is not None:
-        if hasattr(embedding, "tolist") and callable(embedding.tolist):
-            embedding = embedding.tolist()
-        record["embedding"] = embedding
-    return record
-
-
 def read_jsonl_documents(path: str | Path) -> list[Document]:
     resolved = Path(path)
     documents: list[Document] = []
@@ -83,4 +68,3 @@ def filter_documents_by_candidate_ids(
 
     allowed_ids = set(candidate_document_ids)
     return [document for document in documents if candidate_document_id(document) in allowed_ids]
-

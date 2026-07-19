@@ -3,28 +3,8 @@ from pathlib import Path
 import pytest
 from omegaconf import OmegaConf
 
-from retrieval_core.stages.evaluation import (
-    _qrels_from_records,
-    inference_predictions_path_for_run_id,
-    run_evaluation,
-)
+from retrieval_core.stages.evaluation import prepare_evaluation_config, run_evaluation
 from retrieval_core.utils.io import write_json, write_predictions
-
-
-def test_qrels_from_records_groups_positive_judgments() -> None:
-    qrels = _qrels_from_records(
-        [
-            {"query_id": "q1", "document_id": "d1", "relevance": 1},
-            {"query_id": "q1", "document_id": "d2", "relevance": 2},
-            {"query_id": "q1", "document_id": "d3", "relevance": 0},
-            {"query_id": "q2", "document_id": "d4"},
-        ]
-    )
-
-    assert qrels == {
-        "q1": {"d1": 1, "d2": 2},
-        "q2": {"d4": 1},
-    }
 
 
 def test_evaluation_reads_prediction_mapping_json(tmp_path: Path) -> None:
@@ -92,7 +72,9 @@ def test_evaluation_resolves_prediction_path_from_exact_inference_run_id(tmp_pat
         }
     )
 
-    assert inference_predictions_path_for_run_id(cfg, "bge_20260101_010101") == predictions_path
+    prepare_evaluation_config(cfg)
+
+    assert Path(cfg.stage.predictions_path) == predictions_path
 
 
 def test_evaluation_does_not_accept_inference_run_prefixes(tmp_path: Path) -> None:
@@ -107,4 +89,4 @@ def test_evaluation_does_not_accept_inference_run_prefixes(tmp_path: Path) -> No
     )
 
     with pytest.raises(FileNotFoundError, match="No inference run exists"):
-        inference_predictions_path_for_run_id(cfg, "bge")
+        prepare_evaluation_config(cfg)

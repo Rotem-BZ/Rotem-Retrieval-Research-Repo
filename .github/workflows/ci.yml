@@ -17,12 +17,15 @@ jobs:
         unit:
           - name: retrieval-components
             project: packages/retrieval-components
+            lint: packages/retrieval-components
             tests: packages/retrieval-components/tests
           - name: retrieval-core
             project: packages/retrieval-core
-            tests: packages/retrieval-core/tests
+            lint: packages/retrieval-core dev-scripts
+            tests: packages/retrieval-core/tests dev-scripts/tests
           - name: query-repetition-e5
             project: projects/query-repetition-e5
+            lint: projects/query-repetition-e5
             tests: projects/query-repetition-e5/tests
 
     steps:
@@ -43,7 +46,7 @@ jobs:
         run: uv sync --project ${{ matrix.unit.project }} --extra dev
 
       - name: Lint
-        run: uv run --project ${{ matrix.unit.project }} ruff check ${{ matrix.unit.project }}
+        run: uv run --project ${{ matrix.unit.project }} ruff check ${{ matrix.unit.lint }}
 
       - name: Test
         run: uv run --project ${{ matrix.unit.project }} pytest ${{ matrix.unit.tests }}
@@ -58,9 +61,6 @@ jobs:
           python-version: "3.11"
       - uses: astral-sh/setup-uv@v5
       - run: uv sync --project packages/retrieval-core --extra dev
-      - run: >-
-          uv run --project packages/retrieval-core stage --validate indexing
-          dataset=toy pipeline/indexing@pipeline=dummy_jsonl
       - shell: bash
         run: |
           uv run --project packages/retrieval-core stage indexing dataset=toy pipeline/indexing@pipeline=dummy_jsonl stage.run_id=ci-toy-index
