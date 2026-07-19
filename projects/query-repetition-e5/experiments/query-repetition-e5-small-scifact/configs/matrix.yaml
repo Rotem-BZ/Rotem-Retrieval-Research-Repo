@@ -1,0 +1,19 @@
+schema_version: 1
+stage: inference
+base_overrides:
+  - dataset=beir_scifact
+  - input_mapping=full
+  - selections/embedding_model=e5/small_v2
+  - stage.indexing_run_id=REPLACE_WITH_EXACT_INDEXING_RUN_ID
+  - pipeline.components.retriever.init_parameters.top_k=100
+  - runtime.device.device=cpu
+  - runtime.query_concurrency_limit=4
+  - runtime.concurrency_limit=4
+combination_mode: cartesian
+parameters:
+  - path: pipeline/inference@pipeline
+    label: variant
+    values:
+      - dense_jsonl
+      - dense_query_repetition
+    raw: true

@@ -49,6 +49,13 @@ pipeline graphs, creates one shared index, runs both inference arms against it,
 evaluates both runs, and prints per-metric deltas. Every invocation uses timestamped,
 immutable run IDs.
 
+The generated experiment workspace is
+[`experiments/{{ cookiecutter.project_slug }}`](experiments/{{ cookiecutter.project_slug }}).
+After creating a shared index, replace the placeholder index ID in
+`experiments/{{ cookiecutter.project_slug }}/configs/matrix.yaml`, run
+`uv run prepare-experiment experiments/{{ cookiecutter.project_slug }}`, and use
+`uv run run-experiment` on Linux to choose the experiment and its run subset.
+
 The default selections are:
 
 - dataset: `{{ cookiecutter.dataset_config }}`;
@@ -61,7 +68,8 @@ coverage before drawing a general conclusion.
 
 ## Analyze predictions
 
-Open [`notebooks/analyze_predictions.ipynb`](notebooks/analyze_predictions.ipynb).
+Open the experiment's
+[`analysis.ipynb`](experiments/{{ cookiecutter.project_slug }}/analysis.ipynb).
 Add readable labels and exact inference run IDs to `RUNS`, then run the cells. The
 notebook resolves each run's prediction artifact through its manifest and builds:
 

@@ -1,1 +1,1 @@
-"""Hyperparameter sweep preparation and GNU Screen execution."""
+"""Experiment preparation and GNU Screen execution."""

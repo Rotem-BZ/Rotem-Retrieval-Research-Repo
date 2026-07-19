@@ -22,7 +22,7 @@ Turn a research question into an auditable execution and analysis plan. Keep pro
 7. Define success, failure, and inconclusive criteria. Avoid arbitrary thresholds unless the user or existing protocol supplies them; explain the rationale for every threshold.
 8. Plan provenance and fairness: exact git/package versions captured by manifests, immutable run ids, one shared index where appropriate, identical candidate mappings, identical qrels, and controlled runtime settings.
 9. Include executable stage commands or a sweep plan. Use placeholders only for values that cannot exist until execution, such as exact timestamped run ids.
-10. Save the card beside existing project research documentation. If no convention exists, use `projects/<project>/experiments/<experiment-slug>.md`.
+10. Create or reuse `projects/<project>/experiments/<experiment-slug>/` and save the card as `experiment.md`. Keep its executable matrix in `configs/matrix.yaml`, its analysis notebook as `analysis.ipynb`, and its eventual report as `report.md` in the same experiment workspace.
 11. Review the card against the checklist in the template. The card must be understandable before any results exist.
 
 ## Writing Rules

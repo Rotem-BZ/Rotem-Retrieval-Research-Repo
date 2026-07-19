@@ -18,14 +18,14 @@ Repeating the raw query twice with one separating space before E5 preprocessing 
 
 ## Rationale
 
-The treatment tests whether the gains associated with input repetition transfer to retrieval embeddings. It is motivated by [Repetition Improves Language Model Embeddings](https://arxiv.org/abs/2402.15449) and [Prompt Repetition Improves Non-Reasoning LLMs](https://arxiv.org/abs/2512.14982), as summarized in the [project README](../README.md). This is an exploratory transfer test rather than a reproduction because E5-small is a bidirectional encoder and the proposed explanations may not transfer from causal language models.
+The treatment tests whether the gains associated with input repetition transfer to retrieval embeddings. It is motivated by [Repetition Improves Language Model Embeddings](https://arxiv.org/abs/2402.15449) and [Prompt Repetition Improves Non-Reasoning LLMs](https://arxiv.org/abs/2512.14982), as summarized in the [project README](../../README.md). This is an exploratory transfer test rather than a reproduction because E5-small is a bidirectional encoder and the proposed explanations may not transfer from causal language models.
 
 ## Comparison
 
 | Dimension | Baseline | Treatment | Held fixed? |
 | --- | --- | --- | --- |
-| Inference pipeline | Core [`dense_jsonl`](../../../packages/retrieval-core/src/retrieval_core/configs/pipeline/inference/dense_jsonl.yaml) | Project [`dense_query_repetition`](../configs/pipeline/inference/dense_query_repetition.yaml) | No; this is the treatment boundary |
-| Query transformation | Raw query goes directly to E5 preprocessing | [`QueryRepeater`](../src/query_repetition_e5/components.py) emits `"<query> <query>"` before E5 preprocessing | No; primary treatment |
+| Inference pipeline | Core [`dense_jsonl`](../../../../packages/retrieval-core/src/retrieval_core/configs/pipeline/inference/dense_jsonl.yaml) | Project [`dense_query_repetition`](../../configs/pipeline/inference/dense_query_repetition.yaml) | No; this is the treatment boundary |
+| Query transformation | Raw query goes directly to E5 preprocessing | [`QueryRepeater`](../../src/query_repetition_e5/components.py) emits `"<query> <query>"` before E5 preprocessing | No; primary treatment |
 | Embedding model | `intfloat/e5-small-v2` | `intfloat/e5-small-v2` | Yes |
 | Query prefix | `"query: "` after normalizing whitespace | `"query: "` after normalizing whitespace | Yes |
 | Document index | Shared document-level E5-small index | Exact same index run | Yes |
@@ -66,14 +66,16 @@ No minimum effect-size threshold is preregistered because the project defines th
 5. Evaluate both inference runs using the same explicit metric list and SciFact qrels.
 6. Compare metrics and verify the two resolved configs differ only at the intended query-repetition node and dynamic run/output fields.
 
-Run these commands from `projects/query-repetition-e5`:
+Run these commands from `projects/query-repetition-e5`. After indexing, replace the
+placeholder in [`configs/matrix.yaml`](configs/matrix.yaml) with `$indexRun` before
+preparing the experiment:
 
 ```powershell
 $ErrorActionPreference = "Stop"
 $suffix = Get-Date -Format "yyyyMMdd-HHmmss"
 $indexRun = "query-repeat-e5-index-$suffix"
-$baselineRun = "query-repeat-e5-baseline-$suffix"
-$treatmentRun = "query-repeat-e5-treatment-$suffix"
+$baselineRun = "query-repetition-e5-small-scifact--variant-dense_jsonl"
+$treatmentRun = "query-repetition-e5-small-scifact--variant-dense_query_repetition"
 $baselineEval = "query-repeat-e5-baseline-eval-$suffix"
 $treatmentEval = "query-repeat-e5-treatment-eval-$suffix"
 $metrics = '["Recall@10","Recall@50","Recall@100","MRR@50","NDCG@10","HitRate@10"]'
@@ -85,11 +87,8 @@ uv run prepare-beir --data-dir data --dataset scifact
 uv run stage --validate indexing dataset=beir_scifact pipeline/indexing@pipeline=dense_jsonl selections/embedding_model=e5/small_v2 runtime.device.device=cpu runtime.concurrency_limit=4 stage.run_id=$indexRun
 uv run stage indexing dataset=beir_scifact pipeline/indexing@pipeline=dense_jsonl selections/embedding_model=e5/small_v2 runtime.device.device=cpu runtime.concurrency_limit=4 stage.run_id=$indexRun
 
-uv run stage --validate inference dataset=beir_scifact input_mapping=full pipeline/inference@pipeline=dense_jsonl selections/embedding_model=e5/small_v2 stage.indexing_run_id=$indexRun pipeline.components.retriever.init_parameters.top_k=100 runtime.device.device=cpu runtime.query_concurrency_limit=4 runtime.concurrency_limit=4 stage.run_id=$baselineRun
-uv run stage inference dataset=beir_scifact input_mapping=full pipeline/inference@pipeline=dense_jsonl selections/embedding_model=e5/small_v2 stage.indexing_run_id=$indexRun pipeline.components.retriever.init_parameters.top_k=100 runtime.device.device=cpu runtime.query_concurrency_limit=4 runtime.concurrency_limit=4 stage.run_id=$baselineRun
-
-uv run stage --validate inference dataset=beir_scifact input_mapping=full pipeline/inference@pipeline=dense_query_repetition selections/embedding_model=e5/small_v2 stage.indexing_run_id=$indexRun pipeline.components.retriever.init_parameters.top_k=100 runtime.device.device=cpu runtime.query_concurrency_limit=4 runtime.concurrency_limit=4 stage.run_id=$treatmentRun
-uv run stage inference dataset=beir_scifact input_mapping=full pipeline/inference@pipeline=dense_query_repetition selections/embedding_model=e5/small_v2 stage.indexing_run_id=$indexRun pipeline.components.retriever.init_parameters.top_k=100 runtime.device.device=cpu runtime.query_concurrency_limit=4 runtime.concurrency_limit=4 stage.run_id=$treatmentRun
+uv run prepare-experiment experiments/query-repetition-e5-small-scifact
+uv run run-experiment --experiment query-repetition-e5-small-scifact
 
 uv run stage --validate evaluation dataset=beir_scifact stage.inference_run_id=$baselineRun metrics=$metrics stage.run_id=$baselineEval
 uv run stage --validate evaluation dataset=beir_scifact stage.inference_run_id=$treatmentRun metrics=$metrics stage.run_id=$treatmentEval
@@ -117,7 +116,7 @@ Expected artifacts:
 - Truncation: repetition may push long queries past the E5 tokenizer's 512-token limit. This is part of the treatment's behavior but will be measured as a diagnostic because it may explain degraded queries.
 - Leakage risk: do not tune separator, repetition count, retrieval depth, or the primary decision rule after inspecting SciFact results. Any follow-up must receive a new card or be labeled exploratory.
 - External dependencies: BEIR dataset hosting and the Hugging Face `intfloat/e5-small-v2` checkpoint must be available or cached. Run manifests must record non-`unknown` package versions and a Git commit when possible.
-- Existing script risk: [`run_experiment.ps1`](../scripts/run_experiment.ps1) currently combines explicit `stage.run_id` and `stage.run_name`, while downstream commands reuse only the unprefixed id; it also inherits `top_k=5`. Use the commands in this card unless that script is aligned with this preregistered design.
+- Existing script risk: [`run_experiment.ps1`](../../scripts/run_experiment.ps1) currently combines explicit `stage.run_id` and `stage.run_name`, while downstream commands reuse only the unprefixed id; it also inherits `top_k=5`. Use the commands in this card unless that script is aligned with this preregistered design.
 - Resource/time constraints: TBD after the first validated environment check; use CPU for both arms unless the card is amended before execution to use the same CUDA environment throughout.
 - Abort conditions: failed unit/config validation, incomplete dataset conversion, an existing immutable run directory, a missing manifest artifact, unequal prediction query counts, non-finite metrics, or any unplanned resolved-config difference.
 

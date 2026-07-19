@@ -23,3 +23,9 @@ Feature modules remain directly under `retrieval_core` (`stages`, `sweeps`,
 Import shared helpers through their focused package, for example
 `from retrieval_core.utils.io import read_json` or
 `from retrieval_core.utils.config import compose_stage_config`.
+
+The `prepare-experiment` and `run-experiment` commands organize resolved run configs
+under a project's `experiments/<slug>/runs/` directory. The `sweeps` module name and
+the older `prepare-sweep`/`run-sweep` entry points are retained for compatibility.
+Stage outputs continue to use `artifacts/runs/` and carry experiment linkage in their
+manifests.

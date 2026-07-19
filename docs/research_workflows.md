@@ -15,8 +15,8 @@ without requiring a model, document store, or external service.
 Use the repository as an evidence-producing workflow rather than as a collection
 of isolated commands:
 
-1. Write a falsifiable hypothesis and preregister the comparison in
-   `projects/<project>/experiments/<experiment-slug>.md`.
+1. Create `projects/<project>/experiments/<experiment-slug>/` and write a falsifiable
+   hypothesis in its `experiment.md` card.
 2. Identify one controlled treatment change, its baseline, the primary metric,
    and the settings that must remain fixed.
 3. Select or implement the required component, pipeline topology, dataset,
@@ -25,11 +25,13 @@ of isolated commands:
    real components against temporary outputs is useful.
 5. Reuse exact upstream artifacts. A treatment that changes only inference should
    normally share the baseline's index, mapping, dataset, and qrels.
-6. Run inference and evaluation with immutable, exact run ids.
-7. Inspect aggregate metrics and query-level behavior using the project's
-   `notebooks/analyze_predictions.ipynb` notebook.
-8. Write `projects/<project>/reports/<experiment-slug>.md` from manifests,
-   resolved configs, results, predictions, and metrics—not from remembered commands.
+6. Record the run matrix in `configs/matrix.yaml`, then materialize immutable,
+   fully resolved run configs below the experiment's `runs/` directory.
+7. Run inference and evaluation with immutable, exact run ids. Large stage artifacts
+   remain below `artifacts/runs/`; their manifests link back to the experiment.
+8. Inspect aggregate and query-level behavior in the experiment's `analysis.ipynb`,
+   then write `report.md` beside the card from manifests, resolved configs, results,
+   predictions, and metrics—not from remembered commands.
 
 Repository-local agent skills support the same lifecycle:
 
@@ -50,7 +52,9 @@ research projects:
 - `docs/` contains workflow and design notes.
 - `packages/retrieval-core/` contains stage orchestration and its regression tests.
 - `packages/retrieval-components/` contains reusable Haystack components and tests.
-- `projects/` contains independently locked experiments and their config overlays.
+- `projects/` contains independently locked research projects and their config
+  overlays. Each project groups cards, run definitions, analysis, and reports below
+  `experiments/<experiment-slug>/`.
 
 See [components.md](components.md) for the current component inventory and which
 pieces are native Haystack components versus repo-specific adapters.
@@ -307,10 +311,10 @@ writes repo-native JSONL files to `data/processed`:
 uv run prepare-beir --data-dir data --dataset scifact
 ```
 
-Project analysis uses a real Jupyter notebook. Add exact inference run ids to
-`notebooks/analyze_predictions.ipynb`; it resolves predictions through each
-manifest and builds qrel-enriched `predictions_df` and `query_summary_df` tables
-ready for project-specific plots.
+Project analysis uses a real Jupyter notebook stored with its experiment. Add exact
+inference run ids to `experiments/<experiment-slug>/analysis.ipynb`; it resolves
+predictions through each manifest and builds qrel-enriched `predictions_df` and
+`query_summary_df` tables ready for project-specific plots.
 
 The indexing and inference configs each place a Haystack serialized pipeline
 under the `pipeline` field. The Python runner resolves Hydra interpolation,
@@ -552,10 +556,9 @@ relevance; Recall, Precision, HitRate, MAP, and MRR use binary relevance. Record
 the exact metric list in the experiment card before inspecting results, and use
 the same list for every run in a comparison.
 
-For query-level analysis, open the project's
-`notebooks/analyze_predictions.ipynb`, configure readable labels and exact
-inference run ids, and run the cells. The notebook resolves predictions through
-each run manifest, joins qrels, and creates:
+For query-level analysis, open the experiment's `analysis.ipynb`, configure readable
+labels and exact inference run ids, and run the cells. The notebook resolves
+predictions through each run manifest, joins qrels, and creates:
 
 - `predictions_df`: one row per retrieved result, including run, query, rank,
   score, content, metadata, source document id, and relevance;
@@ -576,11 +579,12 @@ Before interpreting a baseline-versus-treatment delta, verify:
 - the intended resolved-config difference after ignoring dynamic run/output fields;
 - Git commit, Python version, and installed package versions from each manifest.
 
-Reports belong in `projects/<project>/reports/`. Link the experiment card and
-exact run directories, calculate deltas as treatment minus baseline, distinguish
-observations from interpretations, and report provenance mismatches or missing
-artifacts. A single run on one dataset supports an exploratory result, not a
-claim of statistical significance or broad generalization.
+Reports belong beside their experiment card as
+`projects/<project>/experiments/<experiment-slug>/report.md`. Link exact stage run
+directories, calculate deltas as treatment minus baseline, distinguish observations
+from interpretations, and report provenance mismatches or missing artifacts. A
+single run on one dataset supports an exploratory result, not a claim of statistical
+significance or broad generalization.
 
 ## Mixing Configs
 
@@ -706,42 +710,73 @@ For larger sweeps, use Hydra overrides and launchers. A future extension can add
 Hydra launcher configs for local multiprocessing, Slurm, Kubernetes, or cloud
 batch systems without changing component code.
 
-### Prepared Screen sweeps
+### Prepared experiments in GNU Screen
 
-The repository includes a two-phase workflow for local hyperparameter sweeps. Run
-the preparer from the project whose environment and config tree should be used:
+The repository includes a two-phase workflow for a controlled set of local runs. An
+experiment is the durable research unit; it may be a baseline/treatment pair, a
+hyperparameter sweep, or a single run. Its layout is:
 
-```bash
-uv run prepare-sweep
+```text
+experiments/<experiment-slug>/
+├── experiment.md
+├── analysis.ipynb
+├── report.md                    # added after results exist
+├── configs/
+│   └── matrix.yaml              # reusable stage, overrides, and varied values
+├── experiment.yaml              # generated plan and provenance
+└── runs/
+    └── <run-name>/
+        ├── config.yaml           # fully resolved, immutable stage config
+        ├── status.json           # launcher/worker state
+        └── screen.log
 ```
 
-The interactive preparer first uses the normal command builder to choose a valid
-base stage configuration. It then prompts for one or more Hydra fields or override
-paths, short labels, YAML value lists, and Cartesian or zipped combination mode.
-Every combination is composed, validated, assigned a descriptive name such as
-`lr-0.01--chunksize-14--model-E5-base`, and written as a fully resolved config under
-`artifacts/sweeps/<sweep-id>/configs/`. The folder is published only after every
-configuration validates successfully.
+Run the preparer from the project whose environment and Hydra config tree should be
+used. Pass an existing experiment to materialize its checked-in matrix:
+
+```bash
+uv run prepare-experiment experiments/<experiment-slug>
+```
+
+If that experiment already has `configs/matrix.yaml`, the preparer loads it. Without
+a path, it uses the normal interactive command builder to choose a base stage, varied
+Hydra paths, YAML value lists, and Cartesian or zipped combination mode, then creates
+a timestamped experiment below `experiments/`. Leaving the first varied path blank
+creates one base run. Every combination is composed and validated before any plan is
+published. Run names remain descriptive, for example
+`lr-0.01--chunksize-14--model-E5-base`.
+
+`experiment.yaml` records the project/config provenance and the checksum and stage
+artifact ID for every resolved config. The resolved config also carries experiment
+metadata, which is copied into the stage's `manifest.json`. Heavy outputs such as
+indexes and predictions deliberately remain under `artifacts/runs/<stage>/<run-id>/`;
+the experiment directory organizes intent, configuration, execution state, and
+analysis without duplicating artifacts.
 
 On Linux, install GNU Screen and launch a prepared subset interactively:
 
 ```bash
-uv run run-sweep
+uv run run-experiment
 ```
 
-The launcher highlights existing run states and accepts selections such as
-`1,3,4-7`, as well as `ready` and `all`. It asks for a maximum number of
-executing experiments, assigns selected runs to that many persistent lanes, launches
-all selected Screen sessions, and exits. The first run in each lane starts immediately;
-later workers wait for their predecessor's terminal status using a polling sleep.
-A failed, cancelled, or lost predecessor releases its lane because lane dependencies
-represent execution capacity rather than experimental data dependencies.
+The launcher first lists `experiments/*/experiment.yaml`, asks which experiment to
+use, then highlights its run states and accepts selections such as `1,3,4-7`, as well
+as `ready` and `all`. It asks for a maximum number of executing runs, assigns selected
+runs to that many persistent lanes, launches all selected Screen sessions, and exits.
+The first run in each lane starts immediately; later workers wait for their
+predecessor's terminal status using a polling sleep. A failed, cancelled, or lost
+predecessor releases its lane because lane dependencies represent execution capacity
+rather than experimental data dependencies.
 
-The cap applies to executing experiments, not to Screen processes: waiting sessions
-remain visible and can be attached to while they consume negligible compute. Lane
-tails are kept below `artifacts/sweeps/.launcher/`, allowing later launcher invocations
-to append work without exceeding the existing cap. The cap cannot be changed until
-all current lanes are terminal.
+The cap applies to executing runs, not to Screen processes: waiting sessions remain
+visible and can be attached to while they consume negligible compute. Lane tails are
+kept below `artifacts/experiments/.launcher/`, allowing later launcher invocations to
+append work without exceeding the existing cap. The cap cannot be changed until all
+current lanes are terminal.
+
+`prepare-sweep` and `run-sweep` remain compatibility aliases for existing scripts,
+and legacy `sweep.yaml` plans can still be read. New work should use the experiment
+commands and layout.
 
 ## Troubleshooting
 

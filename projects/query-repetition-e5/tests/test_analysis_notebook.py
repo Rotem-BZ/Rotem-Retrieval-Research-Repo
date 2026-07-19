@@ -6,7 +6,12 @@ from pathlib import Path
 import pandas as pd
 
 
-NOTEBOOK_PATH = Path(__file__).parents[1] / "notebooks" / "analyze_predictions.ipynb"
+NOTEBOOK_PATH = (
+    Path(__file__).parents[1]
+    / "experiments"
+    / "query-repetition-e5-small-scifact"
+    / "analysis.ipynb"
+)
 
 
 def load_notebook_namespace(path: Path) -> dict[str, object]:

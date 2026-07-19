@@ -43,6 +43,15 @@ The script downloads and converts BEIR SciFact, validates both pipeline graphs,
 creates one shared E5-small index, runs baseline and repeated-query inference against
 that exact index, evaluates both runs, and prints per-metric deltas.
 
+The durable experiment workspace is
+[`experiments/query-repetition-e5-small-scifact`](experiments/query-repetition-e5-small-scifact).
+It contains the research card, reusable run matrix, and analysis notebook. After
+creating the shared index, update the exact index ID in the experiment's
+[`configs/matrix.yaml`](experiments/query-repetition-e5-small-scifact/configs/matrix.yaml),
+then run `uv run prepare-experiment experiments/query-repetition-e5-small-scifact`.
+On Linux, `uv run run-experiment` first lets you choose the experiment and then the
+subset of its prepared runs to launch in GNU Screen.
+
 To run only the repeated-query pipeline directly on Windows or Linux, prepare the
 dataset and index once, then launch inference from this project directory:
 
@@ -61,7 +70,8 @@ small differences as a prompt for broader evaluation rather than a general resul
 
 ## Analyze predictions
 
-Open [`notebooks/analyze_predictions.ipynb`](notebooks/analyze_predictions.ipynb).
+Open the experiment's
+[`analysis.ipynb`](experiments/query-repetition-e5-small-scifact/analysis.ipynb).
 Add readable labels and exact inference run IDs to `RUNS`, then run the cells. The
 notebook resolves each run's prediction artifact through its manifest and builds:
 

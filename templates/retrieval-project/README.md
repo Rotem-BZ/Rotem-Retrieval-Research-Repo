@@ -6,7 +6,8 @@ baseline-versus-treatment pattern. Generated projects contain:
 - an independently locked Python package;
 - editable links to `retrieval-core` and `retrieval-components`;
 - one project-local Haystack query component and Hydra pipeline;
-- a Jupyter notebook that loads inference runs into plotting DataFrames;
+- an experiment workspace containing a card, reusable run matrix, and Jupyter
+  analysis notebook;
 - focused component and pipeline-composition tests; and
 - a PowerShell runner that builds one shared index, evaluates both arms, and prints
   metric deltas.
@@ -45,3 +46,9 @@ another experiment's resolved dependency graph.
 
 The generated relative dependency paths assume the project is created directly
 under `projects/`.
+
+Before materializing the generated experiment, create its shared index and replace
+`REPLACE_WITH_EXACT_INDEXING_RUN_ID` in
+`experiments/<project-slug>/configs/matrix.yaml`. Then run
+`uv run prepare-experiment experiments/<project-slug>`; on Linux,
+`uv run run-experiment` chooses the experiment and any subset of its runs.

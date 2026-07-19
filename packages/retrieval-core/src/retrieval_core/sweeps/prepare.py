@@ -1,4 +1,4 @@
-"""Interactively prepare fully resolved hyperparameter sweep configurations."""
+"""Interactively prepare experiment run configurations."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import itertools
 import json
 import shutil
 import uuid
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -17,10 +17,10 @@ from omegaconf import OmegaConf, open_dict
 from retrieval_core.cli import resolve_stage_config
 from retrieval_core.command_builder import BuiltCommand, run_configure
 from retrieval_core.sweeps.models import (
-    SWEEP_SCHEMA_VERSION,
-    SweepParameter,
-    SweepPlan,
-    SweepRun,
+    EXPERIMENT_SCHEMA_VERSION,
+    ExperimentParameter,
+    ExperimentPlan,
+    ExperimentRun,
     choice_name,
     save_plan,
     slugify,
@@ -33,7 +33,7 @@ from retrieval_core.utils.time import utc_now, utc_timestamp
 
 InputFn = Callable[[str], str]
 OutputFn = Callable[[str], None]
-RESERVED_SWEEP_PATHS = {
+RESERVED_EXPERIMENT_PATHS = {
     "paths.project_root",
     "stage.output_dir",
     "stage.run_id",
@@ -43,16 +43,22 @@ RESERVED_SWEEP_PATHS = {
 
 def main(argv: Sequence[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
-        description="Interactively prepare fully resolved configurations for a sweep."
+        description="Interactively prepare fully resolved runs for an experiment."
     )
+    parser.add_argument("experiment_dir", nargs="?", type=Path)
     parser.add_argument("--config-dir", type=Path)
     parser.add_argument("--output-root", type=Path)
     args = parser.parse_args(argv)
-    prepare_sweep(config_dir=args.config_dir, output_root=args.output_root)
+    prepare_experiment(
+        experiment_dir=args.experiment_dir,
+        config_dir=args.config_dir,
+        output_root=args.output_root,
+    )
 
 
-def prepare_sweep(
+def prepare_experiment(
     *,
+    experiment_dir: Path | None = None,
     config_dir: Path | None = None,
     output_root: Path | None = None,
     input_fn: InputFn = input,
@@ -61,44 +67,69 @@ def prepare_sweep(
     project_root = Path.cwd().resolve()
     resolved_config_dir = find_config_dir(config_dir)
 
-    output_fn("Retrieval Research sweep preparer")
+    output_fn("Retrieval Research experiment preparer")
     output_fn("")
-    built = run_configure(
-        input_fn=input_fn,
-        output_fn=output_fn,
-        config_dir=resolved_config_dir,
-        allow_dry_run=False,
-    )
-    parameters = prompt_sweep_parameters(input_fn=input_fn, output_fn=output_fn)
-    combination_mode = prompt_combination_mode(input_fn=input_fn, output_fn=output_fn)
-    combinations = parameter_combinations(parameters, combination_mode)
+    template_path: Path | None = None
+    if experiment_dir is not None:
+        destination = experiment_dir.expanduser().resolve()
+        experiment_id = slugify(destination.name, fallback="experiment")
+        experiment_name = experiment_id
+        root = destination.parent
+        candidate = destination / "configs" / "matrix.yaml"
+        if candidate.is_file():
+            template_path = candidate
+            output_fn(f"Loading experiment template: {candidate}")
 
-    default_name = f"{built.stage_name}-sweep"
-    entered_name = input_fn(f"Sweep name [{default_name}]: ").strip() or default_name
-    sweep_name = slugify(entered_name, fallback=default_name)
-    timestamp = utc_timestamp()
-    sweep_id = f"{sweep_name}--{timestamp}"
+    if template_path is not None:
+        built, parameters, combination_mode = load_experiment_template(template_path)
+    else:
+        built = run_configure(
+            input_fn=input_fn,
+            output_fn=output_fn,
+            config_dir=resolved_config_dir,
+            allow_dry_run=False,
+        )
+        parameters = prompt_experiment_parameters(input_fn=input_fn, output_fn=output_fn)
+        combination_mode = (
+            prompt_combination_mode(input_fn=input_fn, output_fn=output_fn)
+            if parameters
+            else "single"
+        )
+
+    combinations = parameter_combinations(parameters, combination_mode)
+    if experiment_dir is None:
+        default_name = f"{built.stage_name}-experiment"
+        entered_name = input_fn(f"Experiment name [{default_name}]: ").strip() or default_name
+        experiment_name = slugify(entered_name, fallback=default_name)
+        experiment_id = f"{experiment_name}--{utc_timestamp()}"
+        root = (output_root or project_root / "experiments").expanduser().resolve()
+        destination = root / experiment_id
 
     output_fn("")
     output_fn(f"Stage: {built.stage_name}")
     output_fn(f"Combinations: {len(combinations)} ({combination_mode})")
-    output_fn(f"Sweep id: {sweep_id}")
-    if not prompt_yes_no("Materialize and validate this sweep? [Y/n]: ", True, input_fn):
-        raise SystemExit("Sweep preparation cancelled.")
+    output_fn(f"Experiment id: {experiment_id}")
+    if not prompt_yes_no("Materialize and validate this experiment? [Y/n]: ", True, input_fn):
+        raise SystemExit("Experiment preparation cancelled.")
 
-    root = (output_root or project_root / "artifacts" / "sweeps").expanduser().resolve()
     root.mkdir(parents=True, exist_ok=True)
-    destination = root / sweep_id
-    if destination.exists():
-        raise FileExistsError(f"Sweep directory already exists: {destination}")
+    if (destination / "experiment.yaml").exists() or (destination / "runs").exists():
+        raise FileExistsError(f"Experiment is already materialized: {destination}")
 
-    staging = root / f".{sweep_id}.tmp-{uuid.uuid4().hex[:8]}"
+    staging = root / f".{experiment_id}.tmp-{uuid.uuid4().hex[:8]}"
     try:
         staging.mkdir(parents=True)
-        plan = materialize_sweep(
+        if template_path is None:
+            write_experiment_template(
+                staging / "configs" / "matrix.yaml",
+                built=built,
+                parameters=parameters,
+                combination_mode=combination_mode,
+            )
+        plan = materialize_experiment(
             staging,
-            sweep_id=sweep_id,
-            sweep_name=sweep_name,
+            experiment_id=experiment_id,
+            experiment_name=experiment_name,
             built=built,
             parameters=parameters,
             combinations=combinations,
@@ -107,47 +138,47 @@ def prepare_sweep(
             config_dir=resolved_config_dir,
             output_fn=output_fn,
         )
-        save_plan(staging / "sweep.yaml", plan)
-        staging.replace(destination)
+        save_plan(staging / "experiment.yaml", plan)
+        publish_experiment(staging, destination)
     except BaseException:
         shutil.rmtree(staging, ignore_errors=True)
         raise
 
     output_fn("")
     output_fn(f"Prepared {len(combinations)} runs in {destination}")
-    output_fn(f"Launch them with: uv run run-sweep {destination}")
+    output_fn(f"Launch them with: uv run run-experiment {destination}")
     return destination
 
 
-def materialize_sweep(
-    sweep_dir: Path,
+def materialize_experiment(
+    experiment_dir: Path,
     *,
-    sweep_id: str,
-    sweep_name: str,
+    experiment_id: str,
+    experiment_name: str,
     built: BuiltCommand,
-    parameters: list[SweepParameter],
+    parameters: list[ExperimentParameter],
     combinations: list[tuple[Any, ...]],
     combination_mode: str,
     project_root: Path,
     config_dir: Path,
     output_fn: OutputFn = print,
-) -> SweepPlan:
-    configs_dir = sweep_dir / "configs"
-    configs_dir.mkdir(parents=True, exist_ok=True)
+) -> ExperimentPlan:
+    runs_dir = experiment_dir / "runs"
+    runs_dir.mkdir(parents=True, exist_ok=True)
     varied_keys = {parameter.path for parameter in parameters}
     base_overrides = [
         override
         for override in built.overrides
-        if override_key(override) not in varied_keys | RESERVED_SWEEP_PATHS
+        if override_key(override) not in varied_keys | RESERVED_EXPERIMENT_PATHS
     ]
 
-    runs: list[SweepRun] = []
+    runs: list[ExperimentRun] = []
     used_names: set[str] = set()
     for index, values in enumerate(combinations, start=1):
-        generated_name = choice_name(parameters, values)
+        generated_name = choice_name(parameters, values) if parameters else "run"
         run_name = unique_choice_name(generated_name, values, used_names)
         used_names.add(run_name)
-        stage_run_id = f"{sweep_id}--{run_name}"
+        stage_run_id = f"{experiment_id}--{run_name}"
         parameter_values = {
             parameter.path: value for parameter, value in zip(parameters, values, strict=True)
         }
@@ -174,28 +205,37 @@ def materialize_sweep(
                 f"expected {built.stage_name!r}."
             )
         with open_dict(cfg):
-            cfg.stage.run_name = run_name
+            # The experiment already owns the human-readable run name. Keeping the
+            # stage-level prefix empty makes ``stage_run_id`` the exact artifact ID.
+            cfg.stage.run_name = None
             cfg.stage.preserve_run_config = True
+            cfg.experiment = {
+                "id": experiment_id,
+                "name": experiment_name,
+                "run_name": run_name,
+                "parameters": parameter_values,
+            }
         OmegaConf.to_container(cfg, resolve=True, throw_on_missing=True)
         config_text = "# @package _global_\n\n" + config_to_yaml(cfg)
-        config_file = configs_dir / f"{run_name}.yaml"
+        config_file = runs_dir / run_name / "config.yaml"
+        config_file.parent.mkdir(parents=True, exist_ok=False)
         config_file.write_text(config_text, encoding="utf-8")
         runs.append(
-            SweepRun(
+            ExperimentRun(
                 index=index,
                 name=run_name,
                 stage_run_id=stage_run_id,
-                config_file=config_file.relative_to(sweep_dir).as_posix(),
+                config_file=config_file.relative_to(experiment_dir).as_posix(),
                 config_sha256=sha256_text(config_text),
                 parameters=parameter_values,
                 output_dir=str(OmegaConf.select(cfg, "stage.output_dir")),
             )
         )
 
-    return SweepPlan(
-        schema_version=SWEEP_SCHEMA_VERSION,
-        sweep_id=sweep_id,
-        name=sweep_name,
+    return ExperimentPlan(
+        schema_version=EXPERIMENT_SCHEMA_VERSION,
+        experiment_id=experiment_id,
+        name=experiment_name,
         stage=built.stage_name,
         created_at=utc_now(),
         project_root=str(project_root),
@@ -206,24 +246,21 @@ def materialize_sweep(
     )
 
 
-def prompt_sweep_parameters(
+def prompt_experiment_parameters(
     *, input_fn: InputFn = input, output_fn: OutputFn = print
-) -> list[SweepParameter]:
+) -> list[ExperimentParameter]:
     output_fn("")
-    output_fn("Add hyperparameters to vary. Enter a blank path when done.")
-    parameters: list[SweepParameter] = []
+    output_fn("Add parameters to vary. Leave the first path blank for one base run.")
+    parameters: list[ExperimentParameter] = []
     while True:
         path = input_fn("Hydra field or override path: ").strip()
         if not path:
-            if parameters:
-                return parameters
-            output_fn("Add at least one hyperparameter.")
-            continue
+            return parameters
         if any(parameter.path == path for parameter in parameters):
-            output_fn(f"{path!r} is already part of this sweep.")
+            output_fn(f"{path!r} is already part of this experiment.")
             continue
-        if path in RESERVED_SWEEP_PATHS:
-            output_fn(f"{path!r} is controlled by the sweep preparer and cannot be varied.")
+        if path in RESERVED_EXPERIMENT_PATHS:
+            output_fn(f"{path!r} is controlled by the experiment preparer and cannot be varied.")
             continue
 
         default_label = default_parameter_label(path)
@@ -235,7 +272,7 @@ def prompt_sweep_parameters(
             input_fn,
         )
         values = prompt_values(path, input_fn=input_fn, output_fn=output_fn)
-        parameters.append(SweepParameter(path=path, label=label, values=values, raw=raw))
+        parameters.append(ExperimentParameter(path=path, label=label, values=values, raw=raw))
 
 
 def prompt_values(
@@ -269,18 +306,126 @@ def prompt_combination_mode(*, input_fn: InputFn = input, output_fn: OutputFn = 
 
 
 def parameter_combinations(
-    parameters: list[SweepParameter], combination_mode: str
+    parameters: list[ExperimentParameter], combination_mode: str
 ) -> list[tuple[Any, ...]]:
     if not parameters:
-        raise ValueError("A sweep must contain at least one parameter.")
+        if combination_mode == "single":
+            return [()]
+        raise ValueError("An experiment without varied parameters must use single mode.")
     if combination_mode == "cartesian":
         return list(itertools.product(*(parameter.values for parameter in parameters)))
     if combination_mode == "zip":
         lengths = {len(parameter.values) for parameter in parameters}
         if len(lengths) != 1:
-            raise ValueError("Zipped sweep parameters must contain the same number of values.")
+            raise ValueError("Zipped experiment parameters must contain the same number of values.")
         return list(zip(*(parameter.values for parameter in parameters), strict=True))
     raise ValueError(f"Unknown combination mode: {combination_mode!r}")
+
+
+def write_experiment_template(
+    path: Path,
+    *,
+    built: BuiltCommand,
+    parameters: list[ExperimentParameter],
+    combination_mode: str,
+) -> None:
+    """Persist the reusable preparation choices that produced the resolved runs."""
+
+    payload = {
+        "schema_version": EXPERIMENT_SCHEMA_VERSION,
+        "stage": built.stage_name,
+        "base_overrides": list(built.overrides),
+        "combination_mode": combination_mode,
+        "parameters": [
+            {
+                "path": parameter.path,
+                "label": parameter.label,
+                "values": parameter.values,
+                "raw": parameter.raw,
+            }
+            for parameter in parameters
+        ],
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+
+def load_experiment_template(
+    path: Path,
+) -> tuple[BuiltCommand, list[ExperimentParameter], str]:
+    """Load reusable experiment choices from ``configs/matrix.yaml``."""
+
+    payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, Mapping):
+        raise ValueError(f"Experiment template must contain a YAML mapping: {path}")
+    if payload.get("schema_version") != EXPERIMENT_SCHEMA_VERSION:
+        raise ValueError(f"Unsupported experiment template schema in {path}")
+
+    stage = payload.get("stage")
+    overrides = payload.get("base_overrides", [])
+    raw_parameters = payload.get("parameters", [])
+    if not isinstance(stage, str) or not stage.strip():
+        raise ValueError(f"Experiment template is missing a stage: {path}")
+    if not isinstance(overrides, list) or not all(
+        isinstance(override, str) for override in overrides
+    ):
+        raise ValueError(f"base_overrides must be a list of strings: {path}")
+    if not isinstance(raw_parameters, list):
+        raise ValueError(f"parameters must be a list: {path}")
+
+    parameters: list[ExperimentParameter] = []
+    for raw_parameter in raw_parameters:
+        if not isinstance(raw_parameter, Mapping):
+            raise ValueError(f"Each experiment parameter must be a mapping: {path}")
+        values = raw_parameter.get("values")
+        if not isinstance(values, list) or not values:
+            raise ValueError(f"Each experiment parameter needs non-empty values: {path}")
+        parameter_path = raw_parameter.get("path")
+        if not isinstance(parameter_path, str) or not parameter_path:
+            raise ValueError(f"Each experiment parameter needs a path: {path}")
+        label = raw_parameter.get("label") or default_parameter_label(parameter_path)
+        parameters.append(
+            ExperimentParameter(
+                path=parameter_path,
+                label=str(label),
+                values=values,
+                raw=bool(raw_parameter.get("raw", False)),
+            )
+        )
+
+    default_mode = "cartesian" if parameters else "single"
+    combination_mode = str(payload.get("combination_mode", default_mode))
+    built = BuiltCommand(
+        stage_name=stage,
+        overrides=tuple(overrides),
+        command=f"experiment template {path}",
+    )
+    return built, parameters, combination_mode
+
+
+def publish_experiment(staging: Path, destination: Path) -> None:
+    """Publish validated materialization while preserving existing research files."""
+
+    if not destination.exists():
+        staging.replace(destination)
+        return
+
+    generated_paths = {
+        destination / "experiment.yaml": staging / "experiment.yaml",
+        destination / "runs": staging / "runs",
+    }
+    staged_template = staging / "configs" / "matrix.yaml"
+    if staged_template.exists():
+        generated_paths[destination / "configs" / "matrix.yaml"] = staged_template
+    conflicts = [path for path in generated_paths if path.exists()]
+    if conflicts:
+        rendered = ", ".join(str(path) for path in conflicts)
+        raise FileExistsError(f"Experiment materialization would overwrite: {rendered}")
+
+    (destination / "configs").mkdir(parents=True, exist_ok=True)
+    for target, source in generated_paths.items():
+        source.replace(target)
+    shutil.rmtree(staging)
 
 
 def render_override(path: str, value: Any, *, raw: bool = False) -> str:
@@ -306,6 +451,26 @@ def prompt_yes_no(prompt: str, default: bool, input_fn: InputFn = input) -> bool
             return True
         if answer in {"n", "no"}:
             return False
+
+
+# Compatibility API for existing integrations using the former sweep terminology.
+prepare_sweep = prepare_experiment
+prompt_sweep_parameters = prompt_experiment_parameters
+
+
+def materialize_sweep(
+    sweep_dir: Path,
+    *,
+    sweep_id: str,
+    sweep_name: str,
+    **kwargs: Any,
+) -> ExperimentPlan:
+    return materialize_experiment(
+        sweep_dir,
+        experiment_id=sweep_id,
+        experiment_name=sweep_name,
+        **kwargs,
+    )
 
 
 if __name__ == "__main__":

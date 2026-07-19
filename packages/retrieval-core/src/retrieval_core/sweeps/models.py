@@ -1,4 +1,4 @@
-"""Persistent models and naming helpers for prepared sweeps."""
+"""Persistent models and naming helpers for prepared experiments."""
 
 from __future__ import annotations
 
@@ -13,13 +13,13 @@ import yaml
 from retrieval_core.utils.io import read_json, write_json_atomic
 from retrieval_core.utils.hashing import sha256_text
 
-SWEEP_SCHEMA_VERSION = 1
+EXPERIMENT_SCHEMA_VERSION = 1
 TERMINAL_STATES = {"succeeded", "failed", "launch_failed", "cancelled", "lost"}
 ACTIVE_STATES = {"launching", "waiting", "running"}
 
 
 @dataclass(frozen=True)
-class SweepParameter:
+class ExperimentParameter:
     path: str
     label: str
     values: list[Any]
@@ -27,7 +27,7 @@ class SweepParameter:
 
 
 @dataclass(frozen=True)
-class SweepRun:
+class ExperimentRun:
     index: int
     name: str
     stage_run_id: str
@@ -38,58 +38,66 @@ class SweepRun:
 
 
 @dataclass(frozen=True)
-class SweepPlan:
+class ExperimentPlan:
     schema_version: int
-    sweep_id: str
+    experiment_id: str
     name: str
     stage: str
     created_at: str
     project_root: str
     source_config_dir: str
     combination_mode: str
-    parameters: list[SweepParameter]
-    runs: list[SweepRun]
+    parameters: list[ExperimentParameter]
+    runs: list[ExperimentRun]
 
 
-def save_plan(path: Path, plan: SweepPlan) -> None:
+def save_plan(path: Path, plan: ExperimentPlan) -> None:
     payload = asdict(plan)
     path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
 
 
-def load_plan(sweep_dir: str | Path) -> SweepPlan:
-    directory = Path(sweep_dir).expanduser().resolve()
-    payload = yaml.safe_load((directory / "sweep.yaml").read_text(encoding="utf-8")) or {}
-    if payload.get("schema_version") != SWEEP_SCHEMA_VERSION:
-        raise ValueError(f"Unsupported sweep schema in {directory / 'sweep.yaml'}.")
-    return SweepPlan(
+def load_plan(experiment_dir: str | Path) -> ExperimentPlan:
+    """Load a prepared experiment, accepting legacy ``sweep.yaml`` plans."""
+
+    directory = Path(experiment_dir).expanduser().resolve()
+    plan_path = directory / "experiment.yaml"
+    if not plan_path.is_file():
+        plan_path = directory / "sweep.yaml"
+    payload = yaml.safe_load(plan_path.read_text(encoding="utf-8")) or {}
+    if payload.get("schema_version") != EXPERIMENT_SCHEMA_VERSION:
+        raise ValueError(f"Unsupported experiment schema in {plan_path}.")
+    experiment_id = payload.get("experiment_id", payload.get("sweep_id"))
+    if not experiment_id:
+        raise ValueError(f"Experiment plan has no experiment_id: {plan_path}")
+    return ExperimentPlan(
         schema_version=int(payload["schema_version"]),
-        sweep_id=str(payload["sweep_id"]),
+        experiment_id=str(experiment_id),
         name=str(payload["name"]),
         stage=str(payload["stage"]),
         created_at=str(payload["created_at"]),
         project_root=str(payload["project_root"]),
         source_config_dir=str(payload["source_config_dir"]),
         combination_mode=str(payload["combination_mode"]),
-        parameters=[SweepParameter(**item) for item in payload.get("parameters", [])],
-        runs=[SweepRun(**item) for item in payload.get("runs", [])],
+        parameters=[ExperimentParameter(**item) for item in payload.get("parameters", [])],
+        runs=[ExperimentRun(**item) for item in payload.get("runs", [])],
     )
 
 
-def run_by_name(plan: SweepPlan, name: str) -> SweepRun:
+def run_by_name(plan: ExperimentPlan, name: str) -> ExperimentRun:
     for run in plan.runs:
         if run.name == name:
             return run
-    raise KeyError(f"Sweep {plan.sweep_id!r} has no run named {name!r}.")
+    raise KeyError(f"Experiment {plan.experiment_id!r} has no run named {name!r}.")
 
 
-def status_path(sweep_dir: str | Path, run: SweepRun | str) -> Path:
-    name = run.name if isinstance(run, SweepRun) else run
-    return Path(sweep_dir).resolve() / "runs" / name / "status.json"
+def status_path(experiment_dir: str | Path, run: ExperimentRun | str) -> Path:
+    name = run.name if isinstance(run, ExperimentRun) else run
+    return Path(experiment_dir).resolve() / "runs" / name / "status.json"
 
 
-def log_path(sweep_dir: str | Path, run: SweepRun | str) -> Path:
-    name = run.name if isinstance(run, SweepRun) else run
-    return Path(sweep_dir).resolve() / "runs" / name / "screen.log"
+def log_path(experiment_dir: str | Path, run: ExperimentRun | str) -> Path:
+    name = run.name if isinstance(run, ExperimentRun) else run
+    return Path(experiment_dir).resolve() / "runs" / name / "screen.log"
 
 
 def read_status(path: str | Path) -> dict[str, Any]:
@@ -126,7 +134,7 @@ def slugify(value: Any, *, fallback: str = "value") -> str:
 
 
 def choice_name(
-    parameters: list[SweepParameter],
+    parameters: list[ExperimentParameter],
     values: tuple[Any, ...],
     *,
     max_length: int = 120,
@@ -155,9 +163,16 @@ def unique_choice_name(name: str, values: tuple[Any, ...], existing: set[str]) -
     return candidate
 
 
-def screen_name(sweep_id: str, run_name: str, *, max_length: int = 75) -> str:
-    full_name = f"rr-{slugify(sweep_id)}--{slugify(run_name)}"
+def screen_name(experiment_id: str, run_name: str, *, max_length: int = 75) -> str:
+    full_name = f"rr-{slugify(experiment_id)}--{slugify(run_name)}"
     if len(full_name) <= max_length:
         return full_name
     digest = sha256_text(full_name)[:10]
     return f"{full_name[: max_length - len(digest) - 2].rstrip('-')}--{digest}"
+
+
+# Compatibility aliases for callers that still use the former sweep terminology.
+SWEEP_SCHEMA_VERSION = EXPERIMENT_SCHEMA_VERSION
+SweepParameter = ExperimentParameter
+SweepRun = ExperimentRun
+SweepPlan = ExperimentPlan

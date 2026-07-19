@@ -28,7 +28,7 @@ Build conclusions from run artifacts, not from remembered commands or intended c
    - interpretations or plausible mechanisms;
    - limitations and untested alternatives.
 10. Add concise diagnostic analysis only when it helps explain the aggregate result. Avoid presenting cherry-picked queries as representative.
-11. Save the report beside existing project reports. If no convention exists, use `projects/<project>/reports/<experiment-slug>.md`; link the source card and exact run directories.
+11. Save the report as `projects/<project>/experiments/<experiment-slug>/report.md`, beside the source `experiment.md`, reusable configs, resolved run configs, and analysis notebook. Link exact stage artifact directories under `artifacts/runs/`.
 12. Re-read every numeric and provenance claim against its source artifact before handing off the report.
 
 ## Guardrails

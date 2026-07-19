@@ -1,4 +1,4 @@
-"""Interactive, launch-only GNU Screen sweep queue builder."""
+"""Interactive GNU Screen launcher for prepared experiment runs."""
 
 from __future__ import annotations
 
@@ -14,8 +14,8 @@ from typing import Any
 from retrieval_core.sweeps.models import (
     ACTIVE_STATES,
     TERMINAL_STATES,
-    SweepPlan,
-    SweepRun,
+    ExperimentPlan,
+    ExperimentRun,
     load_plan,
     log_path,
     read_status,
@@ -52,9 +52,10 @@ ANSI = {
 
 def main(argv: Sequence[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
-        description="Select prepared runs, launch their GNU Screen sessions, and exit."
+        description="Choose a prepared experiment and launch selected runs in GNU Screen."
     )
-    parser.add_argument("sweep_dir", nargs="?", type=Path)
+    parser.add_argument("experiment_dir", nargs="?", type=Path)
+    parser.add_argument("--experiment", dest="experiment_name")
     parser.add_argument("--select", dest="selection")
     parser.add_argument("--max-parallel", type=int)
     parser.add_argument("--poll-seconds", type=float, default=5.0)
@@ -62,10 +63,11 @@ def main(argv: Sequence[str] | None = None) -> None:
     args = parser.parse_args(argv)
 
     if not sys.platform.startswith("linux"):
-        raise SystemExit("run-sweep requires Linux because it launches GNU Screen sessions.")
+        raise SystemExit("run-experiment requires Linux because it launches GNU Screen sessions.")
     screen_executable = require_screen()
     launch_interactively(
-        sweep_dir=args.sweep_dir,
+        experiment_dir=args.experiment_dir,
+        experiment_name=args.experiment_name,
         selection=args.selection,
         max_parallel=args.max_parallel,
         poll_seconds=args.poll_seconds,
@@ -76,14 +78,15 @@ def main(argv: Sequence[str] | None = None) -> None:
 
 def launch_interactively(
     *,
-    sweep_dir: Path | None,
+    experiment_dir: Path | None,
+    experiment_name: str | None = None,
     selection: str | None,
     max_parallel: int | None,
     poll_seconds: float,
     lost_grace_seconds: float,
     screen_executable: str,
 ) -> list[str]:
-    directory = choose_sweep_dir(sweep_dir)
+    directory = choose_experiment_dir(experiment_dir, experiment_name=experiment_name)
     plan = load_plan(directory)
     sessions = list_screen_sessions(executable=screen_executable)
     states = {run.index: run_state(directory, run, sessions) for run in plan.runs}
@@ -151,9 +154,9 @@ def launch_interactively(
 
 
 def launch_runs(
-    sweep_dir: Path,
-    plan: SweepPlan,
-    runs: list[SweepRun],
+    experiment_dir: Path,
+    plan: ExperimentPlan,
+    runs: list[ExperimentRun],
     *,
     max_parallel: int,
     poll_seconds: float,
@@ -171,17 +174,17 @@ def launch_runs(
         for run in runs:
             lane_index = choose_lane(registry, sessions)
             predecessor = active_tail(registry["lanes"][lane_index], sessions)
-            session_name = screen_name(plan.sweep_id, run.name)
+            session_name = screen_name(plan.experiment_id, run.name)
             if session_name in sessions:
                 print(f"Skipping {run.name}: screen {session_name!r} already exists.")
                 continue
 
-            own_status_path = status_path(sweep_dir, run)
-            own_log_path = log_path(sweep_dir, run)
+            own_status_path = status_path(experiment_dir, run)
+            own_log_path = log_path(experiment_dir, run)
             wait_for = predecessor_reference(predecessor) if predecessor else None
             status_payload = {
                 "state": "launching",
-                "sweep_id": plan.sweep_id,
+                "experiment_id": plan.experiment_id,
                 "run_name": run.name,
                 "stage_run_id": run.stage_run_id,
                 "screen_name": session_name,
@@ -196,7 +199,7 @@ def launch_runs(
             write_json_atomic(own_status_path, status_payload)
 
             tail = {
-                "sweep_id": plan.sweep_id,
+                "experiment_id": plan.experiment_id,
                 "run_name": run.name,
                 "status_path": str(own_status_path),
                 "screen_name": session_name,
@@ -209,8 +212,8 @@ def launch_runs(
                 sys.executable,
                 "-m",
                 "retrieval_core.sweeps.worker",
-                "--sweep-dir",
-                str(sweep_dir),
+                "--experiment-dir",
+                str(experiment_dir),
                 "--run-name",
                 run.name,
                 "--poll-seconds",
@@ -247,10 +250,10 @@ def launch_runs(
     return launched
 
 
-def run_state(sweep_dir: Path, run: SweepRun, sessions: set[str]) -> str:
+def run_state(experiment_dir: Path, run: ExperimentRun, sessions: set[str]) -> str:
     if (Path(run.output_dir) / "manifest.json").is_file():
         return "succeeded"
-    payload = read_status(status_path(sweep_dir, run))
+    payload = read_status(status_path(experiment_dir, run))
     state = str(payload.get("state", ""))
     if state in ACTIVE_STATES:
         session_name = str(payload.get("screen_name", ""))
@@ -262,8 +265,8 @@ def run_state(sweep_dir: Path, run: SweepRun, sessions: set[str]) -> str:
     return "ready"
 
 
-def print_run_table(plan: SweepPlan, states: dict[int, str]) -> None:
-    print(f"Sweep: {plan.sweep_id}")
+def print_run_table(plan: ExperimentPlan, states: dict[int, str]) -> None:
+    print(f"Experiment: {plan.name} ({plan.experiment_id})")
     print("")
     width = max(len(STATE_LABELS.get(state, ("", state, ""))[1]) for state in states.values())
     use_color = sys.stdout.isatty() and "NO_COLOR" not in os.environ
@@ -279,7 +282,7 @@ def print_run_table(plan: SweepPlan, states: dict[int, str]) -> None:
 
 def parse_selection(
     selection: str,
-    runs: list[SweepRun],
+    runs: list[ExperimentRun],
     states: dict[int, str],
 ) -> list[int]:
     normalized = selection.strip().lower()
@@ -315,24 +318,45 @@ def parse_selection(
     return sorted(selected)
 
 
-def choose_sweep_dir(sweep_dir: Path | None) -> Path:
-    if sweep_dir is not None:
-        resolved = sweep_dir.expanduser().resolve()
-        if not (resolved / "sweep.yaml").is_file():
-            raise FileNotFoundError(f"No sweep.yaml found in {resolved}")
+def choose_experiment_dir(
+    experiment_dir: Path | None,
+    *,
+    experiment_name: str | None = None,
+) -> Path:
+    if experiment_dir is not None and experiment_name is not None:
+        raise ValueError("Pass either an experiment directory or --experiment, not both.")
+    if experiment_dir is not None:
+        resolved = experiment_dir.expanduser().resolve()
+        if not (resolved / "experiment.yaml").is_file() and not (resolved / "sweep.yaml").is_file():
+            raise FileNotFoundError(f"No prepared experiment plan found in {resolved}")
         return resolved
 
-    root = Path.cwd() / "artifacts" / "sweeps"
+    root = Path.cwd() / "experiments"
     choices = sorted(
-        (path.parent for path in root.glob("*/sweep.yaml")),
+        (path.parent for path in root.glob("*/experiment.yaml")),
         key=lambda path: path.name,
-        reverse=True,
     )
     if not choices:
-        raise FileNotFoundError(f"No prepared sweeps found below {root.resolve()}")
-    print("Prepared sweeps:")
+        raise FileNotFoundError(f"No prepared experiments found below {root.resolve()}")
+
+    if experiment_name is not None:
+        normalized = experiment_name.strip()
+        matches = [
+            path
+            for path in choices
+            if normalized in {path.name, load_plan(path).experiment_id, load_plan(path).name}
+        ]
+        if len(matches) != 1:
+            raise ValueError(
+                f"Expected one prepared experiment matching {experiment_name!r}, "
+                f"found {len(matches)}."
+            )
+        return matches[0].resolve()
+
+    print("Prepared experiments:")
     for index, path in enumerate(choices, start=1):
-        print(f"  {index}. {path.name}")
+        plan = load_plan(path)
+        print(f"  {index}. {plan.name} ({len(plan.runs)} runs) [{path.name}]")
     while True:
         answer = input(f"Select 1-{len(choices)}: ").strip()
         try:
@@ -346,7 +370,7 @@ def choose_sweep_dir(sweep_dir: Path | None) -> Path:
 
 
 def launcher_registry_paths(project_root: Path) -> tuple[Path, Path]:
-    directory = project_root / "artifacts" / "sweeps" / ".launcher"
+    directory = project_root / "artifacts" / "experiments" / ".launcher"
     return directory / "lanes.json", directory / "lanes.lock"
 
 
@@ -417,11 +441,15 @@ def active_tail(tail: Any, sessions: set[str]) -> dict[str, Any] | None:
 
 def predecessor_reference(tail: dict[str, Any]) -> dict[str, str]:
     return {
-        "sweep_id": str(tail["sweep_id"]),
+        "experiment_id": str(tail.get("experiment_id", tail.get("sweep_id", ""))),
         "run_name": str(tail["run_name"]),
         "status_path": str(tail["status_path"]),
         "screen_name": str(tail["screen_name"]),
     }
+
+
+# Compatibility alias for integrations using the former helper name.
+choose_sweep_dir = choose_experiment_dir
 
 
 @contextmanager

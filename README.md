@@ -37,24 +37,26 @@ For example, after creating an index, inference can be launched with:
 uv run stage inference dataset=beir_scifact pipeline/inference@pipeline=dense_query_repetition selections/embedding_model=e5/small_v2 runtime.device.device=cpu stage.indexing_run_id=YOUR_EXACT_INDEXING_RUN_ID runtime.query_concurrency_limit=8
 ```
 
-## Hyperparameter sweeps
+## Experiments and parallel runs
 
-From any project directory, prepare an immutable set of fully resolved configurations
-interactively:
+Each project keeps durable research workspaces below `experiments/`. An experiment
+can contain its card, reusable `configs/matrix.yaml`, analysis notebook, and report.
+Materialize the matrix into immutable, fully resolved run configs with:
 
 ```shell
-uv run prepare-sweep
+uv run prepare-experiment experiments/<experiment-slug>
 ```
 
-Prepared sweeps are stored below `artifacts/sweeps/`. On Linux with GNU Screen
-installed, select and launch any subset with:
+With no path, the preparer interactively creates a new experiment. On Linux with GNU
+Screen installed, the launcher first chooses a prepared experiment and then a subset
+of its runs:
 
 ```shell
-uv run run-sweep
+uv run run-experiment
 ```
 
 The launcher displays ready, waiting, running, succeeded, and failed runs; accepts
-selections such as `1,3,4-7`; asks for the maximum number of executing experiments;
+selections such as `1,3,4-7`; asks for the maximum number of executing runs;
 launches the selected Screen sessions; and exits. Waiting sessions form persistent
 dependency lanes, so the concurrency cap remains effective after the launcher exits.
 
@@ -78,7 +80,7 @@ See [the research workflow guide](docs/research_workflows.md) for the complete
 experiment lifecycle: preregistering an experiment card, composing Hydra configs,
 validating and running immutable stages, reusing exact artifacts, analyzing
 predictions in a notebook, generating an evidence-led report, and launching
-prepared sweeps.
+prepared experiments.
 
 ## Query-repetition example
 

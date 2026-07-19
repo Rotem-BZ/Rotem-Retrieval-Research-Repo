@@ -8,7 +8,7 @@ from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import Any
 
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 
 from retrieval_core.utils.hashing import sha256_text
 from retrieval_core.utils.io import config_to_yaml, project_path, read_json
@@ -54,9 +54,7 @@ def artifact_for_run(
     manifest = read_json(manifest_path)
     raw_path = manifest.get("artifacts", {}).get(artifact_name)
     if not raw_path:
-        raise KeyError(
-            f"Run {stage_name}/{run_id} does not declare artifact {artifact_name!r}."
-        )
+        raise KeyError(f"Run {stage_name}/{run_id} does not declare artifact {artifact_name!r}.")
 
     artifact_path = project_path(raw_path)
     if not artifact_path.exists():
@@ -76,7 +74,7 @@ def run_manifest(
     """Build a compact provenance manifest for one completed stage run."""
 
     resolved_config = config_to_yaml(cfg)
-    return {
+    manifest = {
         "schema_version": MANIFEST_SCHEMA_VERSION,
         "stage": {
             "name": str(cfg.stage.name),
@@ -97,6 +95,18 @@ def run_manifest(
             "python_version": sys.version.split()[0],
         },
     }
+    experiment = cfg.get("experiment")
+    if experiment:
+        parameters = experiment.get("parameters", {})
+        if OmegaConf.is_config(parameters):
+            parameters = OmegaConf.to_container(parameters, resolve=True)
+        manifest["experiment"] = {
+            "id": str(experiment.get("id")),
+            "name": str(experiment.get("name")),
+            "run_name": str(experiment.get("run_name")),
+            "parameters": parameters,
+        }
+    return manifest
 
 
 def _package_version(distribution: str) -> str:

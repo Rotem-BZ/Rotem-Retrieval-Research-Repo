@@ -15,7 +15,7 @@ def require_screen() -> str:
     executable = shutil.which("screen")
     if executable is None:
         raise SystemExit(
-            "GNU Screen is required to launch sweeps. Install the 'screen' package first."
+            "GNU Screen is required to launch experiments. Install the 'screen' package first."
         )
     return executable
 
