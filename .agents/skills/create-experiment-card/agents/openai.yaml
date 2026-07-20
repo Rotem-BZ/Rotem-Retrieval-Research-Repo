@@ -1,4 +1,4 @@
 interface:
   display_name: "Create Experiment Card"
-  short_description: "Plan a reproducible retrieval experiment"
-  default_prompt: "Use $create-experiment-card to create a reproducible experiment card for this repository."
+  short_description: "Write a minimal experiment summary and hypothesis"
+  default_prompt: "Use $create-experiment-card to write a minimal card from my experiment description and hypothesis."
