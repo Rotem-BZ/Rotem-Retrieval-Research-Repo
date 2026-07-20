@@ -1,0 +1,5 @@
+# @package _global_
+defaults:
+  - /inference
+  - override /pipeline/inference@pipeline: dense_query_repetition
+  - _self_

@@ -36,6 +36,14 @@ def main(argv: Sequence[str] | None = None) -> StageResult:
         help="project Hydra config directory (core configs remain available as fallbacks)",
     )
     parser.add_argument(
+        "--experiment-dir",
+        type=Path,
+        help=(
+            "experiment directory; configs resolve from its configs/ directory, then the "
+            "project configs/, then retrieval-core"
+        ),
+    )
+    parser.add_argument(
         "config_name",
         metavar="STAGE_OR_CONFIG",
         help=f"stage or config name ({', '.join(sorted(STAGE_RUNNERS))})",
@@ -43,10 +51,13 @@ def main(argv: Sequence[str] | None = None) -> StageResult:
     parser.add_argument("overrides", nargs="*", metavar="OVERRIDE", help="Hydra override")
     args = parser.parse_args(argv)
 
+    if args.config_dir is not None and args.experiment_dir is not None:
+        parser.error("pass either --config-dir or --experiment-dir, not both")
     cfg = compose_stage_config(
         args.config_name,
         args.overrides,
         config_dir=args.config_dir,
+        experiment_dir=args.experiment_dir,
     )
     if "stage" not in cfg or "name" not in cfg.stage:
         parser.error(f"config '{args.config_name}' must define stage.name")

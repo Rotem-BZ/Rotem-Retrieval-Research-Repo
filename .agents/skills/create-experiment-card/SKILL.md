@@ -21,8 +21,8 @@ Turn a research question into an auditable execution and analysis plan. Keep pro
 6. Define one primary metric and its direction before looking at outcomes. Add secondary and diagnostic metrics only when they answer distinct failure questions.
 7. Define success, failure, and inconclusive criteria. Avoid arbitrary thresholds unless the user or existing protocol supplies them; explain the rationale for every threshold.
 8. Plan provenance and fairness: exact git/package versions captured by manifests, immutable run ids, one shared index where appropriate, identical candidate mappings, identical qrels, and controlled runtime settings.
-9. Include executable stage commands or a sweep plan. Use placeholders only for values that cannot exist until execution, such as exact timestamped run ids.
-10. Create or reuse `projects/<project>/experiments/<experiment-slug>/` and save the card as `experiment.md`. Keep its executable matrix in `configs/matrix.yaml`, its analysis notebook as `analysis.ipynb`, and its eventual report as `report.md` in the same experiment workspace.
+9. Include executable stage commands or explicit run definitions. Use placeholders only for values that cannot exist until execution, such as exact timestamped run ids.
+10. Create or reuse `projects/<project>/experiments/<experiment-slug>/` and save the card as `experiment.md`. Put one complete shared Hydra config plus experiment-only groups in `configs/`. Write each planned invocation as a globally packaged `runs/<run-name>.yaml` whose defaults inherit the shared config and whose body contains only run-specific differences. Keep `analysis.ipynb` and the eventual `report.md` in the same workspace. Do not create a matrix, generated experiment plan, or duplicated full run configs.
 11. Review the card against the checklist in the template. The card must be understandable before any results exist.
 
 ## Writing Rules

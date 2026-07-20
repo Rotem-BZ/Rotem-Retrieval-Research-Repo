@@ -64,7 +64,7 @@ Primary treatment change: `<exactly one sentence>`
 5. Evaluate with the same qrels and metric config: ...
 
 ```powershell
-<exact or parameterized commands>
+<exact commands, or no-override commands selecting Hydra runs/<run-name> configs>
 ```
 
 Run naming scheme: ...
@@ -98,7 +98,7 @@ Pending. Link the completed experiment report here without rewriting the preregi
 - The hypothesis is falsifiable and names a metric direction.
 - Baseline and treatment differ in the intended variable only, or every additional difference is disclosed.
 - Dataset, split, mapping, index reuse, metrics, seeds, and runtime controls are explicit.
-- Commands reference real config groups or clearly marked placeholders.
+- Commands or explicit run definitions reference real config groups or clearly marked placeholders.
 - The decision rule was written before results.
 - Expected immutable artifacts and report linkage are explicit.
 - Unknowns are `TBD`, not guessed.

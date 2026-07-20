@@ -8,7 +8,7 @@
 | Shared lifecycle | `packages/retrieval-core/src/retrieval_core/stages/base.py` |
 | Registry and result type | `packages/retrieval-core/src/retrieval_core/stages/__init__.py` |
 | CLI preparation | `packages/retrieval-core/src/retrieval_core/cli.py` |
-| Entry config | `packages/retrieval-core/src/retrieval_core/configs/<name>.yaml` |
+| Entry config | `packages/retrieval-core/src/retrieval_core/configs/stages/<name>.yaml` |
 | Artifact provenance | `packages/retrieval-core/src/retrieval_core/artifacts.py` |
 | IO helpers | `packages/retrieval-core/src/retrieval_core/io.py` |
 | Regression tests | `packages/retrieval-core/tests/` |

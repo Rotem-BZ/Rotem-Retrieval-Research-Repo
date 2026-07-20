@@ -12,7 +12,11 @@ from omegaconf import OmegaConf
 from omegaconf.errors import MissingMandatoryValue
 
 from retrieval_core.stages import STAGE_RUNNERS
-from retrieval_core.utils.config import compose_stage_config, config_roots, find_config_dir
+from retrieval_core.utils.config import (
+    compose_stage_config,
+    config_roots,
+    find_config_dir,
+)
 from retrieval_core.utils.io import read_yaml_mapping
 
 InputFn = Callable[[str], str]
@@ -49,6 +53,7 @@ class RequiredDefault:
 
         return cls(group=group, override_key=override_key)
 
+
 @dataclass(frozen=True)
 class DefaultEntry:
     """One Hydra defaults-list entry that selects a config file."""
@@ -59,12 +64,14 @@ class DefaultEntry:
     choice_name: str | None
     required: bool = False
 
+
 @dataclass(frozen=True)
 class HydraOverride:
     """A Hydra override with separate compose and shell command spellings."""
 
     compose: str
     command: str | None = None
+
 
 @dataclass(frozen=True)
 class BuiltCommand:
@@ -115,7 +122,7 @@ def run_configure(
         output_fn=output_fn,
         format_item=lambda stage: stage,
     )
-    stage_path = _resolve_config_path(f"{stage_name}.yaml", config_dir)
+    stage_path = _resolve_stage_config_path(stage_name, config_dir)
     override_items: list[HydraOverride] = []
 
     _prompt_required_defaults(
@@ -140,6 +147,7 @@ def run_configure(
         override_items,
         input_fn=input_fn,
         output_fn=output_fn,
+        config_dir=config_dir,
     )
     output_fn("Add any extra Hydra overrides one at a time. Press Enter when done.")
     while answer := input_fn("override: ").strip():
@@ -147,7 +155,7 @@ def run_configure(
 
     compose_overrides = tuple(override.compose for override in override_items)
     try:
-        cfg = compose_stage_config(stage_name, compose_overrides)
+        cfg = compose_stage_config(stage_name, compose_overrides, config_dir=config_dir)
         OmegaConf.to_container(cfg, resolve=True, throw_on_missing=True)
     except Exception as exc:
         output_fn("")
@@ -159,7 +167,9 @@ def run_configure(
     output_fn("")
     output_fn("Command:")
     output_fn(command)
-    return BuiltCommand(stage_name=stage_name, overrides=compose_overrides, command=command)
+    return BuiltCommand(
+        stage_name=stage_name, overrides=compose_overrides, command=command
+    )
 
 
 def main() -> None:
@@ -168,7 +178,9 @@ def main() -> None:
     run_configure()
 
 
-def discover_config_choices(group: str, config_dir: Path | None = None) -> list[ConfigChoice]:
+def discover_config_choices(
+    group: str, config_dir: Path | None = None
+) -> list[ConfigChoice]:
     """Return recursive YAML choices for a Hydra config group."""
 
     choices: list[ConfigChoice] = []
@@ -181,7 +193,9 @@ def discover_config_choices(group: str, config_dir: Path | None = None) -> list[
         for path in sorted(
             paths,
             key=lambda item: (
-                0 if item.relative_to(group_dir).with_suffix("").as_posix() == "full" else 1,
+                0
+                if item.relative_to(group_dir).with_suffix("").as_posix() == "full"
+                else 1,
                 item.relative_to(group_dir).with_suffix("").as_posix(),
             ),
         ):
@@ -272,7 +286,9 @@ def collect_selected_configs(
             if choice_name is None:
                 continue
             try:
-                path = _resolve_config_path(f"{entry.group}/{choice_name}.yaml", config_dir)
+                path = _resolve_config_path(
+                    f"{entry.group}/{choice_name}.yaml", config_dir
+                )
             except FileNotFoundError:
                 continue
 
@@ -327,10 +343,15 @@ def effective_editable_fields(
     *,
     stage_name: str,
     overrides: Sequence[HydraOverride | str],
+    config_dir: Path | None = None,
 ) -> list[EditableField]:
     """Return editable fields with values from the current composed config."""
 
-    cfg = compose_stage_config(stage_name, _compose_overrides(overrides))
+    cfg = compose_stage_config(
+        stage_name,
+        _compose_overrides(overrides),
+        config_dir=config_dir,
+    )
     fields: list[EditableField] = []
     for field in editable_fields(config):
         fields.append(
@@ -380,7 +401,9 @@ def _prompt_required_defaults(
 
             choices = discover_config_choices(required.group, config_dir=config_dir)
             if not choices:
-                raise SystemExit(f"No config choices found for required group '{required.group}'.")
+                raise SystemExit(
+                    f"No config choices found for required group '{required.group}'."
+                )
 
             choice = _prompt_menu(
                 f"Choose {required.override_key}:",
@@ -389,7 +412,9 @@ def _prompt_required_defaults(
                 output_fn=output_fn,
                 format_item=_format_choice,
             )
-            overrides.append(HydraOverride(compose=f"{required.override_key}={choice.name}"))
+            overrides.append(
+                HydraOverride(compose=f"{required.override_key}={choice.name}")
+            )
             selected_override_keys.add(required.override_key)
             pending.append(choice.path)
 
@@ -427,7 +452,9 @@ def _prompt_config_graph_edits(
             [*configs, None],
             input_fn=input_fn,
             output_fn=output_fn,
-            format_item=lambda item: "Done" if item is None else _format_selected_config(item),
+            format_item=lambda item: (
+                "Done" if item is None else _format_selected_config(item)
+            ),
         )
         if selected is None:
             return
@@ -477,6 +504,7 @@ def _prompt_selected_config_action(
                 overrides,
                 input_fn=input_fn,
                 output_fn=output_fn,
+                config_dir=config_dir,
             )
         return None
 
@@ -496,6 +524,7 @@ def _prompt_selected_config_action(
             overrides,
             input_fn=input_fn,
             output_fn=output_fn,
+            config_dir=config_dir,
         )
         return None
 
@@ -507,7 +536,9 @@ def _prompt_selected_config_action(
         output_fn=output_fn,
         format_item=_format_choice,
     )
-    _upsert_override(overrides, HydraOverride(compose=f"{selected.override_key}={choice.name}"))
+    _upsert_override(
+        overrides, HydraOverride(compose=f"{selected.override_key}={choice.name}")
+    )
     return choice
 
 
@@ -518,14 +549,25 @@ def _prompt_field_edits(
     *,
     input_fn: InputFn,
     output_fn: OutputFn,
+    config_dir: Path,
 ) -> None:
-    fields = effective_editable_fields(selected, stage_name=stage_name, overrides=overrides)
+    fields = effective_editable_fields(
+        selected,
+        stage_name=stage_name,
+        overrides=overrides,
+        config_dir=config_dir,
+    )
     if not fields:
         output_fn("No editable fields in this config.")
         return
 
     while True:
-        fields = effective_editable_fields(selected, stage_name=stage_name, overrides=overrides)
+        fields = effective_editable_fields(
+            selected,
+            stage_name=stage_name,
+            overrides=overrides,
+            config_dir=config_dir,
+        )
         field = _prompt_menu(
             f"Editable fields in {selected.label}:",
             [*fields, None],
@@ -550,8 +592,13 @@ def _prompt_configured_overrides(
     *,
     input_fn: InputFn,
     output_fn: OutputFn,
+    config_dir: Path,
 ) -> None:
-    cfg = compose_stage_config(stage_name, _compose_overrides(overrides))
+    cfg = compose_stage_config(
+        stage_name,
+        _compose_overrides(overrides),
+        config_dir=config_dir,
+    )
     prompt_items = {
         "indexing": [
             {"path": "stage.run_name", "prompt": "indexing run name", "type": "value"}
@@ -601,19 +648,27 @@ def _prompt_configured_overrides(
         answer = input_fn(f"{prompt_text} [{default_text}]: ").strip()
         if not answer:
             if prompt_config.get("require_non_empty", False):
-                raise SystemExit(f"At least one value is required when overriding {path}.")
+                raise SystemExit(
+                    f"At least one value is required when overriding {path}."
+                )
             continue
 
         if prompt_type == "comma_list":
-            selected_values = [item.strip() for item in answer.split(",") if item.strip()]
+            selected_values = [
+                item.strip() for item in answer.split(",") if item.strip()
+            ]
             if prompt_config.get("require_non_empty", False) and not selected_values:
-                raise SystemExit(f"At least one value is required when overriding {path}.")
+                raise SystemExit(
+                    f"At least one value is required when overriding {path}."
+                )
 
             value_json = json.dumps(selected_values, separators=(",", ":"))
             command = None
             if prompt_config.get("command_quote") == "single":
                 command = f"{path}='{value_json}'"
-            overrides.append(HydraOverride(compose=f"{path}={value_json}", command=command))
+            overrides.append(
+                HydraOverride(compose=f"{path}={value_json}", command=command)
+            )
             continue
 
         overrides.append(HydraOverride(compose=f"{path}={answer}"))
@@ -684,7 +739,16 @@ def _resolve_config_path(relative_path: str, config_dir: Path) -> Path:
         candidate = root / relative_path
         if candidate.is_file():
             return candidate
-    raise FileNotFoundError(f"Config does not exist in the active search path: {relative_path}")
+    raise FileNotFoundError(
+        f"Config does not exist in the active search path: {relative_path}"
+    )
+
+
+def _resolve_stage_config_path(stage_name: str, config_dir: Path) -> Path:
+    try:
+        return _resolve_config_path(f"{stage_name}.yaml", config_dir)
+    except FileNotFoundError:
+        return _resolve_config_path(f"stages/{stage_name}.yaml", config_dir)
 
 
 def _flatten_fields(value: Any, prefix: str = "") -> list[tuple[str, Any]]:

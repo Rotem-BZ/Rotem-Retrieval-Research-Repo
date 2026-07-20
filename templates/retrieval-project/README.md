@@ -6,8 +6,8 @@ baseline-versus-treatment pattern. Generated projects contain:
 - an independently locked Python package;
 - editable links to `retrieval-core` and `retrieval-components`;
 - one project-local Haystack query component and Hydra pipeline;
-- an experiment workspace containing a card, reusable run matrix, and Jupyter
-  analysis notebook;
+- an experiment workspace containing a card, a complete base config, minimal Hydra
+  run layers, and a Jupyter analysis notebook;
 - focused component and pipeline-composition tests; and
 - a PowerShell runner that builds one shared index, evaluates both arms, and prints
   metric deltas.
@@ -27,7 +27,7 @@ uv run pytest
 
 The generated treatment is deliberately an identity transformation. Edit
 `src/<package_name>/components.py` and its initialization parameters in
-`configs/pipeline/inference/<pipeline_name>.yaml` before treating the comparison as
+`experiments/<project-slug>/configs/pipeline/inference/<pipeline_name>.yaml` before treating the comparison as
 a research run. Leaving it unchanged is useful as an end-to-end parity smoke test.
 
 `uv sync` creates the generated project's own `uv.lock`; the template does not copy
@@ -47,8 +47,8 @@ another experiment's resolved dependency graph.
 The generated relative dependency paths assume the project is created directly
 under `projects/`.
 
-Before materializing the generated experiment, create its shared index and replace
+Before launching the generated experiment, create its shared index and replace
 `REPLACE_WITH_EXACT_INDEXING_RUN_ID` in
-`experiments/<project-slug>/configs/matrix.yaml`. Then run
-`uv run python ../../dev-scripts/prepare_experiment.py experiments/<project-slug>`; on Linux,
-`uv run python ../../dev-scripts/run_experiment.py` chooses the experiment and any subset of its runs.
+`experiments/<project-slug>/configs/inference.yaml`. On Linux,
+`uv run python ../../dev-scripts/run_in_parallel_screens.py` chooses the experiment
+and any subset of its explicit runs.

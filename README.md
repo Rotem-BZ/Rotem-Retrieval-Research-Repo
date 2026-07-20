@@ -40,19 +40,20 @@ uv run stage inference dataset=beir_scifact pipeline/inference@pipeline=dense_qu
 ## Experiments and parallel runs
 
 Each project keeps durable research workspaces below `experiments/`. An experiment
-can contain its card, reusable `configs/matrix.yaml`, analysis notebook, and report.
-Materialize the matrix into immutable, fully resolved run configs with:
+can contain its card, a complete experiment base under `configs/`, minimal Hydra
+entry configs under `runs/`, an analysis notebook, and a report. Create a run
+interactively with:
 
 ```shell
-uv run python ../../dev-scripts/prepare_experiment.py experiments/<experiment-slug>
+uv run python ../../dev-scripts/create_run.py experiments/<experiment-slug>
 ```
 
-With no path, the preparer interactively creates a new experiment. On Linux with GNU
-Screen installed, the launcher first chooses a prepared experiment and then a subset
-of its runs:
+With no path, the helper lets you select or create an experiment. On Linux with GNU
+Screen installed, the launcher chooses an experiment and then a subset of its run
+files:
 
 ```shell
-uv run python ../../dev-scripts/run_experiment.py
+uv run python ../../dev-scripts/run_in_parallel_screens.py
 ```
 
 The launcher displays ready, waiting, running, succeeded, and failed runs; accepts
@@ -70,9 +71,9 @@ The repository is split into independently installable units:
   lockfile, so it can declare its own component-library version.
 - `data/processed/toy/` is the checked-in fixture used by core smoke tests.
 
-Hydra uses the consuming project's `configs/` directory as the primary source and
-the config package shipped by `retrieval-core` as the fallback. A project can add or
-override only the groups it owns.
+When `--experiment-dir` is used, Hydra searches the experiment's `configs/` first,
+then the consuming project's `configs/`, and finally the config package shipped by
+`retrieval-core`. Outside an experiment, project configs remain the primary source.
 
 ## Research workflow
 
@@ -80,7 +81,7 @@ See [the research workflow guide](docs/research_workflows.md) for the complete
 experiment lifecycle: preregistering an experiment card, composing Hydra configs,
 testing and running immutable stages, reusing exact artifacts, analyzing
 predictions in a notebook, generating an evidence-led report, and launching
-prepared experiments.
+explicit experiment runs.
 
 ## Query-repetition example
 

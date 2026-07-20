@@ -1,29 +1,32 @@
-"""Experiment worker process executed inside one GNU Screen session."""
+"""Execute one explicit experiment run inside a GNU Screen session."""
 
 from __future__ import annotations
 
 import argparse
+import os
 import time
 import traceback
 from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any
 
-from retrieval_core.cli import main as stage_main
 from experiment_models import (
     TERMINAL_STATES,
     load_plan,
     read_status,
+    render_hydra_command,
     status_path,
     update_status,
 )
-from screen import session_exists
-from retrieval_core.utils.hashing import sha256_text
+from retrieval_core.cli import main as stage_main
 from retrieval_core.utils.time import utc_now
+from screen import session_exists
 
 
 def main(argv: Sequence[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(description="Execute one prepared experiment run.")
+    parser = argparse.ArgumentParser(
+        description="Execute one experiment run definition."
+    )
     parser.add_argument("--experiment-dir", required=True, type=Path)
     parser.add_argument("--run-name", required=True)
     parser.add_argument("--poll-seconds", type=float, default=5.0)
@@ -48,9 +51,13 @@ def run_worker(
 ) -> int:
     directory = experiment_dir.expanduser().resolve()
     plan = load_plan(directory)
-    run = next((candidate for candidate in plan.runs if candidate.name == run_name), None)
+    run = next(
+        (candidate for candidate in plan.runs if candidate.name == run_name), None
+    )
     if run is None:
-        raise KeyError(f"Experiment {plan.experiment_id!r} has no run named {run_name!r}.")
+        raise KeyError(
+            f"Experiment {plan.experiment_id!r} has no run named {run_name!r}."
+        )
     own_status_path = status_path(directory, run)
     initial_status = read_status(own_status_path)
     wait_for = initial_status.get("wait_for")
@@ -69,11 +76,6 @@ def run_worker(
                 wait_finished_at=utc_now(),
             )
 
-        config_path = directory / run.config_file
-        config_text = config_path.read_text(encoding="utf-8")
-        if sha256_text(config_text) != run.config_sha256:
-            raise ValueError(f"Prepared config checksum changed for {run.name!r}: {config_path}")
-
         update_status(
             own_status_path,
             state="running",
@@ -81,16 +83,18 @@ def run_worker(
             finished_at=None,
             exit_code=None,
         )
-        project_root = Path(plan.project_root)
-        config_dir = config_path.parent
-        config_name = Path(run.config_file).stem
+        print("Hydra command:")
+        print(render_hydra_command(run, directory), flush=True)
         previous_cwd = Path.cwd()
         try:
-            # Project-local config discovery and relative artifact paths depend on this cwd.
-            import os
-
-            os.chdir(project_root)
-            stage_main(["--config-dir", str(config_dir), config_name])
+            os.chdir(plan.project_root)
+            stage_main(
+                [
+                    "--experiment-dir",
+                    str(directory),
+                    run.config_name,
+                ]
+            )
         finally:
             os.chdir(previous_cwd)
     except BaseException as exc:
@@ -148,5 +152,7 @@ def wait_for_predecessor(
                 return "lost"
 
         sleep_fn(poll_seconds)
+
+
 if __name__ == "__main__":
     main()

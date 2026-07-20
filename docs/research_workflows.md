@@ -24,8 +24,8 @@ of isolated commands:
 4. Exercise configuration and pipeline changes with focused tests before spending compute.
 5. Reuse exact upstream artifacts. A treatment that changes only inference should
    normally share the baseline's index, mapping, dataset, and qrels.
-6. Record the run matrix in `configs/matrix.yaml`, then materialize immutable,
-   fully resolved run configs below the experiment's `runs/` directory.
+6. Put the complete shared configuration in the experiment's `configs/` directory,
+   then record each invocation as a minimal Hydra composition layer in `runs/`.
 7. Run inference and evaluation with immutable, exact run ids. Large stage artifacts
    remain below `artifacts/runs/`; their manifests link back to the experiment.
 8. Inspect aggregate and query-level behavior in the experiment's `analysis.ipynb`,
@@ -64,7 +64,7 @@ The main runtime modules are:
 - `cli.py` dispatches `stage <stage-name>` commands to stage runners.
 - `dev-scripts/` contains the interactive command builder and GNU Screen experiment tools.
 - reusable components live separately under `packages/retrieval-components/`.
-- `input_mapping.py` owns candidate-set recipes and materialized mappings.
+- `input_mapping/` owns candidate-set recipes and materialized mappings.
 - `notebooks/` contains cell-marked data-preparation scripts such as `prepare_beir.py`.
 - `stages/` contains orchestration for `prepare_mapping`, indexing, inference,
   and evaluation.
@@ -273,12 +273,16 @@ leaf fields as command-line overrides.
 
 ## Configuration Layout
 
-Hydra config entry points live at the top of `configs/`:
+Hydra stage entry points live under `configs/stages/`:
 
-- `configs/indexing.yaml`
-- `configs/inference.yaml`
-- `configs/evaluation.yaml`
-- `configs/prepare_mapping.yaml`
+- `configs/stages/indexing.yaml`
+- `configs/stages/inference.yaml`
+- `configs/stages/evaluation.yaml`
+- `configs/stages/prepare_mapping.yaml`
+
+The `stage` CLI and `compose_stage_config` continue to accept bare names such as
+`inference`; they resolve to `stages/inference` when no explicit top-level config
+with that name exists.
 
 Config groups provide reusable prefills:
 
@@ -694,9 +698,9 @@ For larger sweeps, use Hydra overrides and launchers. A future extension can add
 Hydra launcher configs for local multiprocessing, Slurm, Kubernetes, or cloud
 batch systems without changing component code.
 
-### Prepared experiments in GNU Screen
+### Explicit experiment runs in GNU Screen
 
-The repository includes a two-phase workflow for a controlled set of local runs. An
+The repository includes a workflow for a controlled set of local runs. An
 experiment is the durable research unit; it may be a baseline/treatment pair, a
 hyperparameter sweep, or a single run. Its layout is:
 
@@ -706,47 +710,78 @@ experiments/<experiment-slug>/
 ├── analysis.ipynb
 ├── report.md                    # added after results exist
 ├── configs/
-│   └── matrix.yaml              # reusable stage, overrides, and varied values
-├── experiment.yaml              # generated plan and provenance
+│   ├── inference.yaml           # complete shared experiment configuration
+│   └── pipeline/...             # optional experiment-only config groups
 └── runs/
-    └── <run-name>/
-        ├── config.yaml           # fully resolved, immutable stage config
-        ├── status.json           # launcher/worker state
-        └── screen.log
+    ├── baseline.yaml            # inherits the base unchanged
+    └── treatment.yaml           # contains only treatment differences
 ```
 
-Run the preparer from the project whose environment and Hydra config tree should be
-used. Pass an existing experiment to materialize its checked-in matrix:
+The base config uses Hydra's defaults list to select the stage, dataset, pipeline,
+models, and other shared choices, and holds all shared field values:
+
+```yaml
+defaults:
+  - /stages/inference
+  - override /dataset: beir_scifact
+  - override /pipeline/inference@pipeline: dense_jsonl
+  - override /selections/embedding_model@selections.embedding_model: e5/small_v2
+  - _self_
+
+stage:
+  indexing_run_id: EXACT_INDEXING_RUN_ID
+```
+
+The baseline run is only an entry layer:
+
+```yaml
+# @package _global_
+defaults:
+  - /inference
+  - _self_
+```
+
+The treatment adds only its differing Hydra selection:
+
+```yaml
+# @package _global_
+defaults:
+  - /inference
+  - override /pipeline/inference@pipeline: treatment_pipeline
+  - _self_
+```
+
+Create these files directly or use the interactive command builder:
 
 ```bash
-uv run python ../../dev-scripts/prepare_experiment.py experiments/<experiment-slug>
+uv run python ../../dev-scripts/create_run.py experiments/<experiment-slug>
 ```
 
-If that experiment already has `configs/matrix.yaml`, the preparer loads it. Without
-a path, it uses the normal interactive command builder to choose a base stage, varied
-Hydra paths, YAML value lists, and Cartesian or zipped combination mode, then creates
-a timestamped experiment below `experiments/`. Leaving the first varied path blank
-creates one base run. Every combination is composed and validated before any plan is
-published. Run names remain descriptive, for example
-`lr-0.01--chunksize-14--model-E5-base`.
-
-`experiment.yaml` records the project/config provenance and the checksum and stage
-artifact ID for every resolved config. The resolved config also carries experiment
-metadata, which is copied into the stage's `manifest.json`. Heavy outputs such as
-indexes and predictions deliberately remain under `artifacts/runs/<stage>/<run-id>/`;
-the experiment directory organizes intent, configuration, execution state, and
-analysis without duplicating artifacts.
-
-On Linux, install GNU Screen and launch a prepared subset interactively:
+The filename becomes the run name. The run's defaults are composed with this search
+order: `<experiment>/configs/`, `<project>/configs/`, then the configs packaged by
+`retrieval-core`. The selected run can be launched without Hydra override arguments:
 
 ```bash
-uv run python ../../dev-scripts/run_experiment.py
+uv run stage --experiment-dir experiments/<experiment-slug> runs/baseline
 ```
 
-The launcher first lists `experiments/*/experiment.yaml`, asks which experiment to
-use, then highlights its run states and accepts selections such as `1,3,4-7`, as well
-as `ready` and `all`. It asks for a maximum number of executing runs, assigns selected
-runs to that many persistent lanes, launches all selected Screen sessions, and exits.
+The runtime derives the project root, stable run ID, and experiment manifest metadata
+from the experiment directory and run filename; run files may not override those fields.
+Resolved configs and heavy outputs remain under `artifacts/runs/<stage>/<run-id>/`.
+Launcher status and Screen logs live under
+`artifacts/experiments/<experiment>/<run>/`, keeping the experiment workspace
+declarative and suitable for version control.
+
+On Linux, install GNU Screen and launch a subset interactively:
+
+```bash
+uv run python ../../dev-scripts/run_in_parallel_screens.py
+```
+
+The launcher lists experiments containing `runs/*.yaml`, prints the generated Hydra
+command for every run, asks which run files to use, and accepts selections such as
+`1,3,4-7`, `ready`, and `all`. It asks for a maximum number of executing runs, assigns
+selected runs to that many persistent lanes, launches the Screen sessions, and exits.
 The first run in each lane starts immediately; later workers wait for their
 predecessor's terminal status using a polling sleep. A failed, cancelled, or lost
 predecessor releases its lane because lane dependencies represent execution capacity
@@ -761,7 +796,7 @@ current lanes are terminal.
 ## Troubleshooting
 
 - **Hydra cannot find a stage or config group:** run from the intended project
-  directory, or pass `--config-dir PATH`. Confirm that `retrieval-core` is
+  directory, pass `--experiment-dir PATH`, or pass `--config-dir PATH`. Confirm that `retrieval-core` is
   installed in the active environment so its `hydra_plugins` search-path plugin
   can expose the shared config package.
 - **A required value is `???`:** select the missing config group, usually a

@@ -1,7 +1,9 @@
+# @package _global_
+
 defaults:
-  - paths: local
-  - dataset: ???
-  - input_mapping: ???
+  - /paths: local
+  - /dataset: ???
+  - /input_mapping: ???
   - _self_
 
 stage:

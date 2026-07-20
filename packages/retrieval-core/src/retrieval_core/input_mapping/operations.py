@@ -1,4 +1,4 @@
-"""Candidate input mappings for inference runs."""
+"""Input-mapping resolution, generation, caching, and persistence."""
 
 from __future__ import annotations
 

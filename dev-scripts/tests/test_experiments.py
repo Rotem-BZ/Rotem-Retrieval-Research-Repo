@@ -6,112 +6,89 @@ from pathlib import Path
 import pytest
 from omegaconf import OmegaConf
 
-import run_experiment as launcher
-from build_command import BuiltCommand
+import run_in_parallel_screens as launcher
+from create_run import split_run_overrides
 from experiment_models import (
-    EXPERIMENT_SCHEMA_VERSION,
-    ExperimentParameter,
-    ExperimentPlan,
     ExperimentRun,
-    choice_name,
+    load_plan,
     read_status,
-    save_plan,
+    render_hydra_command,
     status_path,
     update_status,
-)
-from prepare_experiment import (
-    load_experiment_template,
-    materialize_experiment,
-    parameter_combinations,
-    publish_experiment,
+    write_run_definition,
 )
 from experiment_worker import wait_for_predecessor
 from retrieval_core.utils.artifacts import run_manifest
 
-REPOSITORY_ROOT = Path(__file__).parents[2]
-CONFIG_DIR = REPOSITORY_ROOT / "packages" / "retrieval-core" / "src" / "retrieval_core" / "configs"
 
-
-def test_choice_name_describes_parameter_values() -> None:
-    parameters = [
-        ExperimentParameter("optimizer.learning_rate", "lr", [0.01]),
-        ExperimentParameter("pipeline.chunk_size", "chunksize", [14]),
-        ExperimentParameter("selection.model", "model", ["E5-base"]),
-    ]
-
-    assert choice_name(parameters, (0.01, 14, "E5-base")) == (
-        "lr-0.01--chunksize-14--model-E5-base"
+def test_run_definitions_are_minimal_hydra_configs_and_compose(tmp_path: Path) -> None:
+    experiment = _experiment(tmp_path)
+    definition = write_run_definition(
+        experiment / "runs" / "baseline.yaml",
+        base_config="indexing",
     )
 
+    plan = load_plan(experiment)
+    run = plan.runs[0]
 
-def test_parameter_combinations_support_cartesian_and_zip() -> None:
-    parameters = [
-        ExperimentParameter("a", "a", [1, 2]),
-        ExperimentParameter("b", "b", ["x", "y"]),
-    ]
+    assert definition.read_text(encoding="utf-8") == (
+        "# @package _global_\ndefaults:\n- /indexing\n- _self_\n"
+    )
+    assert run.name == "baseline"
+    assert run.stage_name == "indexing"
+    assert run.stage_run_id == "example--baseline"
+    assert (
+        run.output_dir
+        == (
+            tmp_path / "artifacts" / "runs" / "indexing" / "example--baseline"
+        ).resolve()
+    )
+    command = render_hydra_command(run, experiment)
+    assert "--experiment-dir" in command
+    assert command.endswith("runs/baseline")
+    assert "dataset=" not in command
 
-    assert parameter_combinations(parameters, "cartesian") == [
-        (1, "x"),
-        (1, "y"),
-        (2, "x"),
-        (2, "y"),
-    ]
-    assert parameter_combinations(parameters, "zip") == [(1, "x"), (2, "y")]
-    assert parameter_combinations([], "single") == [()]
 
-
-def test_load_experiment_template(tmp_path: Path) -> None:
-    template = tmp_path / "configs" / "matrix.yaml"
-    template.parent.mkdir()
-    template.write_text(
-        """schema_version: 1
-stage: inference
-base_overrides:
-  - dataset=toy
-combination_mode: zip
-parameters:
-  - path: pipeline/inference@pipeline
-    label: variant
-    values: [dense_jsonl, treatment]
-    raw: true
-""",
-        encoding="utf-8",
+def test_run_definition_can_override_only_changed_fields(tmp_path: Path) -> None:
+    experiment = _experiment(tmp_path)
+    write_run_definition(
+        experiment / "runs" / "smaller.yaml",
+        base_config="indexing",
+        fields={"runtime": {"concurrency_limit": 2}},
     )
 
-    built, parameters, combination_mode = load_experiment_template(template)
+    run = load_plan(experiment).runs[0]
+    assert run.name == "smaller"
+    assert run.stage_run_id == "example--smaller"
 
-    assert built.stage_name == "inference"
-    assert built.overrides == ("dataset=toy",)
-    assert parameters == [
-        ExperimentParameter(
-            "pipeline/inference@pipeline",
-            "variant",
-            ["dense_jsonl", "treatment"],
-            raw=True,
+
+def test_create_run_splits_group_selections_from_value_fields(tmp_path: Path) -> None:
+    experiment = _experiment(tmp_path)
+    groups, fields = split_run_overrides(
+        (
+            "dataset=toy",
+            "pipeline/indexing@pipeline=dummy_jsonl",
+            "runtime.concurrency_limit=2",
+        ),
+        config_dir=experiment / "configs",
+    )
+
+    assert groups == (
+        ("dataset", "toy"),
+        ("pipeline/indexing@pipeline", "dummy_jsonl"),
+    )
+    assert fields == {"runtime": {"concurrency_limit": 2}}
+
+    with pytest.raises(ValueError, match="launcher-controlled"):
+        split_run_overrides(
+            ("stage.run_id=manual",),
+            config_dir=experiment / "configs",
         )
-    ]
-    assert combination_mode == "zip"
 
 
-def test_publish_experiment_preserves_research_files_and_template(tmp_path: Path) -> None:
-    destination = tmp_path / "experiments" / "example"
-    (destination / "configs").mkdir(parents=True)
-    (destination / "experiment.md").write_text("# Research plan\n", encoding="utf-8")
-    (destination / "configs" / "matrix.yaml").write_text("stage: inference\n")
-    staging = tmp_path / "experiments" / ".example.tmp"
-    (staging / "runs" / "baseline").mkdir(parents=True)
-    (staging / "experiment.yaml").write_text("experiment_id: example\n")
-    (staging / "runs" / "baseline" / "config.yaml").write_text("stage: {}\n")
-
-    publish_experiment(staging, destination)
-
-    assert (destination / "experiment.md").read_text(encoding="utf-8") == "# Research plan\n"
-    assert (destination / "configs" / "matrix.yaml").read_text() == "stage: inference\n"
-    assert (destination / "runs" / "baseline" / "config.yaml").is_file()
-    assert (destination / "experiment.yaml").is_file()
-
-
-def test_parse_selection_supports_numbers_ranges_and_status_aliases(tmp_path: Path) -> None:
+def test_parse_selection_supports_numbers_ranges_and_status_aliases(
+    tmp_path: Path,
+) -> None:
     runs = [_run(index, tmp_path) for index in range(1, 8)]
     states = {index: "ready" for index in range(1, 8)}
     states[2] = "succeeded"
@@ -127,40 +104,42 @@ def test_parse_selection_supports_numbers_ranges_and_status_aliases(tmp_path: Pa
 def test_choose_experiment_from_project_directory(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    first = tmp_path / "experiments" / "first"
-    second = tmp_path / "experiments" / "second"
-    first.mkdir(parents=True)
-    second.mkdir(parents=True)
-    save_plan(first / "experiment.yaml", _plan(tmp_path, run_count=1))
-    save_plan(second / "experiment.yaml", _plan(tmp_path, run_count=2))
+    first = _experiment(tmp_path, name="first")
+    second = _experiment(tmp_path, name="second")
+    _write_indexing_run(first, "one")
+    _write_indexing_run(second, "one")
+    _write_indexing_run(second, "two")
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr("builtins.input", lambda _prompt: "2")
 
     assert launcher.choose_experiment_dir(None) == second.resolve()
-    assert launcher.choose_experiment_dir(None, experiment_name="first") == first.resolve()
+    assert (
+        launcher.choose_experiment_dir(None, experiment_name="first") == first.resolve()
+    )
 
 
-def test_launch_runs_builds_dependency_lanes_and_returns_immediately(
+def test_launch_runs_builds_dependency_lanes_and_writes_state_under_artifacts(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    plan = _plan(tmp_path, run_count=5)
-    experiment_dir = tmp_path / "experiments" / plan.experiment_id
-    experiment_dir.mkdir(parents=True)
+    experiment = _experiment(tmp_path)
+    for index in range(1, 6):
+        _write_indexing_run(experiment, f"value-{index}")
+    plan = load_plan(experiment)
     registry_path, lock_path = launcher.launcher_registry_paths(tmp_path)
     launched_commands: list[list[str]] = []
 
     monkeypatch.setattr(launcher, "launcher_lock", lambda _path: nullcontext())
     monkeypatch.setattr(launcher, "list_screen_sessions", lambda **_kwargs: set())
-
-    def fake_launch_screen(**kwargs) -> None:
-        launched_commands.append(list(kwargs["command"]))
-
-    monkeypatch.setattr(launcher, "launch_screen", fake_launch_screen)
+    monkeypatch.setattr(
+        launcher,
+        "launch_screen",
+        lambda **kwargs: launched_commands.append(list(kwargs["command"])),
+    )
 
     launched = launcher.launch_runs(
-        experiment_dir,
+        experiment,
         plan,
-        plan.runs,
+        list(plan.runs),
         max_parallel=2,
         poll_seconds=0.1,
         lost_grace_seconds=1,
@@ -171,13 +150,12 @@ def test_launch_runs_builds_dependency_lanes_and_returns_immediately(
 
     assert len(launched) == 5
     assert len(launched_commands) == 5
-    statuses = [read_status(status_path(experiment_dir, run)) for run in plan.runs]
+    statuses = [read_status(status_path(experiment, run)) for run in plan.runs]
     assert [status["lane"] for status in statuses] == [1, 2, 1, 2, 1]
-    assert statuses[0]["wait_for"] is None
-    assert statuses[1]["wait_for"] is None
     assert statuses[2]["wait_for"]["run_name"] == plan.runs[0].name
-    assert statuses[3]["wait_for"]["run_name"] == plan.runs[1].name
-    assert statuses[4]["wait_for"]["run_name"] == plan.runs[2].name
+    assert status_path(experiment, plan.runs[0]).parent == (
+        tmp_path / "artifacts" / "experiments" / "example" / "value-1"
+    )
 
 
 def test_active_lane_cap_cannot_change(tmp_path: Path) -> None:
@@ -201,7 +179,9 @@ def test_active_lane_cap_cannot_change(tmp_path: Path) -> None:
         launcher.prepare_registry(registry, max_parallel=2, sessions={"rr-active"})
 
 
-def test_waiting_worker_releases_lane_on_terminal_or_lost_predecessor(tmp_path: Path) -> None:
+def test_waiting_worker_releases_lane_on_terminal_or_lost_predecessor(
+    tmp_path: Path,
+) -> None:
     predecessor_status = tmp_path / "predecessor.json"
     predecessor = {
         "status_path": str(predecessor_status),
@@ -232,41 +212,6 @@ def test_waiting_worker_releases_lane_on_terminal_or_lost_predecessor(tmp_path: 
     )
 
 
-def test_materialize_experiment_writes_resolved_config_inside_run_dir(tmp_path: Path) -> None:
-    parameter = ExperimentParameter(
-        "pipeline.components.indexer.init_parameters.overwrite",
-        "overwrite",
-        [True],
-    )
-    built = BuiltCommand(
-        stage_name="indexing",
-        overrides=("dataset=toy", "pipeline/indexing@pipeline=dummy_jsonl"),
-        command="unused",
-    )
-
-    plan = materialize_experiment(
-        tmp_path,
-        experiment_id="test-experiment",
-        experiment_name="test-experiment",
-        built=built,
-        parameters=[parameter],
-        combinations=[(True,)],
-        combination_mode="cartesian",
-        project_root=REPOSITORY_ROOT,
-        config_dir=CONFIG_DIR,
-        output_fn=lambda _message: None,
-    )
-
-    config_text = (tmp_path / plan.runs[0].config_file).read_text(encoding="utf-8")
-    assert plan.runs[0].name == "overwrite-true"
-    assert plan.runs[0].config_file == "runs/overwrite-true/config.yaml"
-    assert "experiment:" in config_text
-    assert "id: test-experiment" in config_text
-    assert "preserve_run_config: true" in config_text
-    assert "${" not in config_text
-    assert "???" not in config_text
-
-
 def test_run_manifest_links_stage_artifact_to_experiment(tmp_path: Path) -> None:
     cfg = OmegaConf.create(
         {
@@ -276,7 +221,7 @@ def test_run_manifest_links_stage_artifact_to_experiment(tmp_path: Path) -> None
                 "id": "experiment",
                 "name": "experiment",
                 "run_name": "baseline",
-                "parameters": {"pipeline": "dense_jsonl"},
+                "parameters": {},
             },
         }
     )
@@ -287,8 +232,35 @@ def test_run_manifest_links_stage_artifact_to_experiment(tmp_path: Path) -> None
         "id": "experiment",
         "name": "experiment",
         "run_name": "baseline",
-        "parameters": {"pipeline": "dense_jsonl"},
+        "parameters": {},
     }
+
+
+def _experiment(root: Path, *, name: str = "example") -> Path:
+    experiment = root / "experiments" / name
+    (experiment / "configs").mkdir(parents=True)
+    (experiment / "runs").mkdir()
+    (experiment / "configs" / "indexing.yaml").write_text(
+        """defaults:
+  - /stages/indexing
+  - override /dataset: toy
+  - override /pipeline/indexing@pipeline: dummy_jsonl
+  - _self_
+
+runtime:
+  device:
+    device: cpu
+""",
+        encoding="utf-8",
+    )
+    return experiment
+
+
+def _write_indexing_run(experiment: Path, name: str) -> Path:
+    return write_run_definition(
+        experiment / "runs" / f"{name}.yaml",
+        base_config="indexing",
+    )
 
 
 def _run(index: int, root: Path) -> ExperimentRun:
@@ -296,24 +268,9 @@ def _run(index: int, root: Path) -> ExperimentRun:
     return ExperimentRun(
         index=index,
         name=name,
+        definition_file=root / f"{name}.yaml",
+        config_name=f"runs/{name}",
+        stage_name="indexing",
         stage_run_id=f"experiment--{name}",
-        config_file=f"runs/{name}/config.yaml",
-        config_sha256="checksum",
-        parameters={"value": index},
-        output_dir=str(root / "outputs" / name),
-    )
-
-
-def _plan(root: Path, *, run_count: int) -> ExperimentPlan:
-    return ExperimentPlan(
-        schema_version=EXPERIMENT_SCHEMA_VERSION,
-        experiment_id="test-experiment",
-        name="test-experiment",
-        stage="inference",
-        created_at="2026-01-01T00:00:00+00:00",
-        project_root=str(root),
-        source_config_dir=str(root / "configs"),
-        combination_mode="cartesian",
-        parameters=[ExperimentParameter("value", "value", list(range(1, run_count + 1)))],
-        runs=[_run(index, root) for index in range(1, run_count + 1)],
+        output_dir=root / "outputs" / name,
     )

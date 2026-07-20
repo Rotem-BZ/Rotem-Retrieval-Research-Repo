@@ -11,7 +11,7 @@ procedure constant.
 The generated `{{ cookiecutter.component_class_name }}` is an identity
 transformation. Replace its `run` implementation with the experimental behavior,
 then update its unit test. Constructor parameters belong in
-`configs/pipeline/inference/{{ cookiecutter.pipeline_name }}.yaml`.
+`experiments/{{ cookiecutter.project_slug }}/configs/pipeline/inference/{{ cookiecutter.pipeline_name }}.yaml`.
 
 Keeping the identity implementation is useful for a parity check: baseline and
 treatment metrics should be identical when both arms consume the same index.
@@ -52,9 +52,11 @@ immutable run IDs.
 The generated experiment workspace is
 [`experiments/{{ cookiecutter.project_slug }}`](experiments/{{ cookiecutter.project_slug }}).
 After creating a shared index, replace the placeholder index ID in
-`experiments/{{ cookiecutter.project_slug }}/configs/matrix.yaml`, run
-`uv run python ../../dev-scripts/prepare_experiment.py experiments/{{ cookiecutter.project_slug }}`, and use
-`uv run python ../../dev-scripts/run_experiment.py` on Linux to choose the experiment and its run subset.
+`experiments/{{ cookiecutter.project_slug }}/configs/inference.yaml`. On Linux, use
+`uv run python ../../dev-scripts/run_in_parallel_screens.py` to choose the experiment
+and its run subset. Use
+`uv run python ../../dev-scripts/create_run.py experiments/{{ cookiecutter.project_slug }}`
+to add another explicit run interactively.
 
 The default selections are:
 

@@ -1,9 +1,11 @@
+# @package _global_
+
 defaults:
-  - paths: local
-  - dataset: ???
-  - input_mapping: full
+  - /paths: local
+  - /dataset: ???
+  - /input_mapping: full
   - _self_
-  - pipeline/inference@pipeline: ???
+  - /pipeline/inference@pipeline: ???
 
 stage:
   name: inference

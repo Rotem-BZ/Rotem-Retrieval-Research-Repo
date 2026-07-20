@@ -45,12 +45,16 @@ that exact index, evaluates both runs, and prints per-metric deltas.
 
 The durable experiment workspace is
 [`experiments/query-repetition-e5-small-scifact`](experiments/query-repetition-e5-small-scifact).
-It contains the research card, reusable run matrix, and analysis notebook. After
-creating the shared index, update the exact index ID in the experiment's
-[`configs/matrix.yaml`](experiments/query-repetition-e5-small-scifact/configs/matrix.yaml),
-then run `uv run python ../../dev-scripts/prepare_experiment.py experiments/query-repetition-e5-small-scifact`.
-On Linux, `uv run python ../../dev-scripts/run_experiment.py` first lets you choose the experiment and then the
-subset of its prepared runs to launch in GNU Screen.
+It contains the research card, a complete experiment base config, minimal run layers,
+and an analysis notebook; the reusable repetition pipeline lives in the project's
+`configs/` tree. After creating the
+shared index, update its exact ID in
+[`configs/inference.yaml`](experiments/query-repetition-e5-small-scifact/configs/inference.yaml).
+On Linux,
+`uv run python ../../dev-scripts/run_in_parallel_screens.py` lets you choose the
+experiment and the subset of runs to launch in GNU Screen. Use
+`uv run python ../../dev-scripts/create_run.py experiments/query-repetition-e5-small-scifact`
+to add another run interactively.
 
 To run only the repeated-query pipeline directly on Windows or Linux, prepare the
 dataset and index once, then launch inference from this project directory:

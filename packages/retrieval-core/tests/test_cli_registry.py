@@ -22,6 +22,8 @@ def test_help_lists_default_stages(capsys) -> None:
     assert "inference" in help_text
     assert "evaluation" in help_text
     assert "prepare_mapping" in help_text
+    assert "--experiment-dir" in help_text
+
 
 def test_prepare_mapping_stage_reuses_content_addressed_mapping(tmp_path: Path) -> None:
     dataset_dir = Path("data/processed/toy").resolve()

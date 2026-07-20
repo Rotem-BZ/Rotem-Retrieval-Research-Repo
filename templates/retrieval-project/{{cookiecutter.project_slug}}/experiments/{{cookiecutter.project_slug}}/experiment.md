@@ -17,14 +17,17 @@ retrieval depth, runtime, and evaluation procedure fixed.
 ## Execution
 
 1. Create the shared index.
-2. Replace `REPLACE_WITH_EXACT_INDEXING_RUN_ID` in `configs/matrix.yaml`.
-3. Run `uv run python ../../dev-scripts/prepare_experiment.py experiments/{{ cookiecutter.project_slug }}`.
-4. On Linux, run `uv run python ../../dev-scripts/run_experiment.py --experiment {{ cookiecutter.project_slug }}`.
-5. Record evaluation commands, acceptance criteria, and results here.
+2. Replace `REPLACE_WITH_EXACT_INDEXING_RUN_ID` in `configs/inference.yaml`.
+3. On Linux, run `uv run python ../../dev-scripts/run_in_parallel_screens.py --experiment {{ cookiecutter.project_slug }}`.
+4. Record evaluation commands, acceptance criteria, and results here.
 
-The preparer writes `experiment.yaml` and one immutable resolved config per run below
-`runs/`. Stage artifacts remain below `artifacts/runs/` and are linked back to this
-experiment through their manifests.
+The complete shared configuration lives in `configs/inference.yaml`. Each run file extends
+it through Hydra's defaults list and contains only fields or config selections that
+differ. Experiment-local configs take precedence over project configs, which take
+precedence over core configs.
+Resolved stage artifacts remain below `artifacts/runs/` and are linked back to this
+experiment through their manifests; launcher status and logs live below
+`artifacts/experiments/`.
 
 ## Results
 

@@ -1,89 +1,161 @@
-"""Persistent models and naming helpers for prepared experiments."""
+"""Experiment run definitions, discovery, and execution metadata."""
 
 from __future__ import annotations
 
-import json
 import re
-from dataclasses import asdict, dataclass
+import shlex
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import yaml
+from omegaconf import OmegaConf
 
+from retrieval_core.stages import STAGE_RUNNERS
+from retrieval_core.utils.config import compose_stage_config
 from retrieval_core.utils.io import read_json, write_json_atomic
-from retrieval_core.utils.hashing import sha256_text
 
-EXPERIMENT_SCHEMA_VERSION = 1
 TERMINAL_STATES = {"succeeded", "failed", "launch_failed", "cancelled", "lost"}
 ACTIVE_STATES = {"launching", "waiting", "running"}
-
-
-@dataclass(frozen=True)
-class ExperimentParameter:
-    path: str
-    label: str
-    values: list[Any]
-    raw: bool = False
 
 
 @dataclass(frozen=True)
 class ExperimentRun:
     index: int
     name: str
+    definition_file: Path
+    config_name: str
+    stage_name: str
     stage_run_id: str
-    config_file: str
-    config_sha256: str
-    parameters: dict[str, Any]
-    output_dir: str
+    output_dir: Path
 
 
 @dataclass(frozen=True)
 class ExperimentPlan:
-    schema_version: int
     experiment_id: str
     name: str
-    stage: str
-    created_at: str
-    project_root: str
-    source_config_dir: str
-    combination_mode: str
-    parameters: list[ExperimentParameter]
-    runs: list[ExperimentRun]
-
-
-def save_plan(path: Path, plan: ExperimentPlan) -> None:
-    payload = asdict(plan)
-    path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+    directory: Path
+    project_root: Path
+    runs: tuple[ExperimentRun, ...]
 
 
 def load_plan(experiment_dir: str | Path) -> ExperimentPlan:
-    """Load a prepared experiment plan."""
+    """Discover and validate checked-in run definitions for one experiment."""
 
     directory = Path(experiment_dir).expanduser().resolve()
-    plan_path = directory / "experiment.yaml"
-    payload = yaml.safe_load(plan_path.read_text(encoding="utf-8")) or {}
-    if payload.get("schema_version") != EXPERIMENT_SCHEMA_VERSION:
-        raise ValueError(f"Unsupported experiment schema in {plan_path}.")
-    experiment_id = payload.get("experiment_id")
-    if not experiment_id:
-        raise ValueError(f"Experiment plan has no experiment_id: {plan_path}")
+    project_root = project_root_for_experiment(directory)
+    runs_dir = directory / "runs"
+    if not runs_dir.is_dir():
+        raise FileNotFoundError(f"Experiment runs directory does not exist: {runs_dir}")
+    definition_files = sorted(runs_dir.glob("*.yaml"))
+    if not definition_files:
+        raise FileNotFoundError(f"No run config files found below {runs_dir}")
+
+    experiment_id = slugify(directory.name, fallback="experiment")
+    runs = tuple(
+        load_run_definition(
+            path,
+            index=index,
+            experiment_dir=directory,
+            project_root=project_root,
+        )
+        for index, path in enumerate(definition_files, start=1)
+    )
     return ExperimentPlan(
-        schema_version=int(payload["schema_version"]),
-        experiment_id=str(experiment_id),
-        name=str(payload["name"]),
-        stage=str(payload["stage"]),
-        created_at=str(payload["created_at"]),
-        project_root=str(payload["project_root"]),
-        source_config_dir=str(payload["source_config_dir"]),
-        combination_mode=str(payload["combination_mode"]),
-        parameters=[ExperimentParameter(**item) for item in payload.get("parameters", [])],
-        runs=[ExperimentRun(**item) for item in payload.get("runs", [])],
+        experiment_id=experiment_id,
+        name=directory.name,
+        directory=directory,
+        project_root=project_root,
+        runs=runs,
     )
 
 
+def load_run_definition(
+    path: Path,
+    *,
+    index: int,
+    experiment_dir: Path,
+    project_root: Path,
+) -> ExperimentRun:
+    run_name = slugify(path.stem, fallback="run")
+    if run_name != path.stem:
+        raise ValueError(
+            f"Run filenames must already be safe Hydra names; rename {path.name!r} "
+            f"to {run_name + path.suffix!r}."
+        )
+    config_name = f"runs/{path.stem}"
+    cfg = compose_stage_config(
+        config_name,
+        experiment_dir=experiment_dir,
+    )
+    stage_name = str(cfg.stage.name)
+    if stage_name not in STAGE_RUNNERS:
+        raise ValueError(f"Run {path} resolves to unknown stage {stage_name!r}.")
+    output_dir = Path(str(OmegaConf.select(cfg, "stage.output_dir")))
+    if not output_dir.is_absolute():
+        output_dir = project_root / output_dir
+
+    return ExperimentRun(
+        index=index,
+        name=run_name,
+        definition_file=path.resolve(),
+        config_name=config_name,
+        stage_name=stage_name,
+        stage_run_id=str(cfg.stage.run_id),
+        output_dir=output_dir.resolve(),
+    )
+
+
+def write_run_definition(
+    path: Path,
+    *,
+    base_config: str,
+    group_overrides: tuple[tuple[str, str], ...] = (),
+    fields: dict[str, Any] | None = None,
+) -> Path:
+    """Write one minimal Hydra run config extending an experiment base config."""
+
+    if path.exists():
+        raise FileExistsError(f"Run definition already exists: {path}")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    normalized_base = base_config.removesuffix(".yaml").strip("/")
+    if not normalized_base:
+        raise ValueError(
+            "base_config must name a config below the experiment configs directory."
+        )
+    defaults: list[Any] = [f"/{normalized_base}"]
+    defaults.extend(
+        {f"override /{group.lstrip('/')}": choice} for group, choice in group_overrides
+    )
+    defaults.append("_self_")
+    payload: dict[str, Any] = {"defaults": defaults}
+    payload.update(fields or {})
+    contents = "# @package _global_\n" + yaml.safe_dump(payload, sort_keys=False)
+    path.write_text(contents, encoding="utf-8")
+    return path
+
+
+def render_hydra_command(run: ExperimentRun, experiment_dir: Path) -> str:
+    tokens = [
+        "uv",
+        "run",
+        "stage",
+        "--experiment-dir",
+        str(experiment_dir.resolve()),
+        run.config_name,
+    ]
+    return shlex.join(tokens)
+
+
+def experiment_state_dir(experiment_dir: str | Path, run: ExperimentRun | str) -> Path:
+    directory = Path(experiment_dir).resolve()
+    project_root = project_root_for_experiment(directory)
+    name = run.name if isinstance(run, ExperimentRun) else str(run)
+    return project_root / "artifacts" / "experiments" / directory.name / name
+
+
 def status_path(experiment_dir: str | Path, run: ExperimentRun | str) -> Path:
-    name = run.name if isinstance(run, ExperimentRun) else run
-    return Path(experiment_dir).resolve() / "runs" / name / "status.json"
+    return experiment_state_dir(experiment_dir, run) / "status.json"
 
 
 def read_status(path: str | Path) -> dict[str, Any]:
@@ -102,52 +174,26 @@ def update_status(path: str | Path, **changes: Any) -> dict[str, Any]:
     return payload
 
 
+def project_root_for_experiment(experiment_dir: Path) -> Path:
+    if experiment_dir.parent.name != "experiments":
+        raise ValueError(
+            "Experiment directories must be located at <project>/experiments/<experiment>: "
+            f"{experiment_dir}"
+        )
+    return experiment_dir.parent.parent.resolve()
+
+
 def slugify(value: Any, *, fallback: str = "value") -> str:
-    if value is None:
-        text = "null"
-    elif isinstance(value, bool):
-        text = str(value).lower()
-    elif isinstance(value, (dict, list, tuple)):
-        text = json.dumps(value, sort_keys=True, separators=(",", ":"))
-    else:
-        text = str(value)
-    text = re.sub(r"[^A-Za-z0-9._-]+", "-", text.strip()).strip("-._")
+    text = str(value).strip()
+    text = re.sub(r"[^A-Za-z0-9._-]+", "-", text).strip("-._")
     return text or fallback
-
-
-def choice_name(
-    parameters: list[ExperimentParameter],
-    values: tuple[Any, ...],
-    *,
-    max_length: int = 120,
-) -> str:
-    parts = [
-        f"{slugify(parameter.label, fallback='parameter')}-{slugify(value)}"
-        for parameter, value in zip(parameters, values, strict=True)
-    ]
-    full_name = "--".join(parts)
-    if len(full_name) <= max_length:
-        return full_name
-    digest = sha256_text(full_name)[:10]
-    return f"{full_name[: max_length - len(digest) - 2].rstrip('-')}--{digest}"
-
-
-def unique_choice_name(name: str, values: tuple[Any, ...], existing: set[str]) -> str:
-    if name not in existing:
-        return name
-    serialized = json.dumps(values, sort_keys=True, default=str, separators=(",", ":"))
-    digest = sha256_text(serialized)[:8]
-    candidate = f"{name}--{digest}"
-    suffix = 2
-    while candidate in existing:
-        candidate = f"{name}--{digest}-{suffix}"
-        suffix += 1
-    return candidate
 
 
 def screen_name(experiment_id: str, run_name: str, *, max_length: int = 75) -> str:
     full_name = f"rr-{slugify(experiment_id)}--{slugify(run_name)}"
     if len(full_name) <= max_length:
         return full_name
-    digest = sha256_text(full_name)[:10]
+    import hashlib
+
+    digest = hashlib.sha256(full_name.encode("utf-8")).hexdigest()[:10]
     return f"{full_name[: max_length - len(digest) - 2].rstrip('-')}--{digest}"

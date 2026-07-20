@@ -1,7 +1,9 @@
+# @package _global_
+
 defaults:
-  - paths: local
-  - dataset: ???
-  - pipeline/indexing@pipeline: ???
+  - /paths: local
+  - /dataset: ???
+  - /pipeline/indexing@pipeline: ???
   - _self_
 
 stage:

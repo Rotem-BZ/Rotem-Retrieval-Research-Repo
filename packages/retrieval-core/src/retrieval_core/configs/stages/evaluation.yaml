@@ -1,6 +1,8 @@
+# @package _global_
+
 defaults:
-  - paths: local
-  - dataset: ???
+  - /paths: local
+  - /dataset: ???
   - _self_
 
 stage:
