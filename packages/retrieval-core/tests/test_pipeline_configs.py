@@ -1,3 +1,4 @@
+from retrieval_core.data_schema import EVALUATION_DATA_SCHEMA
 from retrieval_core.utils.config import compose_stage_config
 from retrieval_core.utils.pipelines import load_async_pipeline, to_container
 
@@ -42,6 +43,9 @@ def test_abstract_dense_e5_indexing_config_keeps_pipeline_haystack_shaped() -> N
         "metadata",
     }
     assert cfg.selections.embedding_model.checkpoint == "intfloat/e5-small-v2"
+    document_source_parameters = pipeline_config["components"]["document_source"]["init_parameters"]
+    assert document_source_parameters["id_field"] == EVALUATION_DATA_SCHEMA.doc_id
+    assert document_source_parameters["content_field"] == EVALUATION_DATA_SCHEMA.text
     assert (
         pipeline_config["components"]["document_prefixer"]["init_parameters"]["prefix"]
         == "passage: "

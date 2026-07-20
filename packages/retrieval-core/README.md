@@ -9,7 +9,8 @@ published.
 ## Package structure
 
 Feature modules remain directly under `retrieval_core` (`stages`, `input_mapping`,
-and the stage CLI). Shared infrastructure lives under
+`data_schema`, and the stage CLI). `EvaluationDataSchema` is the single source of
+truth for evaluation-file field names and required-field validation. Shared infrastructure lives under
 `retrieval_core.utils` and is grouped by responsibility:
 
 - `artifacts`: immutable run manifests and artifact resolution

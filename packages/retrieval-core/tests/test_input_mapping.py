@@ -1,8 +1,10 @@
 from pathlib import Path
+from typing import Any
 
 import pytest
 from omegaconf import OmegaConf
 
+from retrieval_core.data_schema import EVALUATION_DATA_SCHEMA
 from retrieval_core.input_mapping import (
     generate_input_mapping,
     input_mapping_cache_key,
@@ -16,21 +18,46 @@ from retrieval_core.input_mapping import (
 from retrieval_core.utils.io import read_json, write_json, write_jsonl
 
 
+def _document(doc_id: str, text: str = "", **extra: Any) -> dict[str, Any]:
+    return {
+        EVALUATION_DATA_SCHEMA.doc_id: doc_id,
+        EVALUATION_DATA_SCHEMA.text: text,
+        **extra,
+    }
+
+
+def _query(query_input: str, content: str = "", **extra: Any) -> dict[str, Any]:
+    return {
+        EVALUATION_DATA_SCHEMA.query_id: f"query-{query_input}",
+        EVALUATION_DATA_SCHEMA.IN: query_input,
+        EVALUATION_DATA_SCHEMA.query_content: content,
+        **extra,
+    }
+
+
+def _qrel(query_input: str, doc_id: str, label: int) -> dict[str, Any]:
+    return {
+        EVALUATION_DATA_SCHEMA.IN: query_input,
+        EVALUATION_DATA_SCHEMA.doc_id: doc_id,
+        EVALUATION_DATA_SCHEMA.label: label,
+    }
+
+
 DOCUMENTS = [
-    {"id": "d1", "content": "positive for q1"},
-    {"id": "d2", "content": "judged nonrelevant for q1"},
-    {"id": "d3", "content": "positive for q2"},
-    {"id": "d4", "content": "easy negative one"},
-    {"id": "d5", "content": "easy negative two"},
+    _document("d1", "positive for q1", title="Optional title"),
+    _document("d2", "judged nonrelevant for q1"),
+    _document("d3", "positive for q2"),
+    _document("d4", "easy negative one"),
+    _document("d5", "easy negative two"),
 ]
 QUERIES = [
-    {"id": "q1", "text": "first query"},
-    {"id": "q2", "text": "second query"},
+    _query("q1", "first query", language="en"),
+    _query("q2", "second query"),
 ]
 QRELS = [
-    {"query_id": "q1", "document_id": "d1", "relevance": 1},
-    {"query_id": "q1", "document_id": "d2", "relevance": 0},
-    {"query_id": "q2", "document_id": "d3", "relevance": 1},
+    _qrel("q1", "d1", 1),
+    _qrel("q1", "d2", 0),
+    _qrel("q2", "d3", 1),
 ]
 
 
@@ -39,10 +66,12 @@ def test_full_input_mapping_runs_all_queries_against_all_documents(tmp_path: Pat
 
     mapping = resolve_inference_mapping(cfg)
 
-    assert [query["id"] for query in mapping.queries] == ["q1", "q2"]
+    assert [query[EVALUATION_DATA_SCHEMA.IN] for query in mapping.queries] == ["q1", "q2"]
     assert mapping.candidate_ids_by_query == {}
     assert mapping.candidate_ids("q1") == ["d1", "d2", "d3", "d4", "d5"]
     assert mapping.candidate_ids("q2") == ["d1", "d2", "d3", "d4", "d5"]
+    assert mapping.documents_by_id["d1"].meta["title"] == "Optional title"
+    assert mapping.queries[0]["language"] == "en"
 
 
 def test_file_input_mapping_runs_only_mapped_queries(tmp_path: Path) -> None:
@@ -59,9 +88,12 @@ def test_file_input_mapping_runs_only_mapped_queries(tmp_path: Path) -> None:
 
     mapping = resolve_inference_mapping(cfg)
 
-    assert [query["id"] for query in mapping.queries] == ["q2"]
+    assert [query[EVALUATION_DATA_SCHEMA.IN] for query in mapping.queries] == ["q2"]
     assert mapping.candidate_ids_by_query == {"q2": ["d3", "d4"]}
-    assert [mapping.documents_by_id[document_id].id for document_id in mapping.candidate_ids("q2")] == [
+    mapped_document_ids = [
+        mapping.documents_by_id[document_id].id for document_id in mapping.candidate_ids("q2")
+    ]
+    assert mapped_document_ids == [
         "d3",
         "d4",
     ]
@@ -93,7 +125,7 @@ def test_generated_recipe_is_prepared_explicitly_and_reused(tmp_path: Path) -> N
     assert reused_generated.mapping == generated.mapping
     assert mapping_path.exists()
     assert metadata_path_for(mapping_path).exists()
-    assert [query["id"] for query in mapping.queries] == ["q2"]
+    assert [query[EVALUATION_DATA_SCHEMA.IN] for query in mapping.queries] == ["q2"]
     assert set(mapping.candidate_ids("q2")) >= {"d3"}
     metadata = read_json(metadata_path_for(mapping_path))
     assert metadata["dataset"] == "toy"
@@ -118,24 +150,24 @@ def test_generated_recipe_requires_explicit_preparation(tmp_path: Path) -> None:
 
 def test_generated_mapping_includes_judged_random_easy_and_gold_passage_negatives() -> None:
     documents = [
-        {"id": "d1", "content": "positive for q1"},
-        {"id": "d2", "content": "judged nonrelevant for q1"},
-        {"id": "d3", "content": "positive for q2"},
-        {"id": "d4", "content": "positive for q3"},
-        {"id": "d5", "content": "easy negative one"},
-        {"id": "d6", "content": "easy negative two"},
-        {"id": "d7", "content": "easy negative three"},
+        _document("d1", "positive for q1"),
+        _document("d2", "judged nonrelevant for q1"),
+        _document("d3", "positive for q2"),
+        _document("d4", "positive for q3"),
+        _document("d5", "easy negative one"),
+        _document("d6", "easy negative two"),
+        _document("d7", "easy negative three"),
     ]
     queries = [
-        {"id": "q1", "text": "first query"},
-        {"id": "q2", "text": "second query"},
-        {"id": "q3", "text": "third query"},
+        _query("q1", "first query"),
+        _query("q2", "second query"),
+        _query("q3", "third query"),
     ]
     qrels = [
-        {"query_id": "q1", "document_id": "d1", "relevance": 1},
-        {"query_id": "q1", "document_id": "d2", "relevance": 0},
-        {"query_id": "q2", "document_id": "d3", "relevance": 1},
-        {"query_id": "q3", "document_id": "d4", "relevance": 1},
+        _qrel("q1", "d1", 1),
+        _qrel("q1", "d2", 0),
+        _qrel("q2", "d3", 1),
+        _qrel("q3", "d4", 1),
     ]
 
     generated = generate_input_mapping(
@@ -165,9 +197,9 @@ def test_gold_passage_negatives_exclude_documents_annotated_for_current_query() 
         documents=DOCUMENTS,
         queries=QUERIES,
         qrels=[
-            {"query_id": "q1", "document_id": "d1", "relevance": 1},
-            {"query_id": "q2", "document_id": "d1", "relevance": 1},
-            {"query_id": "q2", "document_id": "d3", "relevance": 1},
+            _qrel("q1", "d1", 1),
+            _qrel("q2", "d1", 1),
+            _qrel("q2", "d3", 1),
         ],
         seed=1,
         query_subset_size=1,
@@ -181,11 +213,11 @@ def test_easy_negatives_raise_when_no_unannotated_documents_exist() -> None:
     with pytest.raises(ValueError, match="No easy negative documents"):
         generate_input_mapping(
             dataset_name="tiny",
-            documents=[{"id": "d1"}, {"id": "d2"}],
-            queries=[{"id": "q1"}],
+            documents=[_document("d1"), _document("d2")],
+            queries=[_query("q1")],
             qrels=[
-                {"query_id": "q1", "document_id": "d1", "relevance": 1},
-                {"query_id": "q2", "document_id": "d2", "relevance": 1},
+                _qrel("q1", "d1", 1),
+                _qrel("q2", "d2", 1),
             ],
             seed=1,
             easy_negative_docs_per_query=1,

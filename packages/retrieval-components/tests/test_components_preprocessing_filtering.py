@@ -1,7 +1,7 @@
 from haystack import Document
 
-from retrieval_components.components.filtering import DocumentContentFilter
-from retrieval_components.components.preprocessing import DocumentTextPrefixer, TextPreprocessor
+from retrieval_components.filtering import DocumentContentFilter
+from retrieval_components.preprocessing import DocumentTextPrefixer, TextPreprocessor
 
 
 def test_text_preprocessor_cleans_and_prefixes_query() -> None:

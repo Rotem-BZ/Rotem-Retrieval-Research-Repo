@@ -4,12 +4,13 @@
 
 | Scope | Location | Test location |
 | --- | --- | --- |
-| Reusable retrieval behavior | `packages/retrieval-components/src/retrieval_components/components/<category>/` | `packages/retrieval-components/tests/` |
-| Shared non-component helper | `packages/retrieval-components/src/retrieval_components/utils/` | `packages/retrieval-components/tests/` |
+| Reusable retrieval behavior | `packages/retrieval-components/src/retrieval_components/<category>/` | `packages/retrieval-components/tests/` |
+| Private component helper | The Python module that uses it; minimal duplication is acceptable | `packages/retrieval-components/tests/` |
 | One research hypothesis | `projects/<project>/src/<package>/components/` | `projects/<project>/tests/` |
 | Workflow/artifact orchestration | `packages/retrieval-core/src/retrieval_core/stages/` | `packages/retrieval-core/tests/` |
 
 Use snake_case module names and PascalCase classes. Follow the closest existing category rather than creating a near-duplicate category.
+Do not add an inner `components/` package or a package-level `utils/` directory.
 
 ## Haystack Interface
 
@@ -34,8 +35,8 @@ Use snake_case module names and PascalCase classes. Follow the closest existing 
 From the repository root, use the narrowest relevant commands:
 
 ```powershell
-uv run --project packages/retrieval-components pytest packages/retrieval-components/tests/<test-file>.py
-uv run --project packages/retrieval-components pytest packages/retrieval-components/tests
+uv run --extra dev --project packages/retrieval-components pytest packages/retrieval-components/tests/<test-file>.py
+uv run --extra dev --project packages/retrieval-components pytest packages/retrieval-components/tests
 uv run --project packages/retrieval-core pytest packages/retrieval-core/tests/test_pipeline_configs.py
 uv run --project projects/<project> pytest projects/<project>/tests
 ```

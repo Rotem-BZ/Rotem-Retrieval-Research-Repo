@@ -1,4 +1,4 @@
-type: retrieval_components.components.chunking.langchain_document_splitter.LangChainDocumentSplitter
+type: retrieval_components.chunking.langchain_document_splitter.LangChainDocumentSplitter
 init_parameters:
   splitter_type: RecursiveCharacterTextSplitter
   splitter_kwargs:

@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from retrieval_core.data_schema import EVALUATION_DATA_SCHEMA
 from retrieval_core.utils.io import (
     predictions_from_mapping,
     predictions_to_mapping,
@@ -10,8 +11,9 @@ from retrieval_core.utils.io import (
 
 PREDICTIONS = [
     {
-        "query_id": "q1",
-        "query": "first query",
+        EVALUATION_DATA_SCHEMA.query_id: "q1",
+        EVALUATION_DATA_SCHEMA.IN: "input-1",
+        EVALUATION_DATA_SCHEMA.query_content: "first query",
         "documents": [
             {
                 "id": "d1::chunk-0",
@@ -30,10 +32,11 @@ PREDICTIONS = [
 ]
 
 
-def test_predictions_mapping_uses_query_and_document_ids_as_keys() -> None:
+def test_predictions_mapping_uses_query_input_and_document_ids_as_keys() -> None:
     assert predictions_to_mapping(PREDICTIONS) == {
-        "q1": {
-            "query": "first query",
+        "input-1": {
+            EVALUATION_DATA_SCHEMA.query_id: "q1",
+            EVALUATION_DATA_SCHEMA.query_content: "first query",
             "documents": {
                 "d1::chunk-0": {
                     "content": "passage text",

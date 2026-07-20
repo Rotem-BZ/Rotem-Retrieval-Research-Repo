@@ -17,6 +17,8 @@ from torchmetrics.retrieval import (
     RetrievalRecall,
 )
 
+from retrieval_core.data_schema import EVALUATION_DATA_SCHEMA
+
 
 Qrels = dict[str, dict[str, int]]
 
@@ -110,7 +112,7 @@ def _build_retrieval_tensors(
     indexes: list[int] = []
     preds: list[float] = []
     target: list[int] = []
-    prediction_by_query = {record["query_id"]: record for record in predictions}
+    prediction_by_query = {str(record[EVALUATION_DATA_SCHEMA.IN]): record for record in predictions}
 
     for query_index, query_id in enumerate(qrels):
         judged_documents = qrels[query_id]

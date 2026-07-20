@@ -9,7 +9,7 @@ defaults:
 
 components:
   output:
-    type: retrieval_components.components.interfaces.stage_io.IndexingOutput
+    type: retrieval_components.interfaces.stage_io.IndexingOutput
   indexer:
     init_parameters:
       output_path: ${stage.output_dir}/index.jsonl

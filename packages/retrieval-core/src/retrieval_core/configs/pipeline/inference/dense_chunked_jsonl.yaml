@@ -7,9 +7,9 @@ defaults:
 
 components:
   input:
-    type: retrieval_components.components.interfaces.stage_io.InferenceInput
+    type: retrieval_components.interfaces.stage_io.InferenceInput
   output:
-    type: retrieval_components.components.interfaces.stage_io.InferenceOutput
+    type: retrieval_components.interfaces.stage_io.InferenceOutput
   retriever:
     init_parameters:
       index_path: ${stage.index_path}

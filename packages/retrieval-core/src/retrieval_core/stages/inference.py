@@ -9,6 +9,7 @@ from haystack import AsyncPipeline
 from omegaconf import DictConfig, open_dict
 from tqdm import tqdm
 
+from retrieval_core.data_schema import EVALUATION_DATA_SCHEMA
 from retrieval_core.input_mapping import (
     InferenceMapping,
     resolve_inference_mapping,
@@ -115,15 +116,19 @@ async def _run_query(
     *,
     pipeline_concurrency_limit: int,
 ) -> dict[str, Any]:
-    query_id = str(query["id"])
+    EVALUATION_DATA_SCHEMA.validate_query(query)
+    query_id = str(query[EVALUATION_DATA_SCHEMA.query_id])
+    query_input = str(query[EVALUATION_DATA_SCHEMA.IN])
+    query_content = str(query[EVALUATION_DATA_SCHEMA.query_content])
+    candidate_document_ids = list(inference_mapping.candidate_ids(query_input))
     result = await pipeline.run_async(
         data={
             INFERENCE_INPUT_COMPONENT: {
-                "query": query["text"],
-                "candidate_document_ids": list(inference_mapping.candidate_ids(query_id)),
+                "query": query_content,
+                "candidate_document_ids": candidate_document_ids,
                 "candidate_documents": [
                     inference_mapping.documents_by_id[document_id]
-                    for document_id in inference_mapping.candidate_ids(query_id)
+                    for document_id in candidate_document_ids
                 ],
             }
         },
@@ -132,8 +137,9 @@ async def _run_query(
     )
     documents = list(result[INFERENCE_OUTPUT_COMPONENT][INFERENCE_DOCUMENTS_FIELD])
     return {
-        "query_id": query_id,
-        "query": query["text"],
+        EVALUATION_DATA_SCHEMA.query_id: query_id,
+        EVALUATION_DATA_SCHEMA.IN: query_input,
+        EVALUATION_DATA_SCHEMA.query_content: query_content,
         "documents": [
             {
                 "id": document.id,

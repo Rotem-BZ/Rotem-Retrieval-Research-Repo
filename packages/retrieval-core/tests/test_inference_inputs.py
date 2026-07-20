@@ -2,6 +2,7 @@ import asyncio
 
 from haystack import Document
 
+from retrieval_core.data_schema import EVALUATION_DATA_SCHEMA
 from retrieval_core.input_mapping import InferenceMapping
 from retrieval_core.stages.inference import _run_queries
 
@@ -29,9 +30,21 @@ def test_run_queries_concurrently_and_preserve_input_order() -> None:
     pipeline = TrackingPipeline()
     inference_mapping = InferenceMapping(
         queries=[
-            {"id": "q1", "text": "first"},
-            {"id": "q2", "text": "second"},
-            {"id": "q3", "text": "third"},
+            {
+                EVALUATION_DATA_SCHEMA.query_id: "external-q1",
+                EVALUATION_DATA_SCHEMA.IN: "q1",
+                EVALUATION_DATA_SCHEMA.query_content: "first",
+            },
+            {
+                EVALUATION_DATA_SCHEMA.query_id: "external-q2",
+                EVALUATION_DATA_SCHEMA.IN: "q2",
+                EVALUATION_DATA_SCHEMA.query_content: "second",
+            },
+            {
+                EVALUATION_DATA_SCHEMA.query_id: "external-q3",
+                EVALUATION_DATA_SCHEMA.IN: "q3",
+                EVALUATION_DATA_SCHEMA.query_content: "third",
+            },
         ],
         candidate_ids_by_query={},
         documents_by_id={},
@@ -49,4 +62,13 @@ def test_run_queries_concurrently_and_preserve_input_order() -> None:
 
     assert pipeline.max_active_runs == 2
     assert pipeline.pipeline_limits == [7, 7, 7]
-    assert [prediction["query_id"] for prediction in predictions] == ["q1", "q2", "q3"]
+    assert [prediction[EVALUATION_DATA_SCHEMA.query_id] for prediction in predictions] == [
+        "external-q1",
+        "external-q2",
+        "external-q3",
+    ]
+    assert [prediction[EVALUATION_DATA_SCHEMA.IN] for prediction in predictions] == [
+        "q1",
+        "q2",
+        "q3",
+    ]

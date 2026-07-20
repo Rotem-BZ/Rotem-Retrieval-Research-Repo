@@ -5,6 +5,7 @@ from __future__ import annotations
 from omegaconf import DictConfig
 from omegaconf import open_dict
 
+from retrieval_core.data_schema import EVALUATION_DATA_SCHEMA
 from retrieval_core.stages.base import StageContext
 from retrieval_core.utils.artifacts import artifact_for_run
 from retrieval_core.utils.evaluation import evaluate_rankings
@@ -18,9 +19,12 @@ def run_evaluation(cfg: DictConfig) -> dict[str, float]:
     predictions = read_predictions(cfg.stage.predictions_path)
     qrels: dict[str, dict[str, int]] = {}
     for record in read_jsonl(cfg.dataset.qrels_path):
-        relevance = int(record.get("relevance", 1))
-        if relevance > 0:
-            qrels.setdefault(record["query_id"], {})[record["document_id"]] = relevance
+        EVALUATION_DATA_SCHEMA.validate_qrel(record)
+        label = int(record[EVALUATION_DATA_SCHEMA.label])
+        if label > 0:
+            query_input = str(record[EVALUATION_DATA_SCHEMA.IN])
+            document_id = str(record[EVALUATION_DATA_SCHEMA.doc_id])
+            qrels.setdefault(query_input, {})[document_id] = label
     metrics = evaluate_rankings(predictions, qrels, to_container(cfg.metrics))
 
     metrics_path = write_json(cfg.stage.metrics_path, metrics)

@@ -3,11 +3,11 @@ defaults:
 
 components:
   input:
-    type: retrieval_components.components.interfaces.stage_io.InferenceInput
+    type: retrieval_components.interfaces.stage_io.InferenceInput
   output:
-    type: retrieval_components.components.interfaces.stage_io.InferenceOutput
+    type: retrieval_components.interfaces.stage_io.InferenceOutput
   query_preprocessor:
-    type: retrieval_components.components.preprocessing.text_preprocessor.TextPreprocessor
+    type: retrieval_components.preprocessing.text_preprocessor.TextPreprocessor
     init_parameters:
       prefix: "query: "
       replace_regexes:
@@ -20,7 +20,7 @@ components:
       device: ${runtime.device}
       progress_bar: ${runtime.progress_bar}
   retriever:
-    type: retrieval_components.components.retrieval.jsonl_embedding_retriever.JsonlEmbeddingRetriever
+    type: retrieval_components.retrieval.jsonl_embedding_retriever.JsonlEmbeddingRetriever
     init_parameters:
       index_path: ${stage.index_path}
       top_k: 5

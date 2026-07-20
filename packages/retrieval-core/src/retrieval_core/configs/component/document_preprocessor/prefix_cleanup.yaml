@@ -1,4 +1,4 @@
-type: retrieval_components.components.preprocessing.document_text_prefixer.DocumentTextPrefixer
+type: retrieval_components.preprocessing.document_text_prefixer.DocumentTextPrefixer
 init_parameters:
   prefix: ${selections.embedding_model.document_prefix}
   replace_regexes:

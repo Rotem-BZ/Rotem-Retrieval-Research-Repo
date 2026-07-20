@@ -1,4 +1,4 @@
-type: retrieval_components.components.retrieval.jsonl_embedding_retriever.JsonlEmbeddingRetriever
+type: retrieval_components.retrieval.jsonl_embedding_retriever.JsonlEmbeddingRetriever
 init_parameters:
   index_path: ${stage.index_path}
   top_k: 5

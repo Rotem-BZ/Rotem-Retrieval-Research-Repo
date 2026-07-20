@@ -7,11 +7,11 @@ defaults:
 
 components:
   input:
-    type: retrieval_components.components.interfaces.stage_io.InferenceInput
+    type: retrieval_components.interfaces.stage_io.InferenceInput
   query_transformer:
     type: {{ cookiecutter.package_name }}.components.{{ cookiecutter.component_class_name }}
   output:
-    type: retrieval_components.components.interfaces.stage_io.InferenceOutput
+    type: retrieval_components.interfaces.stage_io.InferenceOutput
 
 connections:
   - sender: input.query

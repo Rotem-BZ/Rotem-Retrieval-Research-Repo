@@ -28,11 +28,13 @@ selections:
 pipeline:
   components:
     document_source:
-      type: retrieval_components.components.sources.jsonl_document_source.JsonlDocumentSource
+      type: retrieval_components.sources.jsonl_document_source.JsonlDocumentSource
       init_parameters:
         documents_path: ./data/processed/toy/documents.jsonl
+        id_field: doc_id
+        content_field: text
     document_prefixer:
-      type: retrieval_components.components.preprocessing.document_text_prefixer.DocumentTextPrefixer
+      type: retrieval_components.preprocessing.document_text_prefixer.DocumentTextPrefixer
       init_parameters:
         prefix: 'passage: '
         replace_regexes:
@@ -49,12 +51,12 @@ pipeline:
         tokenizer_kwargs:
           model_max_length: 512
     indexer:
-      type: retrieval_components.components.indexing.jsonl_document_indexer.JsonlDocumentIndexer
+      type: retrieval_components.indexing.jsonl_document_indexer.JsonlDocumentIndexer
       init_parameters:
         output_path: ./artifacts/runs/indexing/20260705_231537/index.jsonl
         overwrite: false
     output:
-      type: retrieval_components.components.interfaces.stage_io.IndexingOutput
+      type: retrieval_components.interfaces.stage_io.IndexingOutput
   connections:
   - sender: document_source.documents
     receiver: document_prefixer.documents

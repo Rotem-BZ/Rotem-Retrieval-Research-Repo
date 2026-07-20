@@ -12,6 +12,7 @@ from typing import Any
 from haystack import Document
 from omegaconf import DictConfig
 
+from retrieval_core.data_schema import EVALUATION_DATA_SCHEMA
 from retrieval_core.utils.hashing import file_sha256, sha256_text
 from retrieval_core.utils.io import project_path, read_json, read_jsonl, write_json_atomic
 
@@ -34,12 +35,13 @@ class InferenceMapping:
     documents_by_id: dict[str, Document]
     default_candidate_ids: list[str] | None = None
 
-    def candidate_ids(self, query_id: str) -> list[str]:
-        if query_id in self.candidate_ids_by_query:
-            return self.candidate_ids_by_query[query_id]
+    def candidate_ids(self, query_input: str) -> list[str]:
+        if query_input in self.candidate_ids_by_query:
+            return self.candidate_ids_by_query[query_input]
         if self.default_candidate_ids is not None:
             return self.default_candidate_ids
-        raise KeyError(f"No candidate ids configured for query {query_id!r}.")
+        raise KeyError(f"No candidate ids configured for query input {query_input!r}.")
+
 
 @dataclass(frozen=True)
 class GeneratedInputMapping:
@@ -49,6 +51,26 @@ class GeneratedInputMapping:
     metadata: dict[str, Any]
 
 
+def _document_from_record(record: dict[str, Any]) -> Document:
+    EVALUATION_DATA_SCHEMA.validate_document(record)
+    reserved_fields = {
+        EVALUATION_DATA_SCHEMA.doc_id,
+        EVALUATION_DATA_SCHEMA.text,
+        "meta",
+        "score",
+        "embedding",
+    }
+    meta = {key: value for key, value in record.items() if key not in reserved_fields}
+    meta.update(dict(record.get("meta") or {}))
+    return Document(
+        id=str(record[EVALUATION_DATA_SCHEMA.doc_id]),
+        content=str(record[EVALUATION_DATA_SCHEMA.text]),
+        meta=meta,
+        score=record.get("score"),
+        embedding=record.get("embedding"),
+    )
+
+
 def resolve_inference_mapping(cfg: DictConfig) -> InferenceMapping:
     """Resolve configured inference candidates from dataset files and input_mapping config."""
 
@@ -56,20 +78,18 @@ def resolve_inference_mapping(cfg: DictConfig) -> InferenceMapping:
     queries = read_jsonl(cfg.dataset.queries_path)
     documents_by_id: dict[str, Document] = {}
     for record in documents:
-        document = Document(
-            id=record.get("id"),
-            content=record.get("content", ""),
-            meta=dict(record.get("meta") or {}),
-            score=record.get("score"),
-            embedding=record.get("embedding"),
-        )
-        if document.id is None:
-            raise ValueError(f"Document is missing an id: {record}")
+        document = _document_from_record(record)
         document_id = str(document.id)
         if document_id in documents_by_id:
             raise ValueError(f"Duplicate document id in dataset: {document_id}")
         documents_by_id[document_id] = document
-    queries_by_id = {str(query["id"]): query for query in queries}
+    queries_by_input: dict[str, dict[str, Any]] = {}
+    for query in queries:
+        EVALUATION_DATA_SCHEMA.validate_query(query)
+        query_input = str(query[EVALUATION_DATA_SCHEMA.IN])
+        if query_input in queries_by_input:
+            raise ValueError(f"Duplicate query input in dataset: {query_input}")
+        queries_by_input[query_input] = query
     all_document_ids = list(documents_by_id)
 
     mapping_cfg = cfg.get("input_mapping")
@@ -95,7 +115,7 @@ def resolve_inference_mapping(cfg: DictConfig) -> InferenceMapping:
             mapping_path,
             mapping_cfg=mapping_cfg,
             cfg=cfg,
-            queries_by_id=queries_by_id,
+            queries_by_input=queries_by_input,
             documents_by_id=documents_by_id,
         )
 
@@ -106,7 +126,7 @@ def resolve_inference_mapping(cfg: DictConfig) -> InferenceMapping:
         project_path(mapping_cfg.path),
         mapping_cfg=mapping_cfg,
         cfg=cfg,
-        queries_by_id=queries_by_id,
+        queries_by_input=queries_by_input,
         documents_by_id=documents_by_id,
     )
 
@@ -132,7 +152,7 @@ def _resolve_file_mapping(
     *,
     mapping_cfg: DictConfig,
     cfg: DictConfig,
-    queries_by_id: dict[str, dict[str, Any]],
+    queries_by_input: dict[str, dict[str, Any]],
     documents_by_id: dict[str, Document],
 ) -> InferenceMapping:
     configured_dataset = mapping_cfg.get("dataset")
@@ -144,14 +164,14 @@ def _resolve_file_mapping(
 
     raw_mapping = read_json(mapping_path)
     if not isinstance(raw_mapping, dict):
-        raise ValueError("Input mapping JSON must be an object keyed by query id.")
+        raise ValueError("Input mapping JSON must be an object keyed by query input (`IN`).")
     candidate_ids_by_query: dict[str, list[str]] = {}
-    for raw_query_id, raw_candidate_ids in raw_mapping.items():
-        query_id = str(raw_query_id)
-        if query_id not in queries_by_id:
-            raise ValueError(f"Input mapping references unknown query id: {query_id}")
+    for raw_query_input, raw_candidate_ids in raw_mapping.items():
+        query_input = str(raw_query_input)
+        if query_input not in queries_by_input:
+            raise ValueError(f"Input mapping references unknown query input: {query_input}")
         if not isinstance(raw_candidate_ids, list):
-            raise ValueError(f"Input mapping for query {query_id} must be a list.")
+            raise ValueError(f"Input mapping for query input {query_input} must be a list.")
 
         candidate_ids = [str(document_id) for document_id in raw_candidate_ids]
         missing_document_ids = [
@@ -159,11 +179,11 @@ def _resolve_file_mapping(
         ]
         if missing_document_ids:
             raise ValueError(
-                f"Input mapping for query {query_id} references unknown document ids: "
+                f"Input mapping for query input {query_input} references unknown document ids: "
                 f"{missing_document_ids}"
             )
-        candidate_ids_by_query[query_id] = list(dict.fromkeys(candidate_ids))
-    selected_queries = [queries_by_id[query_id] for query_id in candidate_ids_by_query]
+        candidate_ids_by_query[query_input] = list(dict.fromkeys(candidate_ids))
+    selected_queries = [queries_by_input[query_input] for query_input in candidate_ids_by_query]
 
     return InferenceMapping(
         queries=selected_queries,
@@ -330,31 +350,38 @@ def generate_input_mapping(
         if value < 0:
             raise ValueError(f"{name} must be non-negative.")
     rng = random.Random(seed)
-    document_ids = [str(document["id"]) for document in documents]
-    query_ids = [str(query["id"]) for query in queries]
+    for document in documents:
+        EVALUATION_DATA_SCHEMA.validate_document(document)
+    for query in queries:
+        EVALUATION_DATA_SCHEMA.validate_query(query)
+    for qrel in qrels:
+        EVALUATION_DATA_SCHEMA.validate_qrel(qrel)
+
+    document_ids = [str(document[EVALUATION_DATA_SCHEMA.doc_id]) for document in documents]
+    query_inputs = [str(query[EVALUATION_DATA_SCHEMA.IN]) for query in queries]
     if query_subset_size is None:
-        selected_query_ids = query_ids
+        selected_query_inputs = query_inputs
     else:
         if query_subset_size < 0:
             raise ValueError("queries subset size must be non-negative.")
-        if query_subset_size > len(query_ids):
+        if query_subset_size > len(query_inputs):
             raise ValueError(
-                f"Requested {query_subset_size} queries, but only {len(query_ids)} exist."
+                f"Requested {query_subset_size} queries, but only {len(query_inputs)} exist."
             )
-        selected_query_ids = sorted(
-            rng.sample(query_ids, query_subset_size), key=query_ids.index
+        selected_query_inputs = sorted(
+            rng.sample(query_inputs, query_subset_size), key=query_inputs.index
         )
 
     annotated_by_query: dict[str, set[str]] = {}
     positive_by_query: dict[str, set[str]] = {}
     for qrel in qrels:
-        query_id = str(qrel["query_id"])
-        document_id = str(qrel["document_id"])
-        annotated_by_query.setdefault(query_id, set()).add(document_id)
-        if int(qrel.get("relevance", 1)) > 0:
-            positive_by_query.setdefault(query_id, set()).add(document_id)
+        query_input = str(qrel[EVALUATION_DATA_SCHEMA.IN])
+        document_id = str(qrel[EVALUATION_DATA_SCHEMA.doc_id])
+        annotated_by_query.setdefault(query_input, set()).add(document_id)
+        if int(qrel[EVALUATION_DATA_SCHEMA.label]) > 0:
+            positive_by_query.setdefault(query_input, set()).add(document_id)
     required_document_ids = set().union(
-        *(annotated_by_query.get(query_id, set()) for query_id in selected_query_ids)
+        *(annotated_by_query.get(query_input, set()) for query_input in selected_query_inputs)
     )
     if document_subset_size is None:
         active_document_ids = document_ids
@@ -388,18 +415,18 @@ def generate_input_mapping(
         raise ValueError("No easy negative documents exist for this dataset and document subset.")
 
     mapping: dict[str, list[str]] = {}
-    for query_id in selected_query_ids:
+    for query_input in selected_query_inputs:
         included = [
             document_id
             for document_id in document_ids
-            if document_id in annotated_by_query.get(query_id, set())
+            if document_id in annotated_by_query.get(query_input, set())
         ]
         missing_required = [
             document_id for document_id in included if document_id not in active_document_set
         ]
         if missing_required:
             raise ValueError(
-                f"Document subset excludes annotated documents for query {query_id}: "
+                f"Document subset excludes annotated documents for query input {query_input}: "
                 f"{missing_required}"
             )
 
@@ -410,7 +437,7 @@ def generate_input_mapping(
                 excluded=included_set,
                 count=random_docs_per_query,
                 rng=rng,
-                label=f"random documents for query {query_id}",
+                label=f"random documents for query input {query_input}",
             )
         )
         included_set = set(included)
@@ -420,16 +447,16 @@ def generate_input_mapping(
                 excluded=included_set,
                 count=easy_negative_docs_per_query,
                 rng=rng,
-                label=f"easy negative documents for query {query_id}",
+                label=f"easy negative documents for query input {query_input}",
             )
         )
         included_set = set(included)
-        current_annotations = annotated_by_query.get(query_id, set())
+        current_annotations = annotated_by_query.get(query_input, set())
         positive_elsewhere = set().union(
             *(
                 document_ids
-                for other_query_id, document_ids in positive_by_query.items()
-                if other_query_id != query_id
+                for other_query_input, document_ids in positive_by_query.items()
+                if other_query_input != query_input
             )
         )
         gold_pool = [
@@ -443,10 +470,10 @@ def generate_input_mapping(
                 excluded=included_set,
                 count=gold_passage_docs_per_query,
                 rng=rng,
-                label=f"gold passage negative documents for query {query_id}",
+                label=f"gold passage negative documents for query input {query_input}",
             )
         )
-        mapping[query_id] = included
+        mapping[query_input] = included
 
     candidate_counts = [len(candidate_ids) for candidate_ids in mapping.values()]
     metadata = {

@@ -1,10 +1,10 @@
 components:
   input:
-    type: retrieval_components.components.interfaces.stage_io.InferenceInput
+    type: retrieval_components.interfaces.stage_io.InferenceInput
   output:
-    type: retrieval_components.components.interfaces.stage_io.InferenceOutput
+    type: retrieval_components.interfaces.stage_io.InferenceOutput
   fusion:
-    type: retrieval_components.components.fusion.reciprocal_rank_fusion.ReciprocalRankFusion
+    type: retrieval_components.fusion.reciprocal_rank_fusion.ReciprocalRankFusion
     init_parameters:
       weights: ???
       top_k: 5

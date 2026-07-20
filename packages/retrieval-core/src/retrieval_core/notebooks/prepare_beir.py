@@ -24,6 +24,7 @@ try:
 except ImportError:  # pragma: no cover - optional runtime convenience
     certifi = None
 
+from retrieval_core.data_schema import EVALUATION_DATA_SCHEMA
 from retrieval_core.utils.io import write_jsonl
 
 # %%
@@ -177,8 +178,8 @@ def document_records(path: Path, dataset_name: str) -> Iterable[dict[str, Any]]:
             text = str(record.get("text") or "").strip()
             content = "\n".join(part for part in [title, text] if part)
             yield {
-                "id": str(record["_id"]),
-                "content": content,
+                EVALUATION_DATA_SCHEMA.doc_id: str(record["_id"]),
+                EVALUATION_DATA_SCHEMA.text: content,
                 "meta": {
                     "dataset": dataset_name,
                     "title": title,
@@ -193,9 +194,11 @@ def query_records(path: Path, dataset_name: str) -> Iterable[dict[str, Any]]:
             if not line.strip():
                 continue
             record = json.loads(line)
+            query_identifier = str(record["_id"])
             yield {
-                "id": str(record["_id"]),
-                "text": str(record.get("text") or ""),
+                EVALUATION_DATA_SCHEMA.query_id: query_identifier,
+                EVALUATION_DATA_SCHEMA.IN: query_identifier,
+                EVALUATION_DATA_SCHEMA.query_content: str(record.get("text") or ""),
                 "meta": {
                     "dataset": dataset_name,
                     "beir_metadata": record.get("metadata") or {},
@@ -211,9 +214,9 @@ def qrel_records(path: Path) -> Iterable[dict[str, Any]]:
         if "query-id" in sample and "corpus-id" in sample:
             for row in csv.DictReader(handle, delimiter="\t"):
                 yield {
-                    "query_id": str(row["query-id"]),
-                    "document_id": str(row["corpus-id"]),
-                    "relevance": int(row["score"]),
+                    EVALUATION_DATA_SCHEMA.IN: str(row["query-id"]),
+                    EVALUATION_DATA_SCHEMA.doc_id: str(row["corpus-id"]),
+                    EVALUATION_DATA_SCHEMA.label: int(row["score"]),
                 }
             return
 
@@ -225,9 +228,9 @@ def qrel_records(path: Path) -> Iterable[dict[str, Any]]:
             else:
                 query_id, document_id, relevance = row[0], row[1], row[2]
             yield {
-                "query_id": str(query_id),
-                "document_id": str(document_id),
-                "relevance": int(relevance),
+                EVALUATION_DATA_SCHEMA.IN: str(query_id),
+                EVALUATION_DATA_SCHEMA.doc_id: str(document_id),
+                EVALUATION_DATA_SCHEMA.label: int(relevance),
             }
 
 
@@ -245,31 +248,41 @@ def limit_records(
     if max_documents is None and max_queries is None:
         return documents, queries, qrels
 
-    selected_query_ids = selected_query_ids_from_qrels(queries, qrels, max_queries)
-    selected_qrels = [qrel for qrel in qrels if qrel["query_id"] in selected_query_ids]
-    required_document_ids = {qrel["document_id"] for qrel in selected_qrels}
+    selected_query_inputs = selected_query_inputs_from_qrels(queries, qrels, max_queries)
+    selected_qrels = [
+        qrel for qrel in qrels if qrel[EVALUATION_DATA_SCHEMA.IN] in selected_query_inputs
+    ]
+    required_document_ids = {qrel[EVALUATION_DATA_SCHEMA.doc_id] for qrel in selected_qrels}
     limited_documents = select_documents(documents, required_document_ids, max_documents)
-    available_document_ids = {document["id"] for document in limited_documents}
+    available_document_ids = {
+        document[EVALUATION_DATA_SCHEMA.doc_id] for document in limited_documents
+    }
 
     return (
         limited_documents,
-        [query for query in queries if query["id"] in selected_query_ids],
-        [qrel for qrel in selected_qrels if qrel["document_id"] in available_document_ids],
+        [query for query in queries if query[EVALUATION_DATA_SCHEMA.IN] in selected_query_inputs],
+        [
+            qrel
+            for qrel in selected_qrels
+            if qrel[EVALUATION_DATA_SCHEMA.doc_id] in available_document_ids
+        ],
     )
 
 
-def selected_query_ids_from_qrels(
+def selected_query_inputs_from_qrels(
     queries: list[dict[str, Any]],
     qrels: list[dict[str, Any]],
     max_queries: int | None,
 ) -> set[str]:
     if max_queries is None:
-        return {query["id"] for query in queries}
+        return {str(query[EVALUATION_DATA_SCHEMA.IN]) for query in queries}
 
-    ordered_qrel_query_ids = list(dict.fromkeys(qrel["query_id"] for qrel in qrels))
-    if ordered_qrel_query_ids:
-        return set(ordered_qrel_query_ids[:max_queries])
-    return {query["id"] for query in queries[:max_queries]}
+    ordered_query_inputs = list(
+        dict.fromkeys(str(qrel[EVALUATION_DATA_SCHEMA.IN]) for qrel in qrels)
+    )
+    if ordered_query_inputs:
+        return set(ordered_query_inputs[:max_queries])
+    return {str(query[EVALUATION_DATA_SCHEMA.IN]) for query in queries[:max_queries]}
 
 
 def select_documents(
@@ -284,16 +297,18 @@ def select_documents(
     seen: set[str] = set()
 
     for document in documents:
-        if document["id"] in required_document_ids:
+        document_id = str(document[EVALUATION_DATA_SCHEMA.doc_id])
+        if document_id in required_document_ids:
             selected.append(document)
-            seen.add(document["id"])
+            seen.add(document_id)
 
     for document in documents:
         if len(selected) >= max_documents:
             break
-        if document["id"] not in seen:
+        document_id = str(document[EVALUATION_DATA_SCHEMA.doc_id])
+        if document_id not in seen:
             selected.append(document)
-            seen.add(document["id"])
+            seen.add(document_id)
 
     return selected
 

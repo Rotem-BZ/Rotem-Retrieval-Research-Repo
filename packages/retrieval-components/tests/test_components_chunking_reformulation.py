@@ -3,8 +3,8 @@ from types import ModuleType
 
 from haystack import Document
 
-from retrieval_components.components.chunking import LangChainDocumentSplitter
-from retrieval_components.components.reformulation import HttpQueryReformulator
+from retrieval_components.chunking import LangChainDocumentSplitter
+from retrieval_components.reformulation import HttpQueryReformulator
 
 
 def test_langchain_document_splitter_uses_configured_splitter(monkeypatch) -> None:
@@ -50,7 +50,7 @@ def test_http_query_reformulator_posts_query_and_extracts_response(monkeypatch) 
         return FakeResponse()
 
     monkeypatch.setattr(
-        "retrieval_components.components.reformulation.http_query_reformulator.requests.post",
+        "retrieval_components.reformulation.http_query_reformulator.requests.post",
         fake_post,
     )
 

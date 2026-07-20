@@ -1,10 +1,10 @@
 components:
   input:
-    type: retrieval_components.components.interfaces.stage_io.InferenceInput
+    type: retrieval_components.interfaces.stage_io.InferenceInput
   output:
-    type: retrieval_components.components.interfaces.stage_io.InferenceOutput
+    type: retrieval_components.interfaces.stage_io.InferenceOutput
   retriever:
-    type: retrieval_components.components.retrieval.jsonl_keyword_retriever.JsonlKeywordRetriever
+    type: retrieval_components.retrieval.jsonl_keyword_retriever.JsonlKeywordRetriever
     init_parameters:
       index_path: ${stage.index_path}
       top_k: 5

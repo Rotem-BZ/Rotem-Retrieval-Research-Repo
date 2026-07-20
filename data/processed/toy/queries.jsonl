@@ -1,3 +1,3 @@
-{"id":"q-haystack","text":"How do Haystack pipelines organize retrieval code?"}
-{"id":"q-hydra","text":"How should experiment configuration be composed?"}
-{"id":"q-stages","text":"Why split indexing from querying?"}
+{"query_id":"q-haystack","IN":"q-haystack","query_content":"How do Haystack pipelines organize retrieval code?"}
+{"query_id":"q-hydra","IN":"q-hydra","query_content":"How should experiment configuration be composed?"}
+{"query_id":"q-stages","IN":"q-stages","query_content":"Why split indexing from querying?"}

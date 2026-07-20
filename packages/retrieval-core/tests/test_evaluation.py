@@ -3,8 +3,9 @@ from pathlib import Path
 import pytest
 from omegaconf import OmegaConf
 
+from retrieval_core.data_schema import EVALUATION_DATA_SCHEMA
 from retrieval_core.stages.evaluation import prepare_evaluation_config, run_evaluation
-from retrieval_core.utils.io import write_json, write_predictions
+from retrieval_core.utils.io import write_json, write_jsonl, write_predictions
 
 
 def test_evaluation_reads_prediction_mapping_json(tmp_path: Path) -> None:
@@ -17,15 +18,23 @@ def test_evaluation_reads_prediction_mapping_json(tmp_path: Path) -> None:
         predictions_path,
         [
             {
-                "query_id": "q1",
-                "query": "test query",
+                EVALUATION_DATA_SCHEMA.query_id: "external-q1",
+                EVALUATION_DATA_SCHEMA.IN: "q1",
+                EVALUATION_DATA_SCHEMA.query_content: "test query",
                 "documents": [{"id": "d1", "content": "doc", "meta": {}, "score": 0.5}],
             }
         ],
     )
-    qrels_path.write_text(
-        '{"query_id":"q1","document_id":"d1","relevance":1}\n',
-        encoding="utf-8",
+    write_jsonl(
+        qrels_path,
+        [
+            {
+                EVALUATION_DATA_SCHEMA.IN: "q1",
+                EVALUATION_DATA_SCHEMA.doc_id: "d1",
+                EVALUATION_DATA_SCHEMA.label: 1,
+                "annotation_source": "test",
+            }
+        ],
     )
 
     cfg = OmegaConf.create(
@@ -54,8 +63,9 @@ def test_evaluation_resolves_prediction_path_from_exact_inference_run_id(tmp_pat
         predictions_path,
         [
             {
-                "query_id": "q1",
-                "query": "test query",
+                EVALUATION_DATA_SCHEMA.query_id: "external-q1",
+                EVALUATION_DATA_SCHEMA.IN: "q1",
+                EVALUATION_DATA_SCHEMA.query_content: "test query",
                 "documents": [{"id": "d1", "content": "doc", "meta": {}, "score": 0.5}],
             }
         ],

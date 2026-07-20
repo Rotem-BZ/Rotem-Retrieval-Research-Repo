@@ -1,18 +1,19 @@
 import pytest
 
+from retrieval_core.data_schema import EVALUATION_DATA_SCHEMA
 from retrieval_core.utils.evaluation import evaluate_rankings
 
 
 PREDICTIONS = [
     {
-        "query_id": "q1",
+        EVALUATION_DATA_SCHEMA.IN: "q1",
         "documents": [
             {"id": "d1", "score": 2.0},
             {"id": "d2", "score": 1.0},
         ],
     },
     {
-        "query_id": "q2",
+        EVALUATION_DATA_SCHEMA.IN: "q2",
         "documents": [
             {"id": "d4", "score": 2.0},
             {"id": "d3", "score": 1.0},
@@ -53,7 +54,7 @@ def test_evaluate_rankings_with_torchmetrics() -> None:
 def test_metrics_use_source_document_id_for_chunk_predictions() -> None:
     predictions = [
         {
-            "query_id": "q1",
+            EVALUATION_DATA_SCHEMA.IN: "q1",
             "documents": [
                 {"id": "d2::chunk-0", "meta": {"source_document_id": "d2"}, "score": 3.0},
                 {"id": "d1::chunk-0", "meta": {"source_document_id": "d1"}, "score": 2.0},
@@ -74,7 +75,12 @@ def test_metrics_use_source_document_id_for_chunk_predictions() -> None:
 
 def test_missing_relevant_documents_do_not_become_retrieved() -> None:
     metrics = evaluate_rankings(
-        [{"query_id": "q1", "documents": [{"id": "d2", "score": 1.0}]}],
+        [
+            {
+                EVALUATION_DATA_SCHEMA.IN: "q1",
+                "documents": [{"id": "d2", "score": 1.0}],
+            }
+        ],
         {"q1": {"d1": 1}},
         ["Recall@10", "Precision@10", "HitRate@10"],
     )

@@ -7,13 +7,13 @@ defaults:
 
 components:
   input:
-    type: retrieval_components.components.interfaces.stage_io.InferenceInput
+    type: retrieval_components.interfaces.stage_io.InferenceInput
   query_repeater:
     type: query_repetition_e5.components.QueryRepeater
     init_parameters:
       separator: " "
   output:
-    type: retrieval_components.components.interfaces.stage_io.InferenceOutput
+    type: retrieval_components.interfaces.stage_io.InferenceOutput
 
 connections:
   - sender: input.query

@@ -1,12 +1,14 @@
 components:
   output:
-    type: retrieval_components.components.interfaces.stage_io.IndexingOutput
+    type: retrieval_components.interfaces.stage_io.IndexingOutput
   document_source:
-    type: retrieval_components.components.sources.jsonl_document_source.JsonlDocumentSource
+    type: retrieval_components.sources.jsonl_document_source.JsonlDocumentSource
     init_parameters:
       documents_path: ${dataset.documents_path}
+      id_field: doc_id
+      content_field: text
   indexer:
-    type: retrieval_components.components.indexing.jsonl_document_indexer.JsonlDocumentIndexer
+    type: retrieval_components.indexing.jsonl_document_indexer.JsonlDocumentIndexer
     init_parameters:
       output_path: ${stage.output_dir}/index.jsonl
       overwrite: true

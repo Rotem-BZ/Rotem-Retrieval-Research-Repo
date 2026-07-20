@@ -55,8 +55,9 @@ research projects:
   overlays. Each project groups cards, run definitions, analysis, and reports below
   `experiments/<experiment-slug>/`.
 
-See [components.md](components.md) for the current component inventory and which
-pieces are native Haystack components versus repo-specific adapters.
+See the [retrieval-components README](../packages/retrieval-components/README.md#available-components)
+for the current component inventory and which pieces are native Haystack components
+versus repo-specific adapters.
 
 The main runtime modules are:
 
@@ -114,9 +115,9 @@ defaults:
 
 components:
   input:
-    type: retrieval_components.components.interfaces.stage_io.InferenceInput
+    type: retrieval_components.interfaces.stage_io.InferenceInput
   output:
-    type: retrieval_components.components.interfaces.stage_io.InferenceOutput
+    type: retrieval_components.interfaces.stage_io.InferenceOutput
 
 connections:
   - sender: input.query
@@ -220,13 +221,13 @@ defaults:
 
 components:
   input:
-    type: retrieval_components.components.interfaces.stage_io.InferenceInput
+    type: retrieval_components.interfaces.stage_io.InferenceInput
   query_repeater:
     type: query_repetition_e5.components.QueryRepeater
     init_parameters:
       separator: " "
   output:
-    type: retrieval_components.components.interfaces.stage_io.InferenceOutput
+    type: retrieval_components.interfaces.stage_io.InferenceOutput
 ```
 
 Its graph routes `input.query` through `query_repeater` before the shared query
@@ -298,6 +299,11 @@ fixture is in:
 - `data/processed/toy/documents.jsonl`
 - `data/processed/toy/queries.jsonl`
 - `data/processed/toy/qrels.jsonl`
+
+The canonical field names live in the `EvaluationDataSchema` dataclass in
+`retrieval_core.data_schema`. `IN` is the join key shared by query and qrel
+records; `query_id` remains the query's external identifier. Records may include
+any additional fields.
 
 BEIR datasets are prepared with the cell-marked Python script at
 `packages/retrieval-core/src/retrieval_core/notebooks/prepare_beir.py`, exposed as
@@ -524,13 +530,13 @@ always use the complete stored id.
 
 ## Evaluation, Analysis, and Reporting
 
-Prediction artifacts are JSON objects keyed first by query id and then by
+Prediction artifacts are JSON objects keyed first by query `IN` and then by
 document or chunk id. Each document entry contains retrieved content, score,
 and metadata. Evaluation uses `meta.source_document_id` when present, so several
 retrieved chunks from one source document collapse to one evaluated document.
 
-Qrels with relevance less than or equal to zero are excluded. NDCG uses graded
-relevance; Recall, Precision, HitRate, MAP, and MRR use binary relevance. Record
+Qrels with labels less than or equal to zero are excluded. NDCG uses graded
+labels; Recall, Precision, HitRate, MAP, and MRR use binary relevance. Record
 the exact metric list in the experiment card before inspecting results, and use
 the same list for every run in a comparison.
 
@@ -592,19 +598,19 @@ qrels_path: ${paths.processed_data_dir}/my_dataset/qrels.jsonl
 Document JSONL records should look like:
 
 ```json
-{"id":"doc-1","content":"Text to index.","meta":{}}
+{"doc_id":"doc-1","text":"Text to index.","title":"An optional extra field"}
 ```
 
 Query JSONL records should look like:
 
 ```json
-{"id":"q-1","text":"Search text."}
+{"query_id":"external-q-1","IN":"q-1","query_content":"Search text.","language":"en"}
 ```
 
 Qrels JSONL records should look like:
 
 ```json
-{"query_id":"q-1","document_id":"doc-1","relevance":1}
+{"IN":"q-1","doc_id":"doc-1","label":1,"annotator":"optional"}
 ```
 
 Then select those paths from a project-local dataset config and run the relevant
@@ -620,7 +626,7 @@ uv run stage evaluation dataset=my_dataset stage.inference_run_id=YOUR_EXACT_INF
 ## Implementing Components and Pipelines
 
 Production-ready retrieval code should be added as Haystack components under
-`packages/retrieval-components/src/retrieval_components/components/` or imported
+`packages/retrieval-components/src/retrieval_components/<category>/` or imported
 from another production package.
 
 To add a new indexing pipeline, create a config like:
@@ -628,7 +634,7 @@ To add a new indexing pipeline, create a config like:
 ```yaml
 components:
   output:
-    type: retrieval_components.components.interfaces.stage_io.IndexingOutput
+    type: retrieval_components.interfaces.stage_io.IndexingOutput
   converter:
     type: my_package.components.MyConverter
     init_parameters: {}
@@ -661,9 +667,9 @@ an `output` component. The pipeline graph owns all internal routing:
 ```yaml
 components:
   input:
-    type: retrieval_components.components.interfaces.stage_io.InferenceInput
+    type: retrieval_components.interfaces.stage_io.InferenceInput
   output:
-    type: retrieval_components.components.interfaces.stage_io.InferenceOutput
+    type: retrieval_components.interfaces.stage_io.InferenceOutput
   retriever:
     type: my_package.components.MyRetriever
     init_parameters: {}

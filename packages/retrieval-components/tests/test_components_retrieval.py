@@ -3,16 +3,17 @@ from pathlib import Path
 
 from haystack import Document
 
-from retrieval_components.components.indexing import (
+from retrieval_components.indexing import (
     ElasticsearchDocumentIndexer,
     JsonlDocumentIndexer,
 )
-from retrieval_components.components.ranking import EmbeddingSimilarityRanker
-from retrieval_components.components.retrieval import (
+from retrieval_components.ranking import EmbeddingSimilarityRanker
+from retrieval_components.retrieval import (
     ElasticsearchBM25Retriever,
     JsonlEmbeddingRetriever,
     JsonlKeywordRetriever,
 )
+from retrieval_components.sources import JsonlDocumentSource
 
 
 class FakeElasticsearchClient:
@@ -40,6 +41,27 @@ class FakeElasticsearchClient:
                 ]
             }
         }
+
+
+def test_jsonl_document_source_uses_configured_fields_and_preserves_extras(
+    tmp_path: Path,
+) -> None:
+    documents_path = tmp_path / "source.jsonl"
+    documents_path.write_text(
+        '{"doc_id":"d1","text":"document text","title":"Title","meta":{"split":"test"}}\n',
+        encoding="utf-8",
+    )
+
+    source = JsonlDocumentSource(
+        documents_path=str(documents_path),
+        id_field="doc_id",
+        content_field="text",
+    )
+    document = source.run()["documents"][0]
+
+    assert document.id == "d1"
+    assert document.content == "document text"
+    assert document.meta == {"title": "Title", "split": "test"}
 
 
 def test_elasticsearch_document_indexer_uses_injected_client() -> None:

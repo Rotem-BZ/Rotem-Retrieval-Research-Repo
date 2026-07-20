@@ -1,4 +1,4 @@
-type: retrieval_components.components.preprocessing.text_preprocessor.TextPreprocessor
+type: retrieval_components.preprocessing.text_preprocessor.TextPreprocessor
 init_parameters:
   prefix: ${selections.embedding_model.query_prefix}
   replace_regexes:

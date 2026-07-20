@@ -5,6 +5,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from retrieval_core.data_schema import EVALUATION_DATA_SCHEMA
+
 
 NOTEBOOK_PATH = (
     Path(__file__).parents[1]
@@ -41,7 +43,8 @@ def test_analysis_notebook_joins_qrels_and_summarizes_queries(tmp_path: Path) ->
         predictions_path,
         {
             "q1": {
-                "query": "first query",
+                EVALUATION_DATA_SCHEMA.query_id: "external-q1",
+                EVALUATION_DATA_SCHEMA.query_content: "first query",
                 "documents": {
                     "d1::chunk-0": {
                         "content": "relevant chunk",
@@ -56,7 +59,11 @@ def test_analysis_notebook_joins_qrels_and_summarizes_queries(tmp_path: Path) ->
                     "d2": {"content": "unjudged", "score": 0.7, "meta": {}},
                 },
             },
-            "q2": {"query": "second query", "documents": {}},
+            "q2": {
+                EVALUATION_DATA_SCHEMA.query_id: "external-q2",
+                EVALUATION_DATA_SCHEMA.query_content: "second query",
+                "documents": {},
+            },
         },
     )
     write_json(
@@ -64,8 +71,22 @@ def test_analysis_notebook_joins_qrels_and_summarizes_queries(tmp_path: Path) ->
         {"artifacts": {"predictions": str(predictions_path)}},
     )
     qrels_path.write_text(
-        '{"query_id":"q1","document_id":"d1","relevance":2}\n'
-        '{"query_id":"q2","document_id":"d3","relevance":1}\n',
+        "\n".join(
+            json.dumps(record)
+            for record in [
+                {
+                    EVALUATION_DATA_SCHEMA.IN: "q1",
+                    EVALUATION_DATA_SCHEMA.doc_id: "d1",
+                    EVALUATION_DATA_SCHEMA.label: 2,
+                },
+                {
+                    EVALUATION_DATA_SCHEMA.IN: "q2",
+                    EVALUATION_DATA_SCHEMA.doc_id: "d3",
+                    EVALUATION_DATA_SCHEMA.label: 1,
+                },
+            ]
+        )
+        + "\n",
         encoding="utf-8",
     )
 
