@@ -1,5 +1,8 @@
 from pathlib import Path
 
+import pytest
+
+import build_command
 from build_command import (
     HydraOverride,
     collect_selected_configs,
@@ -7,6 +10,7 @@ from build_command import (
     editable_fields,
     effective_editable_fields,
     extract_required_defaults,
+    find_active_config_dir,
     render_command,
     run_configure,
 )
@@ -21,6 +25,51 @@ CONFIG_DIR = (
     / "configs"
 )
 STAGES_CONFIG_DIR = CONFIG_DIR / "stages"
+
+
+def test_main_exits_cleanly_on_keyboard_interrupt(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    def interrupt(**_: object) -> None:
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(build_command, "run_configure", interrupt)
+
+    with pytest.raises(SystemExit) as exc_info:
+        build_command.main([])
+
+    assert exc_info.value.code == 130
+    assert capsys.readouterr().out == "\nCommand builder cancelled.\n"
+
+
+def test_finds_project_configs_from_nested_working_directory(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    nested = project / "notebooks" / "analysis"
+    configs = project / "configs"
+    nested.mkdir(parents=True)
+    configs.mkdir()
+
+    assert find_active_config_dir(working_dir=nested) == configs.resolve()
+
+
+def test_finds_experiment_configs_before_project_configs(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    experiment = project / "experiments" / "example"
+    nested = experiment / "notebooks"
+    project_choice = project / "configs" / "dataset" / "project.yaml"
+    experiment_choice = experiment / "configs" / "dataset" / "experiment.yaml"
+    project_choice.parent.mkdir(parents=True)
+    experiment_choice.parent.mkdir(parents=True)
+    nested.mkdir()
+    project_choice.write_text("name: project\n", encoding="utf-8")
+    experiment_choice.write_text("name: experiment\n", encoding="utf-8")
+
+    config_dir = find_active_config_dir(working_dir=nested)
+    choices = discover_config_choices("dataset", config_dir=config_dir)
+
+    assert config_dir == (experiment / "configs").resolve()
+    assert [choice.name for choice in choices[:2]] == ["experiment", "project"]
 
 
 def test_discovers_recursive_config_choices() -> None:
@@ -252,7 +301,25 @@ def test_configure_flow_builds_indexing_dummy_command() -> None:
     )
 
 
-def test_configure_flow_builds_inference_dense_command_with_top_k(tmp_path: Path) -> None:
+def test_configure_flow_accepts_generated_dense_index_id(tmp_path: Path) -> None:
+    result, output = _run_with_answers(
+        ["2", "3", "2", "2", "3", "n", "", ""],
+        include_output=True,
+        indexes_dir=tmp_path / "indexes",
+    )
+
+    assert result.command == (
+        "uv run stage indexing dataset=toy pipeline/indexing@pipeline=dense_jsonl "
+        "runtime=gpu selections/embedding_model=e5/small_v2 "
+        "selections.index_id=toy-e5-small-v2-index"
+    )
+    assert result.overrides[-1] == "selections.index_id=toy-e5-small-v2-index"
+    assert "new index id [toy-e5-small-v2-index]: " in output
+
+
+def test_configure_flow_builds_inference_dense_command_with_top_k(
+    tmp_path: Path,
+) -> None:
     result = _run_with_answers(
         [
             "3",
@@ -330,7 +397,7 @@ def test_configure_flow_switches_nested_component_choice_with_mounted_override(
             "7",
             "2",
             "1",
-            "11",
+            "0",
             "1",
             "",
         ],
@@ -367,8 +434,8 @@ def test_configure_flow_edits_nested_selection_field(tmp_path: Path) -> None:
             "3",
             "8",
             "256",
-            "9",
-            "11",
+            "0",
+            "0",
             "1",
             "",
         ],
@@ -407,8 +474,8 @@ def test_configure_flow_shows_updated_value_after_field_edit(tmp_path: Path) -> 
             "my_e5",
             "2",
             "",
-            "9",
-            "11",
+            "0",
+            "0",
             "1",
             "",
         ],
@@ -430,7 +497,9 @@ def test_configure_flow_shows_updated_value_after_field_edit(tmp_path: Path) -> 
     assert "  1. index-1" in output
 
 
-def test_configure_flow_can_list_pipeline_fields_with_list_values(tmp_path: Path) -> None:
+def test_configure_flow_can_list_pipeline_fields_with_list_values(
+    tmp_path: Path,
+) -> None:
     result, output = _run_with_answers(
         [
             "3",
@@ -441,8 +510,8 @@ def test_configure_flow_can_list_pipeline_fields_with_list_values(tmp_path: Path
             "y",
             "4",
             "3",
-            "5",
-            "11",
+            "0",
+            "0",
             "1",
             "",
         ],
@@ -458,6 +527,7 @@ def test_configure_flow_can_list_pipeline_fields_with_list_values(tmp_path: Path
         "selections.index_id=index-1",
     )
     assert any("pipeline.connections = " in line for line in output)
+    assert "  0. Done" in output
 
 
 def _run_with_answers(

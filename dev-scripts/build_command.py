@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import argparse
 import json
+import re
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -113,8 +115,11 @@ def run_configure(
 ) -> BuiltCommand:
     """Run the interactive command builder and print the final command."""
 
-    config_dir = find_config_dir(config_dir)
+    config_dir = find_active_config_dir(config_dir)
     output_fn("Retrieval Research command builder")
+    output_fn("Config search path:")
+    for root in config_roots(config_dir):
+        output_fn(f"  {root}")
     output_fn("")
 
     stage_name = _prompt_menu(
@@ -175,10 +180,44 @@ def run_configure(
     )
 
 
-def main() -> None:
+def main(argv: Sequence[str] | None = None) -> None:
     """Console-script entry point for the command builder."""
 
-    run_configure()
+    parser = argparse.ArgumentParser(
+        description="Interactively build a retrieval stage command."
+    )
+    parser.add_argument(
+        "--config-dir",
+        type=Path,
+        help=(
+            "Primary Hydra configs directory. By default, use the nearest configs/ "
+            "directory at or above the current working directory."
+        ),
+    )
+    args = parser.parse_args(argv)
+    try:
+        run_configure(config_dir=args.config_dir)
+    except KeyboardInterrupt:
+        print("\nCommand builder cancelled.")
+        raise SystemExit(130) from None
+
+
+def find_active_config_dir(
+    config_dir: Path | None = None,
+    *,
+    working_dir: Path | None = None,
+) -> Path:
+    """Find the nearest local config tree, falling back to retrieval-core."""
+
+    if config_dir is not None:
+        return find_config_dir(config_dir)
+
+    current = (working_dir or Path.cwd()).expanduser().resolve()
+    for directory in (current, *current.parents):
+        candidate = directory if directory.name == "configs" else directory / "configs"
+        if candidate.is_dir():
+            return find_config_dir(candidate)
+    return find_config_dir()
 
 
 def discover_config_choices(
@@ -452,12 +491,11 @@ def _prompt_config_graph_edits(
         )
         selected = _prompt_menu(
             "Selected configs:",
-            [*configs, None],
+            configs,
             input_fn=input_fn,
             output_fn=output_fn,
-            format_item=lambda item: (
-                "Done" if item is None else _format_selected_config(item)
-            ),
+            format_item=_format_selected_config,
+            done_option=True,
         )
         if selected is None:
             return
@@ -573,12 +611,11 @@ def _prompt_field_edits(
         )
         field = _prompt_menu(
             f"Editable fields in {selected.label}:",
-            [*fields, None],
+            fields,
             input_fn=input_fn,
             output_fn=output_fn,
-            format_item=lambda item: (
-                "Done" if item is None else f"{item.path} = {_format_value(item.value)}"
-            ),
+            format_item=lambda item: f"{item.path} = {_format_value(item.value)}",
+            done_option=True,
         )
         if field is None:
             return
@@ -669,18 +706,29 @@ def _prompt_configured_overrides(
 
         current_value = _get_config_value(cfg, path, default=None)
         plain_value = _to_plain_value(current_value)
+        has_default = _has_prompt_default(plain_value)
+        if prompt_type == "new_index_id" and not has_default:
+            plain_value = _suggest_index_id(cfg, configured_indexes_dir)
+            has_default = True
         default_text = (
             ", ".join(str(item) for item in plain_value)
             if prompt_type == "comma_list" and isinstance(plain_value, list)
             else _format_value(plain_value)
+            if has_default
+            else "required"
         )
         answer = input_fn(f"{prompt_text} [{default_text}]: ").strip()
         if not answer:
-            if prompt_config.get("require_non_empty", False):
+            if prompt_type == "new_index_id" and has_default:
+                answer = str(plain_value)
+            elif has_default:
+                continue
+            elif prompt_config.get("require_non_empty", False):
                 raise SystemExit(
                     f"At least one value is required when overriding {path}."
                 )
-            continue
+            else:
+                continue
 
         if prompt_type == "new_index_id":
             normalized_index_id = validate_index_id(answer)
@@ -713,6 +761,52 @@ def _prompt_configured_overrides(
         overrides.append(HydraOverride(compose=f"{path}={answer}"))
 
 
+def _has_prompt_default(value: Any) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, str):
+        return bool(value.strip())
+    if isinstance(value, (list, dict)):
+        return bool(value)
+    return True
+
+
+def _suggest_index_id(cfg: Any, indexes_dir: Path) -> str:
+    dataset_name = _get_config_value(cfg, "dataset.name", default="")
+    model_name = _get_config_value(
+        cfg,
+        "selections.embedding_model.artifact_name",
+        default="",
+    )
+    if not model_name:
+        model_name = _get_config_value(
+            cfg,
+            "pipeline.components.embedder.init_parameters.model",
+            default="",
+        )
+        if model_name:
+            model_name = str(model_name).rstrip("/").rsplit("/", 1)[-1]
+
+    parts = [
+        part
+        for value in (dataset_name, model_name, "index")
+        if (part := _index_id_part(value))
+    ]
+    base = "-".join(parts) or "index"
+    existing = set(discover_index_ids(indexes_dir))
+    if base not in existing:
+        return base
+
+    suffix = 2
+    while f"{base}-{suffix}" in existing:
+        suffix += 1
+    return f"{base}-{suffix}"
+
+
+def _index_id_part(value: Any) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", str(value).strip().lower()).strip("-")
+
+
 def _prompt_menu(
     title: str,
     items: Sequence[Any],
@@ -720,19 +814,25 @@ def _prompt_menu(
     input_fn: InputFn,
     output_fn: OutputFn,
     format_item: Callable[[Any], str],
+    done_option: bool = False,
 ) -> Any:
     output_fn(title)
+    if done_option:
+        output_fn("  0. Done")
     for index, item in enumerate(items, start=1):
         output_fn(f"  {index}. {format_item(item)}")
 
+    first_index = 0 if done_option else 1
     while True:
-        answer = input_fn(f"Select 1-{len(items)}: ").strip()
+        answer = input_fn(f"Select {first_index}-{len(items)}: ").strip()
         try:
             index = int(answer)
         except ValueError:
             output_fn("Enter a number from the list.")
             continue
 
+        if done_option and index == 0:
+            return None
         if 1 <= index <= len(items):
             return items[index - 1]
 
