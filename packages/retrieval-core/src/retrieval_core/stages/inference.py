@@ -6,17 +6,17 @@ import asyncio
 from typing import Any
 
 from haystack import AsyncPipeline
-from omegaconf import DictConfig, open_dict
+from omegaconf import DictConfig, OmegaConf
 from tqdm import tqdm
 
 from retrieval_core.data_schema import EVALUATION_DATA_SCHEMA
 from retrieval_core.input_mapping import (
     InferenceMapping,
+    configured_input_mapping_path,
     resolve_inference_mapping,
-    validate_input_mapping_config,
 )
 from retrieval_core.stages.base import StageContext
-from retrieval_core.utils.artifacts import artifact_for_run
+from retrieval_core.utils.artifacts import index_artifact_path
 from retrieval_core.utils.io import project_path, write_predictions
 from retrieval_core.utils.pipelines import load_async_pipeline
 
@@ -50,11 +50,19 @@ async def run_inference(cfg: DictConfig) -> list[dict[str, Any]]:
         },
     )
     inputs: dict[str, Any] = {}
-    if cfg.stage.get("indexing_run_id"):
-        inputs["indexing_run_id"] = str(cfg.stage.indexing_run_id)
-    if cfg.stage.get("index_path"):
-        inputs["index_path"] = str(project_path(cfg.stage.index_path))
-    input_mapping_path = validate_input_mapping_config(cfg)
+    index_parameters = _index_parameters(cfg)
+    if index_parameters:
+        inputs["index_id"] = str(cfg.selections.index_id)
+    index_paths = [
+        str(project_path(index_path))
+        for parameters in index_parameters
+        if (index_path := _configured_index_path(parameters))
+    ]
+    if len(index_paths) == 1:
+        inputs["index_path"] = index_paths[0]
+    elif index_paths:
+        inputs["index_paths"] = index_paths
+    input_mapping_path = configured_input_mapping_path(cfg)
     if input_mapping_path is not None:
         inputs["input_mapping_path"] = str(input_mapping_path)
     context.write_manifest(
@@ -153,20 +161,56 @@ async def _run_query(
 
 
 def prepare_inference_config(cfg: DictConfig) -> None:
-    """Resolve an exact indexing run reference into the configured index path."""
+    """Validate the canonical index selected by an index-backed pipeline."""
 
-    indexing_run_id = cfg.stage.get("indexing_run_id")
-    if indexing_run_id:
-        resolved = artifact_for_run(
-            cfg,
-            stage_name="indexing",
-            run_id=str(indexing_run_id),
-            artifact_name="index",
-        )
-        configured_path = cfg.stage.get("index_path")
-        if configured_path and project_path(configured_path) != resolved:
+    index_parameters = _index_parameters(cfg)
+    selections = cfg.get("selections")
+    index_id = selections.get("index_id") if selections else None
+    if not index_parameters:
+        if index_id:
             raise ValueError(
-                "stage.indexing_run_id and stage.index_path resolve to different artifacts."
+                "selections.index_id is only valid for pipelines with an index_path "
+                "component init parameter."
             )
-        with open_dict(cfg):
-            cfg.stage.index_path = str(resolved)
+        return
+    if index_id is None or not str(index_id).strip():
+        raise ValueError(
+            "The selected inference pipeline requires a non-empty selections.index_id."
+        )
+
+    expected_path = index_artifact_path(cfg.paths.indexes_dir, str(index_id))
+    configured_paths = [_configured_index_path(parameters) for parameters in index_parameters]
+    for configured_path in configured_paths:
+        resolved_path = project_path(configured_path)
+        if resolved_path != expected_path:
+            raise ValueError(
+                "Every component index_path must resolve from paths.indexes_dir and "
+                "selections.index_id."
+            )
+    if not expected_path.is_file():
+        raise FileNotFoundError(
+            f"No index exists with selections.index_id={index_id!r}: {expected_path}"
+        )
+
+
+def _index_parameters(cfg: DictConfig) -> list[DictConfig]:
+    """Return component init-parameter mappings that declare an index path."""
+
+    pipeline = cfg.get("pipeline")
+    components = pipeline.get("components") if pipeline else None
+    if not components:
+        return []
+    parameters: list[DictConfig] = []
+    for component in components.values():
+        init_parameters = component.get("init_parameters")
+        if init_parameters is not None and "index_path" in init_parameters.keys():
+            parameters.append(init_parameters)
+    return parameters
+
+
+def _configured_index_path(parameters: DictConfig) -> Any:
+    """Read an index path without resolving OmegaConf's mandatory-value sentinel."""
+
+    if OmegaConf.is_missing(parameters, "index_path"):
+        return None
+    return parameters.get("index_path")

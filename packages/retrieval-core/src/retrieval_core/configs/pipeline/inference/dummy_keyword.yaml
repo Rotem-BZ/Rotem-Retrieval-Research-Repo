@@ -1,3 +1,7 @@
+defaults:
+  - /selections@_global_.selections: index
+  - _self_
+
 components:
   input:
     type: retrieval_components.interfaces.stage_io.InferenceInput
@@ -6,7 +10,7 @@ components:
   retriever:
     type: retrieval_components.retrieval.jsonl_keyword_retriever.JsonlKeywordRetriever
     init_parameters:
-      index_path: ${stage.index_path}
+      index_path: ${paths.indexes_dir}/${selections.index_id}/index.jsonl
       top_k: 5
 
 connections:

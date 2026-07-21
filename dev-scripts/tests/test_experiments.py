@@ -68,6 +68,7 @@ def test_create_run_splits_group_selections_from_value_fields(tmp_path: Path) ->
         (
             "dataset=toy",
             "pipeline/indexing@pipeline=dummy_jsonl",
+            "runtime=cpu",
             "runtime.concurrency_limit=2",
         ),
         config_dir=experiment / "configs",
@@ -76,6 +77,7 @@ def test_create_run_splits_group_selections_from_value_fields(tmp_path: Path) ->
     assert groups == (
         ("dataset", "toy"),
         ("pipeline/indexing@pipeline", "dummy_jsonl"),
+        ("runtime", "cpu"),
     )
     assert fields == {"runtime": {"concurrency_limit": 2}}
 
@@ -245,11 +247,11 @@ def _experiment(root: Path, *, name: str = "example") -> Path:
   - /stages/indexing
   - override /dataset: toy
   - override /pipeline/indexing@pipeline: dummy_jsonl
+  - override /runtime: cpu
   - _self_
 
-runtime:
-  device:
-    device: cpu
+selections:
+  index_id: test-index
 """,
         encoding="utf-8",
     )

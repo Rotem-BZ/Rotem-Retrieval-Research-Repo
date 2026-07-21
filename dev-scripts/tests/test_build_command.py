@@ -53,11 +53,10 @@ def test_dataset_choices_do_not_include_nested_mapping_configs() -> None:
     ]
 
 
-def test_discovers_builtin_input_mapping_choices() -> None:
-    choices = discover_config_choices("input_mapping", config_dir=CONFIG_DIR)
+def test_discovers_builtin_input_mapping_recipe_choices() -> None:
+    choices = discover_config_choices("input_mapping_recipe", config_dir=CONFIG_DIR)
 
     assert [choice.name for choice in choices] == [
-        "full",
         "dev_tiny",
         "judged_only",
         "random_smoke",
@@ -73,6 +72,7 @@ def test_extracts_required_defaults_from_stage_and_pipeline_configs() -> None:
     assert [(item.group, item.override_key) for item in stage_required] == [
         ("dataset", "dataset"),
         ("pipeline/indexing", "pipeline/indexing@pipeline"),
+        ("runtime", "runtime"),
     ]
     assert [(item.group, item.override_key) for item in pipeline_required] == [
         ("selections/embedding_model", "selections/embedding_model"),
@@ -87,6 +87,7 @@ def test_collects_selected_config_graph_with_mount_prefixes() -> None:
             HydraOverride("dataset=toy"),
             HydraOverride("pipeline/inference@pipeline=dense_jsonl"),
             HydraOverride("selections/embedding_model=e5/small_v2"),
+            HydraOverride("runtime=gpu"),
         ],
         config_dir=CONFIG_DIR,
     )
@@ -95,8 +96,12 @@ def test_collects_selected_config_graph_with_mount_prefixes() -> None:
         ("stage inference", "", "stage"),
         ("paths=local", "paths", "default"),
         ("dataset=toy", "dataset", "selected"),
-        ("input_mapping=full", "input_mapping", "default"),
         ("pipeline/inference@pipeline=dense_jsonl", "pipeline", "selected"),
+        (
+            "selections=index",
+            "selections",
+            "default",
+        ),
         (
             "selections/embedding_model=e5/small_v2",
             "selections.embedding_model",
@@ -117,6 +122,7 @@ def test_collects_selected_config_graph_with_mount_prefixes() -> None:
             "pipeline.components.retriever",
             "default",
         ),
+        ("runtime=gpu", "runtime", "selected"),
     ]
 
 
@@ -128,6 +134,7 @@ def test_editable_fields_render_against_mounted_package_path() -> None:
             HydraOverride("dataset=toy"),
             HydraOverride("pipeline/inference@pipeline=dense_jsonl"),
             HydraOverride("selections/embedding_model=e5/small_v2"),
+            HydraOverride("runtime=gpu"),
         ],
         config_dir=CONFIG_DIR,
     )
@@ -151,6 +158,7 @@ def test_effective_editable_fields_reflect_current_overrides() -> None:
             HydraOverride("pipeline/inference@pipeline=dense_jsonl"),
             HydraOverride("selections/embedding_model=e5/small_v2"),
             HydraOverride("selections.embedding_model.artifact_name=my_e5"),
+            HydraOverride("runtime=gpu"),
         ],
         config_dir=CONFIG_DIR,
     )
@@ -164,6 +172,7 @@ def test_effective_editable_fields_reflect_current_overrides() -> None:
             HydraOverride("pipeline/inference@pipeline=dense_jsonl"),
             HydraOverride("selections/embedding_model=e5/small_v2"),
             HydraOverride("selections.embedding_model.artifact_name=my_e5"),
+            HydraOverride("runtime=gpu"),
         ],
     )
 
@@ -183,10 +192,11 @@ def test_effective_editable_fields_convert_composed_list_values() -> None:
             HydraOverride("dataset=toy"),
             HydraOverride("pipeline/inference@pipeline=dense_jsonl"),
             HydraOverride("selections/embedding_model=e5/small_v2"),
+            HydraOverride("runtime=gpu"),
         ],
         config_dir=CONFIG_DIR,
     )
-    pipeline = selected[4]
+    pipeline = selected[3]
 
     fields = effective_editable_fields(
         pipeline,
@@ -195,6 +205,7 @@ def test_effective_editable_fields_convert_composed_list_values() -> None:
             HydraOverride("dataset=toy"),
             HydraOverride("pipeline/inference@pipeline=dense_jsonl"),
             HydraOverride("selections/embedding_model=e5/small_v2"),
+            HydraOverride("runtime=gpu"),
         ],
     )
 
@@ -215,55 +226,61 @@ def test_render_command_preserves_hydra_override_syntax() -> None:
             HydraOverride("dataset=toy"),
             HydraOverride("pipeline/inference@pipeline=dense_jsonl"),
             HydraOverride("selections/embedding_model=e5/small_v2"),
+            HydraOverride("runtime=gpu"),
         ],
     )
 
     assert (
         command == "uv run stage inference dataset=toy "
-        "pipeline/inference@pipeline=dense_jsonl selections/embedding_model=e5/small_v2"
+        "pipeline/inference@pipeline=dense_jsonl selections/embedding_model=e5/small_v2 "
+        "runtime=gpu"
     )
 
 
 def test_configure_flow_builds_indexing_dummy_command() -> None:
-    result = _run_with_answers(["2", "3", "3", "n", "toy_index", ""])
+    result = _run_with_answers(["2", "3", "3", "2", "n", "toy-index", ""])
 
     assert result.command == (
         "uv run stage indexing dataset=toy pipeline/indexing@pipeline=dummy_jsonl "
-        "stage.run_name=toy_index"
+        "runtime=gpu selections.index_id=toy-index"
     )
     assert result.overrides == (
         "dataset=toy",
         "pipeline/indexing@pipeline=dummy_jsonl",
-        "stage.run_name=toy_index",
+        "runtime=gpu",
+        "selections.index_id=toy-index",
     )
 
 
-def test_configure_flow_builds_inference_dense_command_with_top_k() -> None:
+def test_configure_flow_builds_inference_dense_command_with_top_k(tmp_path: Path) -> None:
     result = _run_with_answers(
         [
             "3",
             "3",
             "4",
+            "2",
             "3",
             "n",
-            "",
-            "toy_dense",
+            "1",
             "pipeline.components.retriever.init_parameters.top_k=100",
             "",
-        ]
+        ],
+        indexes_dir=tmp_path / "indexes",
     )
 
     assert result.command == (
         "uv run stage inference dataset=toy pipeline/inference@pipeline=dense_jsonl "
+        "runtime=gpu "
         "selections/embedding_model=e5/small_v2 "
-        "stage.run_name=toy_dense "
+        "selections.index_id=index-1 "
         "pipeline.components.retriever.init_parameters.top_k=100"
     )
     assert result.overrides == (
         "dataset=toy",
         "pipeline/inference@pipeline=dense_jsonl",
+        "runtime=gpu",
         "selections/embedding_model=e5/small_v2",
-        "stage.run_name=toy_dense",
+        "selections.index_id=index-1",
         "pipeline.components.retriever.init_parameters.top_k=100",
     )
 
@@ -285,64 +302,65 @@ def test_configure_flow_builds_evaluation_command_with_metrics() -> None:
     )
 
 
-def test_configure_flow_switches_default_input_mapping_choice() -> None:
-    result = _run_with_answers(
-        ["3", "3", "5", "y", "4", "2", "2", "6", "", "toy_keyword", ""]
+def test_render_inference_command_accepts_prepared_input_mapping_name() -> None:
+    command = render_command(
+        "inference",
+        [
+            HydraOverride("dataset=toy"),
+            HydraOverride("pipeline/inference@pipeline=dummy_keyword"),
+            HydraOverride("runtime=cpu"),
+            HydraOverride("input_mapping=toy_dev"),
+        ],
     )
 
-    assert result.command == (
-        "uv run stage inference dataset=toy pipeline/inference@pipeline=dummy_keyword "
-        "input_mapping=dev_tiny stage.run_name=toy_keyword"
-    )
-    assert result.overrides == (
-        "dataset=toy",
-        "pipeline/inference@pipeline=dummy_keyword",
-        "input_mapping=dev_tiny",
-        "stage.run_name=toy_keyword",
-    )
+    assert command.endswith("input_mapping=toy_dev")
 
 
-def test_configure_flow_switches_nested_component_choice_with_mounted_override() -> (
-    None
-):
+def test_configure_flow_switches_nested_component_choice_with_mounted_override(
+    tmp_path: Path,
+) -> None:
     result = _run_with_answers(
         [
             "3",
             "3",
             "4",
+            "2",
             "3",
             "y",
             "7",
             "2",
             "1",
-            "10",
+            "11",
+            "1",
             "",
-            "toy_dense",
-            "",
-        ]
+        ],
+        indexes_dir=tmp_path / "indexes",
     )
 
     assert result.command == (
         "uv run stage inference dataset=toy pipeline/inference@pipeline=dense_jsonl "
+        "runtime=gpu "
         "selections/embedding_model=e5/small_v2 "
         "component/query_preprocessor@pipeline.components.query_preprocessor=prefix_cleanup "
-        "stage.run_name=toy_dense"
+        "selections.index_id=index-1"
     )
     assert result.overrides == (
         "dataset=toy",
         "pipeline/inference@pipeline=dense_jsonl",
+        "runtime=gpu",
         "selections/embedding_model=e5/small_v2",
         "component/query_preprocessor@pipeline.components.query_preprocessor=prefix_cleanup",
-        "stage.run_name=toy_dense",
+        "selections.index_id=index-1",
     )
 
 
-def test_configure_flow_edits_nested_selection_field() -> None:
+def test_configure_flow_edits_nested_selection_field(tmp_path: Path) -> None:
     result = _run_with_answers(
         [
             "3",
             "3",
             "4",
+            "2",
             "3",
             "y",
             "6",
@@ -350,34 +368,37 @@ def test_configure_flow_edits_nested_selection_field() -> None:
             "8",
             "256",
             "9",
-            "10",
+            "11",
+            "1",
             "",
-            "toy_dense",
-            "",
-        ]
+        ],
+        indexes_dir=tmp_path / "indexes",
     )
 
     assert result.command == (
         "uv run stage inference dataset=toy pipeline/inference@pipeline=dense_jsonl "
+        "runtime=gpu "
         "selections/embedding_model=e5/small_v2 "
         "selections.embedding_model.tokenizer_kwargs.model_max_length=256 "
-        "stage.run_name=toy_dense"
+        "selections.index_id=index-1"
     )
     assert result.overrides == (
         "dataset=toy",
         "pipeline/inference@pipeline=dense_jsonl",
+        "runtime=gpu",
         "selections/embedding_model=e5/small_v2",
         "selections.embedding_model.tokenizer_kwargs.model_max_length=256",
-        "stage.run_name=toy_dense",
+        "selections.index_id=index-1",
     )
 
 
-def test_configure_flow_shows_updated_value_after_field_edit() -> None:
+def test_configure_flow_shows_updated_value_after_field_edit(tmp_path: Path) -> None:
     result, output = _run_with_answers(
         [
             "3",
             "3",
             "4",
+            "2",
             "3",
             "y",
             "6",
@@ -387,64 +408,81 @@ def test_configure_flow_shows_updated_value_after_field_edit() -> None:
             "2",
             "",
             "9",
-            "10",
-            "",
-            "toy_dense",
+            "11",
+            "1",
             "",
         ],
         include_output=True,
+        indexes_dir=tmp_path / "indexes",
     )
 
     assert result.overrides == (
         "dataset=toy",
         "pipeline/inference@pipeline=dense_jsonl",
+        "runtime=gpu",
         "selections/embedding_model=e5/small_v2",
         "selections.embedding_model.artifact_name=my_e5",
-        "stage.run_name=toy_dense",
+        "selections.index_id=index-1",
     )
     assert any(
         "selections.embedding_model.artifact_name = my_e5" in line for line in output
     )
+    assert "  1. index-1" in output
 
 
-def test_configure_flow_can_list_pipeline_fields_with_list_values() -> None:
+def test_configure_flow_can_list_pipeline_fields_with_list_values(tmp_path: Path) -> None:
     result, output = _run_with_answers(
         [
             "3",
             "3",
             "4",
+            "2",
             "3",
             "y",
-            "5",
+            "4",
             "3",
             "5",
-            "10",
-            "",
-            "toy_dense",
+            "11",
+            "1",
             "",
         ],
         include_output=True,
+        indexes_dir=tmp_path / "indexes",
     )
 
     assert result.overrides == (
         "dataset=toy",
         "pipeline/inference@pipeline=dense_jsonl",
+        "runtime=gpu",
         "selections/embedding_model=e5/small_v2",
-        "stage.run_name=toy_dense",
+        "selections.index_id=index-1",
     )
     assert any("pipeline.connections = " in line for line in output)
 
 
-def _run_with_answers(answers: list[str], *, include_output: bool = False):
+def _run_with_answers(
+    answers: list[str],
+    *,
+    include_output: bool = False,
+    indexes_dir: Path | None = None,
+):
     remaining = list(answers)
     output: list[str] = []
+
+    if indexes_dir is not None:
+        index_dir = indexes_dir / "index-1"
+        index_dir.mkdir(parents=True)
+        (index_dir / "index.jsonl").touch()
 
     def input_fn(prompt: str) -> str:
         output.append(prompt)
         return remaining.pop(0)
 
     result = run_configure(
-        input_fn=input_fn, output_fn=output.append, config_dir=CONFIG_DIR
+        input_fn=input_fn,
+        output_fn=output.append,
+        config_dir=CONFIG_DIR,
+        indexes_dir=indexes_dir,
     )
 
     assert not remaining

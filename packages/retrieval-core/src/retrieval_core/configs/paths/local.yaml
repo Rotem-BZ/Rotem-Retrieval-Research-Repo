@@ -5,4 +5,5 @@ interim_data_dir: ${paths.data_dir}/interim
 processed_data_dir: ${paths.data_dir}/processed
 artifacts_dir: ${paths.project_root}/artifacts
 runs_dir: ${paths.artifacts_dir}/runs
+indexes_dir: ${paths.artifacts_dir}/indexes
 input_mappings_dir: ${paths.artifacts_dir}/input_mappings

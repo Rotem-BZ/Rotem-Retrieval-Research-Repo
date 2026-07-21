@@ -61,12 +61,12 @@ dataset and index once, then launch inference from this project directory:
 
 ```shell
 uv run prepare-beir --data-dir data --dataset scifact
-uv run stage indexing dataset=beir_scifact pipeline/indexing@pipeline=dense_jsonl selections/embedding_model=e5/small_v2 runtime.device.device=cpu stage.run_id=e5-small-index
-uv run stage inference dataset=beir_scifact pipeline/inference@pipeline=dense_query_repetition selections/embedding_model=e5/small_v2 runtime.device.device=cpu stage.indexing_run_id=e5-small-index runtime.query_concurrency_limit=8
+uv run stage indexing dataset=beir_scifact runtime=cpu pipeline/indexing@pipeline=dense_jsonl selections/embedding_model=e5/small_v2 selections.index_id=e5-small-index stage.run_id=e5-small-indexing
+uv run stage inference dataset=beir_scifact runtime=cpu pipeline/inference@pipeline=dense_query_repetition selections/embedding_model=e5/small_v2 selections.index_id=e5-small-index runtime.query_concurrency_limit=8
 ```
 
-Indexing run IDs are immutable. Change `e5-small-index` before repeating the indexing
-command, and pass the same new ID to `stage.indexing_run_id` during inference.
+Index IDs are immutable. Change `e5-small-index` before repeating the indexing command,
+and pass the same new ID as `selections.index_id` during inference.
 
 The important comparison is the sign and size of the delta, especially for
 `NDCG@10`, `Recall@10`, and `MRR@50`. Because this is one dataset and one run, treat

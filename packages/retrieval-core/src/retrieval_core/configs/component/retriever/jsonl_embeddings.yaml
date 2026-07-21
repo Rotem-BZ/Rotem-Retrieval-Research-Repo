@@ -1,5 +1,5 @@
 type: retrieval_components.retrieval.jsonl_embedding_retriever.JsonlEmbeddingRetriever
 init_parameters:
-  index_path: ${stage.index_path}
+  index_path: ${paths.indexes_dir}/${selections.index_id}/index.jsonl
   top_k: 5
   similarity: ${selections.embedding_model.similarity}

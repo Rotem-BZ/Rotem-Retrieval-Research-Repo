@@ -138,9 +138,10 @@ The command line supplies the model selection separately from the topology:
 ```bash
 uv run stage inference \
   dataset=beir_scifact \
+  runtime=gpu \
   pipeline/inference@pipeline=dense_jsonl \
   selections/embedding_model=e5/small_v2 \
-  stage.indexing_run_id=YOUR_EXACT_INDEXING_RUN_ID
+  selections.index_id=YOUR_INDEX_ID
 ```
 
 This keeps written configs reusable: pipeline configs describe how components
@@ -288,9 +289,10 @@ Config groups provide reusable prefills:
 
 - `configs/dataset/` contains dataset names and file paths.
 - `configs/paths/` contains artifact layout choices.
-- `configs/input_mapping/` contains reusable inference candidate-set recipes.
-  The default `input_mapping=full` is virtual and uses all dataset queries and
-  documents without writing a giant JSON file.
+- `configs/input_mapping_recipe/` contains reusable candidate-set recipes for the
+  `prepare_mapping` stage. Inference uses all dataset queries and documents when
+  its `input_mapping` path is null.
+- `configs/runtime/` contains the required `gpu` and `cpu` execution profiles.
 - `configs/selections/` contains semantic experiment selections such as embedding
   model families and checkpoints.
 - `configs/component/` contains reusable Haystack component fragments.
@@ -329,24 +331,40 @@ under the `pipeline` field. The Python runner resolves Hydra interpolation,
 serializes that field to YAML, loads it with Haystack, and executes it as an
 `AsyncPipeline`.
 
+Index-backed pipeline templates derive their component paths from
+`paths.indexes_dir` and the global `selections.index_id`. Indexing writes
+`<indexes-dir>/<index-id>/index.jsonl`, and inference validates that exact artifact
+before loading Haystack. The pipeline defaults list mounts the index selection into
+the global `selections` package, just like an embedding-model selection. Candidate-only
+pipelines omit that default, have no `index_path` parameter, and therefore compose
+without an `index_id` field.
+
 ### Input Mappings
 
-Inference always resolves an input mapping. By default, `input_mapping=full`
-uses every query and every document in the selected dataset without storing a
-large file of all ids. Generated mappings are selected as reusable recipes at
-the root config level and prepared explicitly before inference:
+Inference uses every query and every document in the selected dataset when
+`input_mapping` is null. Smaller candidate sets are selected as reusable recipes
+for `prepare_mapping` and written under the stage run id:
 
 ```bash
 uv run stage prepare_mapping \
   dataset=beir_scifact \
-  input_mapping=dev_tiny
+  input_mapping_recipe=dev_tiny \
+  stage.run_id=scifact_dev_tiny
 ```
 
-The prepared mapping can then be reused by any number of inference runs that
-select `input_mapping=dev_tiny`. Its content-addressed cache key includes both
-the recipe and SHA-256 fingerprints of the documents, queries, and qrels files.
+Inference selects the prepared folder by name under `paths.input_mappings_dir`,
+so the chosen artifact is explicit and can be reused by any number of runs:
 
-Materialized mappings are plain JSON objects keyed by query id:
+```bash
+uv run stage inference \
+  dataset=beir_scifact \
+  runtime=cpu \
+  input_mapping=scifact_dev_tiny \
+  pipeline/inference@pipeline=dense_candidate_reranker \
+  selections/embedding_model=e5/small_v2
+```
+
+Materialized mappings are plain JSON objects keyed by query input (`IN`):
 
 ```json
 {
@@ -359,9 +377,8 @@ queries. Candidate ids and materialized candidate `Document` objects are passed
 to each inference pipeline through the fixed `input` interface component; each
 pipeline decides which internal components consume them.
 
-Useful built-in recipes live under `configs/input_mapping/`:
+Useful built-in recipes live under `configs/input_mapping_recipe/`:
 
-- `full`: virtual default; all queries against all documents, with no mapping JSON.
 - `judged_only`: all queries, but only documents with qrel annotations for each query.
 - `dev_tiny`: two-query development pool with easy negatives and cross-query positives.
 - `random_smoke`: two-query smoke-test pool with one random extra document per query.
@@ -369,16 +386,33 @@ Useful built-in recipes live under `configs/input_mapping/`:
 Prepared mappings are stored outside the dataset tree:
 
 ```text
-artifacts/input_mappings/toy/dev_tiny.<cache-key>.json
-artifacts/input_mappings/toy/dev_tiny.<cache-key>.meta.json
+artifacts/input_mappings/<run-id>/input_mapping.json
+artifacts/input_mappings/<run-id>/meta.json
 ```
 
-The mapping JSON remains pure candidate data. The `.meta.json` sidecar records
-the generation seed, recipe hash, source paths, subset sizes, and candidate
-count summary.
+The mapping JSON remains pure candidate data. `meta.json` records the run id,
+dataset, recipe parameters, subset sizes, and candidate-count summary. Run ids
+are unique: preparation refuses to overwrite an existing mapping directory.
 Generation always includes every document with any qrel annotation for each
 selected query. Gold-passage negatives are sampled from documents relevant to a
 different query while excluding every document annotated for the current query.
+
+A complete reranking example over the toy dataset is:
+
+```powershell
+uv run stage prepare_mapping `
+  dataset=toy `
+  input_mapping_recipe=dev_tiny `
+  stage.run_id=toy_dev_tiny
+
+uv run stage inference `
+  dataset=toy `
+  runtime=cpu `
+  input_mapping=toy_dev_tiny `
+  pipeline/inference@pipeline=dense_candidate_reranker `
+  selections/embedding_model=e5/small_v2 `
+  stage.run_id=toy_e5_rerank
+```
 
 ### Abstract E5 Dense Pipelines
 
@@ -390,15 +424,18 @@ dense topologies and select E5 through `selections/embedding_model`:
 ```powershell
 uv run stage indexing `
   dataset=beir_scifact `
+  runtime=gpu `
   pipeline/indexing@pipeline=dense_jsonl `
-  selections/embedding_model=e5/small_v2
+  selections/embedding_model=e5/small_v2 `
+  selections.index_id=YOUR_NEW_INDEX_ID
 ```
 
 ```powershell
 uv run stage inference `
   dataset=beir_scifact `
+  runtime=gpu `
   pipeline/inference@pipeline=dense_jsonl `
-  stage.indexing_run_id=YOUR_EXACT_INDEXING_RUN_ID `
+  selections.index_id=YOUR_INDEX_ID `
   selections/embedding_model=e5/small_v2 `
   pipeline.components.retriever.init_parameters.top_k=100
 ```
@@ -413,15 +450,18 @@ selections:
 ```powershell
 uv run stage indexing `
   dataset=beir_scifact `
+  runtime=gpu `
   pipeline/indexing@pipeline=dense_chunked_jsonl `
-  selections/embedding_model=e5/small_v2
+  selections/embedding_model=e5/small_v2 `
+  selections.index_id=YOUR_NEW_CHUNKED_INDEX_ID
 ```
 
 ```powershell
 uv run stage inference `
   dataset=beir_scifact `
+  runtime=gpu `
   pipeline/inference@pipeline=dense_chunked_jsonl `
-  stage.indexing_run_id=YOUR_EXACT_INDEXING_RUN_ID `
+  selections.index_id=YOUR_CHUNKED_INDEX_ID `
   selections/embedding_model=e5/small_v2 `
   pipeline.components.retriever.init_parameters.top_k=100
 ```
@@ -437,19 +477,20 @@ topology. This embeds `input.candidate_documents`, embeds the query, scores by
 embedding similarity, and writes ranked documents through `output`:
 
 ```powershell
-uv run stage prepare_mapping dataset=beir_scifact input_mapping=judged_only
+uv run stage prepare_mapping dataset=beir_scifact input_mapping_recipe=judged_only stage.run_id=scifact_judged_only
 
 uv run stage inference `
   dataset=beir_scifact `
-  input_mapping=judged_only `
+  runtime=gpu `
+  input_mapping=scifact_judged_only `
   pipeline/inference@pipeline=dense_candidate_reranker `
   selections/embedding_model=e5/small_v2 `
   pipeline.components.ranker.init_parameters.top_k=10
 ```
 
-For larger candidate pools, create or select an `input_mapping` that limits the
-documents per query before reranking. Without a mapping, `input_mapping=full`
-passes every dataset document as a candidate.
+For larger candidate pools, prepare an input mapping that limits the documents
+per query before reranking. With `input_mapping=null`, every dataset document is
+passed as a candidate.
 
 To rerank the same candidate pool with a cross-encoder, select a reranker model
 such as BGE reranker v2 M3:
@@ -457,10 +498,11 @@ such as BGE reranker v2 M3:
 ```powershell
 uv run stage inference `
   dataset=beir_scifact `
-  input_mapping=judged_only `
+  runtime=gpu `
+  input_mapping=scifact_judged_only `
   pipeline/inference@pipeline=cross_encoder_candidate_reranker `
   selections/reranker_model=bge/v2_m3 `
-  stage.run_name=bge_v2_m3 `
+  stage.run_id=bge_v2_m3 `
   pipeline.components.ranker.init_parameters.top_k=10
 ```
 
@@ -480,16 +522,16 @@ Every stage has a narrow contract:
 
 | Stage | Required inputs | Durable artifact names |
 | --- | --- | --- |
-| `prepare_mapping` | Dataset plus a generated `input_mapping` recipe | `input_mapping`, `input_mapping_metadata` |
+| `prepare_mapping` | Dataset plus an `input_mapping_recipe` and run id | `input_mapping`, `input_mapping_metadata` |
 | `indexing` | Dataset plus an indexing pipeline | `index` |
 | `inference` | Dataset, inference pipeline, mapping, and any required exact index | `predictions` |
 | `evaluation` | Qrels plus an exact inference run or explicit predictions path | `metrics` |
 
-Generated input mappings are prepared once and cached by recipe and source-file
-fingerprints. `input_mapping=full` is virtual and needs no preparation:
+Generated input mappings are stored under the prepare-mapping run id. Leaving
+inference `input_mapping` null needs no preparation:
 
 ```bash
-uv run stage prepare_mapping dataset=beir_scifact input_mapping=dev_tiny
+uv run stage prepare_mapping dataset=beir_scifact input_mapping_recipe=dev_tiny stage.run_id=scifact_dev_tiny
 ```
 
 The following single-line commands are shell-neutral examples for the
@@ -497,15 +539,16 @@ query-repetition project. Prepare SciFact first and choose unique ids:
 
 ```text
 uv run prepare-beir --data-dir data --dataset scifact
-uv run stage indexing dataset=beir_scifact pipeline/indexing@pipeline=dense_jsonl selections/embedding_model=e5/small_v2 runtime.device.device=cpu stage.run_id=YOUR_UNIQUE_INDEX_RUN_ID
-uv run stage inference dataset=beir_scifact pipeline/inference@pipeline=dense_jsonl selections/embedding_model=e5/small_v2 runtime.device.device=cpu stage.indexing_run_id=YOUR_UNIQUE_INDEX_RUN_ID stage.run_id=YOUR_UNIQUE_INFERENCE_RUN_ID
+uv run stage indexing dataset=beir_scifact runtime=cpu pipeline/indexing@pipeline=dense_jsonl selections/embedding_model=e5/small_v2 selections.index_id=YOUR_UNIQUE_INDEX_ID stage.run_id=YOUR_UNIQUE_INDEXING_RUN_ID
+uv run stage inference dataset=beir_scifact runtime=cpu pipeline/inference@pipeline=dense_jsonl selections/embedding_model=e5/small_v2 selections.index_id=YOUR_UNIQUE_INDEX_ID stage.run_id=YOUR_UNIQUE_INFERENCE_RUN_ID
 uv run stage evaluation dataset=beir_scifact stage.inference_run_id=YOUR_UNIQUE_INFERENCE_RUN_ID stage.run_id=YOUR_UNIQUE_EVALUATION_RUN_ID
 ```
 
 The artifact locations are:
 
 ```text
-artifacts/runs/indexing/<indexing-run-id>/index.jsonl
+artifacts/indexes/<index-id>/index.jsonl
+artifacts/runs/indexing/<indexing-run-id>/{resolved_config.yaml,result.json,manifest.json}
 artifacts/runs/inference/<inference-run-id>/predictions.json
 artifacts/runs/evaluation/<evaluation-run-id>/metrics.json
 ```
@@ -514,23 +557,21 @@ Each saved run contains its outputs, `resolved_config.yaml`, `result.json`, and 
 `manifest.json` with exact input references, artifact paths, the resolved-config
 hash, package/Python versions, and Git commit when available.
 
-All stages accept an optional `stage.run_name` label. It is prepended to the
-resolved `stage.run_id`, whether that id was generated or explicitly supplied:
+`stage.run_id` is the single identifier for a stage run. It defaults to a unique
+timestamp and may be set explicitly when a descriptive or stable id is useful:
 
 ```bash
 uv run stage inference \
   dataset=beir_scifact \
+  runtime=gpu \
   pipeline/inference@pipeline=dense_jsonl \
   selections/embedding_model=e5/small_v2 \
-  stage.indexing_run_id=YOUR_EXACT_INDEXING_RUN_ID \
-  stage.run_name=keyword_smoke
+  selections.index_id=YOUR_INDEX_ID \
+  stage.run_id=keyword_smoke
 ```
 
-With the generated timestamp id, this creates a run id like
-`keyword_smoke_20260623_153000_123456`. If scripts set a descriptive
-`stage.run_id` directly, they should normally omit `stage.run_name`; otherwise
-the exact id becomes `<run-name>_<supplied-run-id>`. Upstream references must
-always use the complete stored id.
+Artifact paths and downstream dependency references use this exact id. Run ids
+are never modified after configuration preparation.
 
 ## Evaluation, Analysis, and Reporting
 
@@ -583,8 +624,8 @@ small overrides on the command line.
 Examples:
 
 ```bash
-uv run stage indexing dataset=beir_scifact pipeline/indexing@pipeline=dense_jsonl selections/embedding_model=e5/small_v2 runtime.device.device=cpu
-uv run stage inference dataset=beir_scifact pipeline/inference@pipeline=dense_jsonl selections/embedding_model=e5/small_v2 stage.indexing_run_id=YOUR_EXACT_INDEXING_RUN_ID pipeline.components.retriever.init_parameters.top_k=10 runtime.device.device=cpu
+uv run stage indexing dataset=beir_scifact runtime=cpu pipeline/indexing@pipeline=dense_jsonl selections/embedding_model=e5/small_v2 selections.index_id=YOUR_NEW_INDEX_ID
+uv run stage inference dataset=beir_scifact runtime=cpu pipeline/inference@pipeline=dense_jsonl selections/embedding_model=e5/small_v2 selections.index_id=YOUR_INDEX_ID pipeline.components.retriever.init_parameters.top_k=10
 uv run stage evaluation dataset=beir_scifact stage.inference_run_id=YOUR_EXACT_INFERENCE_RUN_ID metrics='["Recall@10","MRR@10","NDCG@10","Precision@10","HitRate@10"]'
 ```
 
@@ -622,8 +663,8 @@ pipeline. The following dummy pipelines are useful for contract tests and do not
 require a model:
 
 ```bash
-uv run stage indexing dataset=my_dataset pipeline/indexing@pipeline=dummy_jsonl
-uv run stage inference dataset=my_dataset pipeline/inference@pipeline=dummy_keyword stage.indexing_run_id=YOUR_EXACT_INDEXING_RUN_ID
+uv run stage indexing dataset=my_dataset runtime=cpu pipeline/indexing@pipeline=dummy_jsonl selections.index_id=YOUR_NEW_INDEX_ID
+uv run stage inference dataset=my_dataset runtime=cpu pipeline/inference@pipeline=dummy_keyword selections.index_id=YOUR_INDEX_ID
 uv run stage evaluation dataset=my_dataset stage.inference_run_id=YOUR_EXACT_INFERENCE_RUN_ID
 ```
 
@@ -636,6 +677,10 @@ from another production package.
 To add a new indexing pipeline, create a config like:
 
 ```yaml
+defaults:
+  - /selections@_global_.selections: index
+  - _self_
+
 components:
   output:
     type: retrieval_components.interfaces.stage_io.IndexingOutput
@@ -645,7 +690,7 @@ components:
   writer:
     type: my_package.components.MyIndexer
     init_parameters:
-      output_path: ${stage.output_dir}/index
+      output_path: ${paths.indexes_dir}/${selections.index_id}/index.jsonl
 connections:
   - sender: converter.documents
     receiver: writer.documents
@@ -660,7 +705,7 @@ metadata: {}
 Save it under `configs/pipeline/indexing/my_pipeline.yaml` and select it with:
 
 ```bash
-uv run stage indexing dataset=my_dataset pipeline/indexing@pipeline=my_pipeline
+uv run stage indexing dataset=my_dataset runtime=gpu pipeline/indexing@pipeline=my_pipeline selections.index_id=YOUR_NEW_INDEX_ID
 ```
 
 Inference pipelines follow the same pattern under
@@ -669,6 +714,10 @@ candidate data to an `input` component and reads ranked `Document` objects from
 an `output` component. The pipeline graph owns all internal routing:
 
 ```yaml
+defaults:
+  - /selections@_global_.selections: index
+  - _self_
+
 components:
   input:
     type: retrieval_components.interfaces.stage_io.InferenceInput
@@ -676,7 +725,8 @@ components:
     type: retrieval_components.interfaces.stage_io.InferenceOutput
   retriever:
     type: my_package.components.MyRetriever
-    init_parameters: {}
+    init_parameters:
+      index_path: ${paths.indexes_dir}/${selections.index_id}/index.jsonl
 connections:
   - sender: input.query
     receiver: retriever.query
@@ -726,10 +776,11 @@ defaults:
   - override /dataset: beir_scifact
   - override /pipeline/inference@pipeline: dense_jsonl
   - override /selections/embedding_model@selections.embedding_model: e5/small_v2
+  - override /runtime: gpu
   - _self_
 
-stage:
-  indexing_run_id: EXACT_INDEXING_RUN_ID
+selections:
+  index_id: EXACT_INDEX_ID
 ```
 
 The baseline run is only an entry layer:
@@ -802,19 +853,20 @@ current lanes are terminal.
 - **A required value is `???`:** select the missing config group, usually a
   dataset, pipeline, input mapping, embedding model, or reranker model. The
   interactive `uv run python ../../dev-scripts/build_command.py` flow can discover choices.
-- **Inference cannot find an index:** pass the complete immutable indexing run id
-  in `stage.indexing_run_id`, or explicitly set `stage.index_path` for a legacy
-  artifact. Prefix matching and implicit "latest" resolution are intentionally
-  unsupported.
-- **A generated mapping is missing:** run `stage prepare_mapping` with the same
-  dataset and recipe before executing inference.
+- **Inference cannot find an index:** select a completed directory under
+  `paths.indexes_dir` with `selections.index_id`. The command builder lists valid
+  directories that contain `index.jsonl`. Prefix matching and implicit "latest"
+  resolution are intentionally unsupported. Candidate-only reranking pipelines
+  do not use the selection.
+- **A prepared mapping is missing:** run `stage prepare_mapping` with a unique
+  `stage.run_id`, then pass that folder name as inference `input_mapping`.
 - **The run directory already exists:** choose a new `stage.run_id`. Runs are
   immutable and are never overwritten.
 - **A command works from one directory but not another:** remember that the
   default project root is `.`, so relative data and artifact paths follow the
   current project directory.
-- **A dense pipeline fails on a machine without CUDA:** override
-  `runtime.device.device=cpu` or install and configure the intended CUDA runtime.
+- **A dense pipeline fails on a machine without CUDA:** select `runtime=cpu`
+  instead of `runtime=gpu`.
 
 ## Design Notes
 

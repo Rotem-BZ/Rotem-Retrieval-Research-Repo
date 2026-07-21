@@ -12,12 +12,13 @@ from omegaconf import OmegaConf
 from omegaconf.errors import MissingMandatoryValue
 
 from retrieval_core.stages import STAGE_RUNNERS
+from retrieval_core.utils.artifacts import discover_index_ids, validate_index_id
 from retrieval_core.utils.config import (
     compose_stage_config,
     config_roots,
     find_config_dir,
 )
-from retrieval_core.utils.io import read_yaml_mapping
+from retrieval_core.utils.io import project_path, read_yaml_mapping
 
 InputFn = Callable[[str], str]
 OutputFn = Callable[[str], None]
@@ -108,6 +109,7 @@ def run_configure(
     input_fn: InputFn = input,
     output_fn: OutputFn = print,
     config_dir: Path | None = None,
+    indexes_dir: Path | None = None,
 ) -> BuiltCommand:
     """Run the interactive command builder and print the final command."""
 
@@ -148,6 +150,7 @@ def run_configure(
         input_fn=input_fn,
         output_fn=output_fn,
         config_dir=config_dir,
+        indexes_dir=indexes_dir,
     )
     output_fn("Add any extra Hydra overrides one at a time. Press Enter when done.")
     while answer := input_fn("override: ").strip():
@@ -156,7 +159,7 @@ def run_configure(
     compose_overrides = tuple(override.compose for override in override_items)
     try:
         cfg = compose_stage_config(stage_name, compose_overrides, config_dir=config_dir)
-        OmegaConf.to_container(cfg, resolve=True, throw_on_missing=True)
+        _validate_composed_command_config(cfg)
     except Exception as exc:
         output_fn("")
         output_fn("Could not compose the final config:")
@@ -593,6 +596,7 @@ def _prompt_configured_overrides(
     input_fn: InputFn,
     output_fn: OutputFn,
     config_dir: Path,
+    indexes_dir: Path | None = None,
 ) -> None:
     cfg = compose_stage_config(
         stage_name,
@@ -601,15 +605,20 @@ def _prompt_configured_overrides(
     )
     prompt_items = {
         "indexing": [
-            {"path": "stage.run_name", "prompt": "indexing run name", "type": "value"}
+            {
+                "path": "selections.index_id",
+                "prompt": "new index id",
+                "type": "new_index_id",
+                "require_non_empty": True,
+            },
         ],
         "inference": [
             {
-                "path": "stage.indexing_run_id",
-                "prompt": "exact indexing run id (leave blank for pipelines without an index)",
-                "type": "value",
+                "path": "selections.index_id",
+                "prompt": "index id",
+                "type": "existing_index_id",
+                "only_if_index_backed": True,
             },
-            {"path": "stage.run_name", "prompt": "inference run name", "type": "value"},
         ],
         "evaluation": [
             {
@@ -635,9 +644,29 @@ def _prompt_configured_overrides(
         path = str(prompt_config.get("path", "")).strip()
         if not path:
             continue
+        if prompt_config.get("only_if_index_backed") and not _config_uses_index(cfg):
+            continue
 
         prompt_type = str(prompt_config.get("type", "value"))
         prompt_text = str(prompt_config.get("prompt", f"{path}: ")).rstrip()
+        configured_indexes_dir = indexes_dir or project_path(cfg.paths.indexes_dir)
+        if prompt_type == "existing_index_id":
+            available_index_ids = discover_index_ids(configured_indexes_dir)
+            if not available_index_ids:
+                raise SystemExit(
+                    f"No completed indexes found under {configured_indexes_dir}. "
+                    "Run the indexing stage first."
+                )
+            selected_index_id = _prompt_menu(
+                f"Choose {prompt_text}:",
+                available_index_ids,
+                input_fn=input_fn,
+                output_fn=output_fn,
+                format_item=lambda item: str(item),
+            )
+            overrides.append(HydraOverride(compose=f"{path}={selected_index_id}"))
+            continue
+
         current_value = _get_config_value(cfg, path, default=None)
         plain_value = _to_plain_value(current_value)
         default_text = (
@@ -651,6 +680,16 @@ def _prompt_configured_overrides(
                 raise SystemExit(
                     f"At least one value is required when overriding {path}."
                 )
+            continue
+
+        if prompt_type == "new_index_id":
+            normalized_index_id = validate_index_id(answer)
+            if normalized_index_id in discover_index_ids(configured_indexes_dir):
+                raise SystemExit(
+                    f"Index {normalized_index_id!r} already exists under "
+                    f"{configured_indexes_dir}."
+                )
+            overrides.append(HydraOverride(compose=f"{path}={normalized_index_id}"))
             continue
 
         if prompt_type == "comma_list":
@@ -792,6 +831,26 @@ def _get_config_value(cfg: Any, path: str, *, default: Any) -> Any:
         return _to_plain_value(OmegaConf.select(cfg, path, throw_on_missing=True))
     except (KeyError, MissingMandatoryValue):
         return default
+
+
+def _validate_composed_command_config(cfg: Any) -> None:
+    """Require a fully resolved command configuration."""
+
+    missing_keys = set(OmegaConf.missing_keys(cfg))
+    if missing_keys:
+        missing = ", ".join(sorted(missing_keys))
+        raise MissingMandatoryValue(f"Missing mandatory values: {missing}")
+    OmegaConf.to_container(cfg, resolve=True, throw_on_missing=False)
+
+
+def _config_uses_index(cfg: Any) -> bool:
+    components = OmegaConf.select(cfg, "pipeline.components", default={})
+    if not components:
+        return False
+    return any(
+        "index_path" in component.get("init_parameters", {})
+        for component in components.values()
+    )
 
 
 def _to_plain_value(value: Any) -> Any:

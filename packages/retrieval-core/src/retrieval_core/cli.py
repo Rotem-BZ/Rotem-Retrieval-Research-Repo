@@ -24,8 +24,8 @@ def main(argv: Sequence[str] | None = None) -> StageResult:
         description="Run a retrieval experiment stage.",
         epilog=(
             "Examples:\n"
-            "  stage indexing dataset=toy <required-config-group>=<choice>\n"
-            "  stage inference dataset=toy some.nested.field=value\n"
+            "  stage indexing dataset=toy runtime=gpu <required-config-group>=<choice>\n"
+            "  stage inference dataset=toy runtime=cpu some.nested.field=value\n"
             "  stage materialized/production/toy_dense_indexing_reference"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,

@@ -42,7 +42,6 @@ def test_evaluation_reads_prediction_mapping_json(tmp_path: Path) -> None:
             "stage": {
                 "name": "evaluation",
                 "run_id": "evaluation_1",
-                "run_name": None,
                 "output_dir": str(output_dir),
                 "predictions_path": str(predictions_path),
                 "metrics_path": str(metrics_path),

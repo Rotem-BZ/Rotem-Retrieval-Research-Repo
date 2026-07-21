@@ -7,7 +7,6 @@ defaults:
 
 stage:
   name: evaluation
-  run_name: null
   inference_run_id: null
   run_id: ${now:%Y%m%d_%H%M%S_%f}
   output_dir: ${paths.runs_dir}/${stage.name}/${stage.run_id}
@@ -21,9 +20,3 @@ metrics:
   - MRR@50
   - NDCG@10
   - HitRate@10
-
-hydra:
-  job:
-    chdir: false
-  run:
-    dir: ${paths.runs_dir}/hydra/${stage.name}/${stage.run_id}

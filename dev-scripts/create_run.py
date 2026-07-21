@@ -138,7 +138,6 @@ def _is_launcher_controlled(key: str) -> bool:
     return key in {
         "paths.project_root",
         "stage.run_id",
-        "stage.run_name",
         "experiment",
     } or key.startswith("experiment.")
 

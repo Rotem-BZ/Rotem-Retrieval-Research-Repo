@@ -1,3 +1,7 @@
+defaults:
+  - /selections@_global_.selections: index
+  - _self_
+
 components:
   output:
     type: retrieval_components.interfaces.stage_io.IndexingOutput
@@ -23,8 +27,8 @@ components:
   indexer:
     type: retrieval_components.indexing.jsonl_document_indexer.JsonlDocumentIndexer
     init_parameters:
-      output_path: ${stage.output_dir}/index.jsonl
-      overwrite: true
+      output_path: ${paths.indexes_dir}/${selections.index_id}/index.jsonl
+      overwrite: false
 
 connections:
   - sender: document_source.documents

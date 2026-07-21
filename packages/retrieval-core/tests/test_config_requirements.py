@@ -1,5 +1,6 @@
 import pytest
 from hydra.errors import ConfigCompositionException
+from omegaconf import OmegaConf
 
 from retrieval_core.stages.base import prepare_stage_run_config
 from retrieval_core.utils.config import compose_stage_config
@@ -7,18 +8,38 @@ from retrieval_core.utils.config import compose_stage_config
 
 def test_indexing_requires_dataset_and_pipeline_selection() -> None:
     with pytest.raises(ConfigCompositionException, match="pipeline/indexing@pipeline"):
-        compose_stage_config("indexing")
+        compose_stage_config("indexing", ["runtime=gpu"])
 
     with pytest.raises(ConfigCompositionException, match="dataset"):
-        compose_stage_config("indexing", ["pipeline/indexing@pipeline=dummy_jsonl"])
+        compose_stage_config(
+            "indexing",
+            ["pipeline/indexing@pipeline=dummy_jsonl", "runtime=gpu"],
+        )
 
 
 def test_inference_requires_dataset_and_pipeline_selection() -> None:
     with pytest.raises(ConfigCompositionException, match="pipeline/inference@pipeline"):
-        compose_stage_config("inference", ["dataset=toy"])
+        compose_stage_config("inference", ["dataset=toy", "runtime=gpu"])
 
     with pytest.raises(ConfigCompositionException, match="dataset"):
-        compose_stage_config("inference", ["pipeline/inference@pipeline=dummy_keyword"])
+        compose_stage_config(
+            "inference",
+            ["pipeline/inference@pipeline=dummy_keyword", "runtime=gpu"],
+        )
+
+
+def test_indexing_and_inference_require_runtime_selection() -> None:
+    with pytest.raises(ConfigCompositionException, match="runtime"):
+        compose_stage_config(
+            "indexing",
+            ["dataset=toy", "pipeline/indexing@pipeline=dummy_jsonl"],
+        )
+
+    with pytest.raises(ConfigCompositionException, match="runtime"):
+        compose_stage_config(
+            "inference",
+            ["dataset=toy", "pipeline/inference@pipeline=dummy_keyword"],
+        )
 
 
 def test_evaluation_requires_dataset_selection() -> None:
@@ -26,22 +47,39 @@ def test_evaluation_requires_dataset_selection() -> None:
         compose_stage_config("evaluation")
 
 
+def test_prepare_mapping_requires_explicit_run_id() -> None:
+    cfg = compose_stage_config(
+        "prepare_mapping",
+        ["dataset=toy", "input_mapping_recipe=dev_tiny"],
+    )
+
+    assert OmegaConf.is_missing(cfg.stage, "run_id")
+
+
 def test_explicit_stage_selections_compose() -> None:
     indexing_cfg = compose_stage_config(
         "indexing",
-        ["dataset=toy", "pipeline/indexing@pipeline=dummy_jsonl", "stage.run_name=toy_index"],
+        [
+            "dataset=toy",
+            "pipeline/indexing@pipeline=dummy_jsonl",
+            "runtime=gpu",
+            "selections.index_id=toy-index",
+        ],
     )
     inference_cfg = compose_stage_config(
         "inference",
-        ["dataset=toy", "pipeline/inference@pipeline=dummy_keyword", "stage.run_name=toy_index"],
-    )
-    dev_mapping_cfg = compose_stage_config(
-        "inference",
         [
             "dataset=toy",
-            "input_mapping=dev_tiny",
             "pipeline/inference@pipeline=dummy_keyword",
-            "stage.run_name=toy_index",
+            "runtime=gpu",
+        ],
+    )
+    mapping_cfg = compose_stage_config(
+        "prepare_mapping",
+        [
+            "dataset=toy",
+            "input_mapping_recipe=dev_tiny",
+            "stage.run_id=toy_dev_tiny",
         ],
     )
     evaluation_cfg = compose_stage_config("evaluation", ["dataset=toy"])
@@ -49,43 +87,55 @@ def test_explicit_stage_selections_compose() -> None:
     assert indexing_cfg.dataset.name == "toy"
     assert "indexer" in indexing_cfg.pipeline.components
     assert inference_cfg.dataset.name == "toy"
-    assert inference_cfg.input_mapping.type == "full_dataset"
+    assert inference_cfg.input_mapping is None
     assert "retriever" in inference_cfg.pipeline.components
-    assert dev_mapping_cfg.input_mapping.type == "generated"
-    assert dev_mapping_cfg.input_mapping.name == "dev_tiny"
+    assert mapping_cfg.input_mapping_recipe.type == "generated"
+    assert mapping_cfg.input_mapping_recipe.name == "dev_tiny"
+    assert mapping_cfg.stage.run_id == "toy_dev_tiny"
     assert evaluation_cfg.dataset.name == "toy"
     assert evaluation_cfg.dataset.qrels_path.endswith("data/processed/toy/qrels.jsonl")
 
 
-def test_indexing_and_inference_run_names_are_optional_labels() -> None:
-    indexing_cfg = compose_stage_config(
-        "indexing",
-        ["dataset=toy", "pipeline/indexing@pipeline=dummy_jsonl"],
-    )
-    inference_cfg = compose_stage_config(
+def test_runtime_profiles_select_gpu_or_cpu_device() -> None:
+    common = ["dataset=toy", "pipeline/inference@pipeline=dummy_keyword"]
+
+    gpu_cfg = compose_stage_config("inference", [*common, "runtime=gpu"])
+    cpu_cfg = compose_stage_config("inference", [*common, "runtime=cpu"])
+
+    assert gpu_cfg.runtime.device == {"type": "single", "device": "cuda"}
+    assert cpu_cfg.runtime.device == {"type": "single", "device": "cpu"}
+    assert gpu_cfg.runtime.concurrency_limit == cpu_cfg.runtime.concurrency_limit == 4
+    assert gpu_cfg.runtime.query_concurrency_limit == 4
+
+
+def test_inference_accepts_prepared_input_mapping_name() -> None:
+    cfg = compose_stage_config(
         "inference",
-        ["dataset=toy", "pipeline/inference@pipeline=dummy_keyword"],
+        [
+            "dataset=toy",
+            "runtime=cpu",
+            "input_mapping=toy_dev_tiny",
+            "pipeline/inference@pipeline=dense_candidate_reranker",
+            "selections/embedding_model=e5/small_v2",
+        ],
     )
 
-    assert indexing_cfg.stage.run_name is None
-    assert inference_cfg.stage.run_name is None
+    assert cfg.input_mapping == "toy_dev_tiny"
 
 
-def test_named_inference_run_updates_derived_paths_and_prediction_artifact() -> None:
+def test_explicit_inference_run_id_updates_derived_paths_and_prediction_artifact() -> None:
     cfg = compose_stage_config(
         "inference",
         [
             "dataset=toy",
             "pipeline/inference@pipeline=dummy_keyword",
-            "stage.run_name=bge",
+            "runtime=gpu",
+            "stage.run_id=bge",
         ],
     )
 
-    original_run_id = str(cfg.stage.run_id)
     prepare_stage_run_config(cfg)
 
-    assert cfg.stage.run_id == f"bge_{original_run_id}"
-    assert str(cfg.stage.output_dir).endswith(f"artifacts/runs/inference/bge_{original_run_id}")
-    assert str(cfg.stage.predictions_path).endswith(
-        f"artifacts/runs/inference/bge_{original_run_id}/predictions.json"
-    )
+    assert cfg.stage.run_id == "bge"
+    assert str(cfg.stage.output_dir).endswith("artifacts/runs/inference/bge")
+    assert str(cfg.stage.predictions_path).endswith("artifacts/runs/inference/bge/predictions.json")

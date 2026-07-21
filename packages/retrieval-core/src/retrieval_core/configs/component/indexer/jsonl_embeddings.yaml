@@ -1,4 +1,4 @@
 type: retrieval_components.indexing.jsonl_document_indexer.JsonlDocumentIndexer
 init_parameters:
-  output_path: ${stage.output_dir}/index.jsonl
-  overwrite: true
+  output_path: ${paths.indexes_dir}/${selections.index_id}/index.jsonl
+  overwrite: false

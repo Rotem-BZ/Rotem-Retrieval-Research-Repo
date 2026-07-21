@@ -3,29 +3,16 @@
 defaults:
   - /paths: local
   - /dataset: ???
-  - /input_mapping: full
   - _self_
   - /pipeline/inference@pipeline: ???
+  - /runtime: ???
 
 stage:
   name: inference
-  run_name: null
   run_id: ${now:%Y%m%d_%H%M%S_%f}
   output_dir: ${paths.runs_dir}/${stage.name}/${stage.run_id}
   predictions_path: ${stage.output_dir}/predictions.json
-  indexing_run_id: null
-  index_path: null
 
-runtime:
-  progress_bar: true
-  device:
-    type: single
-    device: cuda
-  query_concurrency_limit: 4
-  concurrency_limit: 4
-
-hydra:
-  job:
-    chdir: false
-  run:
-    dir: ${paths.runs_dir}/hydra/${stage.name}/${stage.run_id}
+# Null means every dataset document is a candidate for every query.
+# Otherwise set this to a folder name under paths.input_mappings_dir.
+input_mapping: null

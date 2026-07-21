@@ -1,20 +1,16 @@
 defaults:
   - /stages/inference
   - override /dataset: {{ cookiecutter.dataset_config }}
-  - override /input_mapping: full
   - override /pipeline/inference@pipeline: dense_jsonl
   - override /selections/embedding_model@selections.embedding_model: {{ cookiecutter.embedding_model }}
+  - override /runtime: cpu
   - _self_
 
-stage:
-  indexing_run_id: REPLACE_WITH_EXACT_INDEXING_RUN_ID
+selections:
+  index_id: REPLACE_WITH_EXACT_INDEX_ID
 
 pipeline:
   components:
     retriever:
       init_parameters:
         top_k: 100
-
-runtime:
-  device:
-    device: cpu

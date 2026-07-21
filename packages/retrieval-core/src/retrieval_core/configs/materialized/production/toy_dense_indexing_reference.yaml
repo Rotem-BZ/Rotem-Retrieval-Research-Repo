@@ -8,6 +8,7 @@ paths:
   processed_data_dir: ./data/processed
   artifacts_dir: ./artifacts
   runs_dir: ./artifacts/runs
+  indexes_dir: ./artifacts/indexes
   input_mappings_dir: ./artifacts/input_mappings
 dataset:
   name: toy
@@ -15,6 +16,7 @@ dataset:
   queries_path: ./data/processed/toy/queries.jsonl
   qrels_path: ./data/processed/toy/qrels.jsonl
 selections:
+  index_id: toy_e5_small_v2
   embedding_model:
     name: e5_small_v2
     artifact_name: e5_small_v2
@@ -53,7 +55,7 @@ pipeline:
     indexer:
       type: retrieval_components.indexing.jsonl_document_indexer.JsonlDocumentIndexer
       init_parameters:
-        output_path: ./artifacts/runs/indexing/20260705_231537/index.jsonl
+        output_path: ./artifacts/indexes/toy_e5_small_v2/index.jsonl
         overwrite: false
     output:
       type: retrieval_components.interfaces.stage_io.IndexingOutput
@@ -73,7 +75,6 @@ pipeline:
     description: Abstract dense JSONL indexing topology with document-level embeddings.
 stage:
   name: indexing
-  run_name: toy_e5_small_v2
   run_id: '20260705_231537'
   output_dir: ./artifacts/runs/indexing/20260705_231537
   preserve_run_config: true

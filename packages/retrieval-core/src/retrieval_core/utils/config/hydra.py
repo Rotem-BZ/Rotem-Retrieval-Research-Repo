@@ -221,7 +221,6 @@ def _apply_experiment_run_identity(
         merge=False,
         force_add=True,
     )
-    OmegaConf.update(cfg, "stage.run_name", None, merge=False, force_add=True)
     OmegaConf.update(
         cfg,
         "experiment",

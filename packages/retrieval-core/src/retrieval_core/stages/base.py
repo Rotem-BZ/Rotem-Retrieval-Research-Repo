@@ -11,8 +11,6 @@ from omegaconf import DictConfig, open_dict
 from retrieval_core.utils.artifacts import run_manifest
 from retrieval_core.utils.io import config_to_yaml, project_path, write_json, write_text
 
-RUN_NAME_FORBIDDEN_CHARS = {"/", "\\", ":", "*", "?", '"', "<", ">", "|"}
-
 
 @dataclass(frozen=True)
 class StageContext:
@@ -49,7 +47,7 @@ class StageContext:
 
 
 def prepare_stage_run_config(cfg: DictConfig) -> None:
-    """Freeze the run id and apply optional user-friendly run naming."""
+    """Freeze the run id and update its derived output path."""
 
     if "stage" not in cfg or "run_id" not in cfg.stage:
         return
@@ -58,17 +56,8 @@ def prepare_stage_run_config(cfg: DictConfig) -> None:
 
     stage_name = str(cfg.stage.name)
     run_id = str(cfg.stage.run_id)
-    run_name = cfg.stage.get("run_name")
-    if run_name is not None and str(run_name).strip():
-        normalized = str(run_name).strip()
-        if any(char in normalized for char in RUN_NAME_FORBIDDEN_CHARS):
-            forbidden = "".join(sorted(RUN_NAME_FORBIDDEN_CHARS))
-            raise ValueError(f"stage.run_name must not contain path characters: {forbidden}")
-        run_id = f"{normalized}_{run_id}"
 
     with open_dict(cfg):
         cfg.stage.run_id = run_id
         if "paths" in cfg and "runs_dir" in cfg.paths:
             cfg.stage.output_dir = f"{cfg.paths.runs_dir}/{stage_name}/{run_id}"
-        if "hydra" in cfg and "run" in cfg.hydra and "dir" in cfg.hydra.run and "paths" in cfg:
-            cfg.hydra.run.dir = f"{cfg.paths.runs_dir}/hydra/{stage_name}/{run_id}"

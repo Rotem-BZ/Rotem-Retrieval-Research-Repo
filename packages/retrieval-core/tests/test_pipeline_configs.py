@@ -1,3 +1,5 @@
+from omegaconf import OmegaConf
+
 from retrieval_core.data_schema import EVALUATION_DATA_SCHEMA
 from retrieval_core.utils.config import compose_stage_config
 from retrieval_core.utils.pipelines import load_async_pipeline, to_container
@@ -8,8 +10,8 @@ def test_rrf_fusion_pipeline_config_loads_with_dynamic_weight_socket() -> None:
         "inference",
         [
             "dataset=toy",
+            "runtime=gpu",
             "pipeline/inference@pipeline=rrf_fusion",
-            "stage.run_name=toy_dense",
             "pipeline.components.fusion.init_parameters.weights={lexical:1.0}",
         ],
     )
@@ -27,8 +29,9 @@ def test_abstract_dense_e5_indexing_config_keeps_pipeline_haystack_shaped() -> N
         "indexing",
         [
             "dataset=toy",
+            "runtime=gpu",
             "pipeline/indexing@pipeline=dense_jsonl",
-            "stage.run_name=toy_dense",
+            "selections.index_id=toy-dense",
             "selections/embedding_model=e5/small_v2",
         ],
     )
@@ -67,8 +70,9 @@ def test_abstract_chunked_e5_configs_use_chunked_index_artifact() -> None:
         "indexing",
         [
             "dataset=toy",
+            "runtime=gpu",
             "pipeline/indexing@pipeline=dense_chunked_jsonl",
-            "stage.run_name=toy_dense_chunked",
+            "selections.index_id=toy-dense-chunked",
             "selections/embedding_model=e5/small_v2",
         ],
     )
@@ -76,9 +80,9 @@ def test_abstract_chunked_e5_configs_use_chunked_index_artifact() -> None:
         "inference",
         [
             "dataset=toy",
+            "runtime=gpu",
             "pipeline/inference@pipeline=dense_chunked_jsonl",
-            "stage.run_name=toy_dense_chunked",
-            "stage.index_path=artifacts/example-index.jsonl",
+            "selections.index_id=toy-dense-chunked",
             "selections/embedding_model=e5/small_v2",
         ],
     )
@@ -92,7 +96,7 @@ def test_abstract_chunked_e5_configs_use_chunked_index_artifact() -> None:
     ].endswith("/index.jsonl")
     assert inference_pipeline_config["components"]["retriever"]["init_parameters"][
         "index_path"
-    ].endswith("artifacts/example-index.jsonl")
+    ].endswith("artifacts/indexes/toy-dense-chunked/index.jsonl")
 
 
 def test_abstract_dense_e5_inference_config_prefixes_queries() -> None:
@@ -100,14 +104,20 @@ def test_abstract_dense_e5_inference_config_prefixes_queries() -> None:
         "inference",
         [
             "dataset=toy",
+            "runtime=gpu",
             "pipeline/inference@pipeline=dense_jsonl",
-            "stage.run_name=toy_dense",
+            "selections.index_id=toy-dense",
             "selections/embedding_model=e5/small_v2",
         ],
     )
 
     pipeline_config = to_container(cfg.pipeline)
 
+    assert cfg.selections.index_id == "toy-dense"
+    assert not OmegaConf.is_missing(
+        cfg.pipeline.components.retriever.init_parameters,
+        "index_path",
+    )
     assert (
         pipeline_config["components"]["query_preprocessor"]["init_parameters"]["prefix"]
         == "query: "
@@ -141,8 +151,8 @@ def test_dense_candidate_reranker_uses_candidate_documents() -> None:
         "inference",
         [
             "dataset=toy",
+            "runtime=gpu",
             "pipeline/inference@pipeline=dense_candidate_reranker",
-            "stage.run_name=toy_dense",
             "selections/embedding_model=e5/small_v2",
         ],
     )
@@ -150,6 +160,8 @@ def test_dense_candidate_reranker_uses_candidate_documents() -> None:
     pipeline_config = to_container(cfg.pipeline)
     pipeline = load_async_pipeline(cfg.pipeline)
 
+    assert "index_path" not in cfg.pipeline.components.ranker.init_parameters
+    assert "index_id" not in cfg.selections
     assert "ranker" in pipeline.graph.nodes
     assert pipeline_config["components"]["ranker"]["init_parameters"]["similarity"] == "cosine"
     assert {
@@ -170,8 +182,8 @@ def test_cross_encoder_candidate_reranker_uses_bge_selection() -> None:
         "inference",
         [
             "dataset=toy",
+            "runtime=gpu",
             "pipeline/inference@pipeline=cross_encoder_candidate_reranker",
-            "stage.run_name=toy_cross_encoder",
             "selections/reranker_model=bge/v2_m3",
         ],
     )
@@ -179,6 +191,8 @@ def test_cross_encoder_candidate_reranker_uses_bge_selection() -> None:
     pipeline_config = to_container(cfg.pipeline)
     pipeline = load_async_pipeline(cfg.pipeline)
 
+    assert "index_path" not in cfg.pipeline.components.ranker.init_parameters
+    assert "index_id" not in cfg.selections
     assert cfg.selections.reranker_model.checkpoint == "BAAI/bge-reranker-v2-m3"
     assert "ranker" in pipeline.graph.nodes
     assert (
@@ -200,8 +214,9 @@ def test_dummy_keyword_inference_keeps_retriever_query_input() -> None:
         "inference",
         [
             "dataset=toy",
+            "runtime=gpu",
             "pipeline/inference@pipeline=dummy_keyword",
-            "stage.run_name=toy_keyword",
+            "selections.index_id=toy-keyword",
         ],
     )
     pipeline_config = to_container(cfg.pipeline)

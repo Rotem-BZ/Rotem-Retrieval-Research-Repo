@@ -48,7 +48,7 @@ The generated relative dependency paths assume the project is created directly
 under `projects/`.
 
 Before launching the generated experiment, create its shared index and replace
-`REPLACE_WITH_EXACT_INDEXING_RUN_ID` in
+`REPLACE_WITH_EXACT_INDEX_ID` in
 `experiments/<project-slug>/configs/inference.yaml`. On Linux,
 `uv run python ../../dev-scripts/run_in_parallel_screens.py` chooses the experiment
 and any subset of its explicit runs.

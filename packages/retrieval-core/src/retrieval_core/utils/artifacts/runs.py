@@ -73,7 +73,6 @@ def run_manifest(
         "stage": {
             "name": str(cfg.stage.name),
             "run_id": str(cfg.stage.run_id),
-            "run_name": cfg.stage.get("run_name"),
         },
         "artifacts": {name: str(project_path(path)) for name, path in artifacts.items()},
         "inputs": dict(inputs or {}),

@@ -33,20 +33,21 @@ def print_stage_start(
             if value:
                 print(f"  {key}: {value}")
 
+    input_mapping_recipe = cfg.get("input_mapping_recipe")
+    if input_mapping_recipe:
+        print(f"Input mapping recipe: {input_mapping_recipe.get('name', '<unnamed>')}")
     input_mapping = cfg.get("input_mapping")
     if input_mapping:
-        print(f"Input mapping: {input_mapping.get('type', '<unknown>')}")
-        for key in ("name", "path", "metadata_path"):
-            value = input_mapping.get(key)
-            if value:
-                print(f"  {key}: {value}")
+        print(f"Input mapping: {input_mapping}")
+
+    selections = cfg.get("selections")
+    if selections and selections.get("index_id"):
+        print(f"Index id: {selections.index_id}")
 
     stage = cfg.get("stage")
     if stage:
         for key in (
             "output_dir",
-            "indexing_run_id",
-            "index_path",
             "inference_run_id",
             "predictions_path",
             "metrics_path",

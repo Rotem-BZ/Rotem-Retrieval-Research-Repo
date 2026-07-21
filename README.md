@@ -34,7 +34,7 @@ uv run pre-commit run --all-files
 For example, after creating an index, inference can be launched with:
 
 ```shell
-uv run stage inference dataset=beir_scifact pipeline/inference@pipeline=dense_query_repetition selections/embedding_model=e5/small_v2 runtime.device.device=cpu stage.indexing_run_id=YOUR_EXACT_INDEXING_RUN_ID runtime.query_concurrency_limit=8
+uv run stage inference dataset=beir_scifact runtime=cpu pipeline/inference@pipeline=dense_query_repetition selections/embedding_model=e5/small_v2 selections.index_id=YOUR_INDEX_ID runtime.query_concurrency_limit=8
 ```
 
 ## Experiments and parallel runs

@@ -30,7 +30,7 @@ The treatment tests whether the gains associated with input repetition transfer 
 | Query prefix | `"query: "` after normalizing whitespace | `"query: "` after normalizing whitespace | Yes |
 | Document index | Shared document-level E5-small index | Exact same index run | Yes |
 | Dataset and split | BEIR SciFact test | BEIR SciFact test | Yes |
-| Candidate mapping | `input_mapping=full` | `input_mapping=full` | Yes |
+| Candidate mapping | `input_mapping=null` | `input_mapping=null` | Yes |
 | Retrieved depth | `top_k=100` | `top_k=100` | Yes |
 | Device and concurrency | CPU; query concurrency 4; pipeline concurrency 4 | Same | Yes |
 | Evaluation metrics | Same explicit metric list and qrels | Same | Yes |
@@ -41,7 +41,7 @@ Primary treatment change: insert a `QueryRepeater(separator=" ")` between the in
 
 - Dataset/split: full BEIR SciFact corpus and the standard `test.tsv` qrels, converted by `prepare-beir --dataset scifact` into the repository JSONL format.
 - Query/document inclusion: all converted SciFact queries and documents; no query or document subsampling.
-- Input mapping: `full_dataset`, selected explicitly as `input_mapping=full`; every query is retrieved against the full indexed corpus.
+- Input mapping: null; every query is retrieved against the full indexed corpus.
 - Retrieval depth: 100 documents per query in both arms so `Recall@10`, `Recall@50`, and `Recall@100` are all observable rather than capped by the repository's default `top_k=5`.
 - Repetitions or seeds: one paired deterministic execution per arm. No random sampling or seed is exposed by this pipeline. Device and package environment will remain fixed.
 - Exclusions: none beyond records excluded by the repository's standard BEIR conversion. Any conversion warnings or count mismatches will abort the comparison.
@@ -66,14 +66,16 @@ No minimum effect-size threshold is preregistered because the project defines th
 5. Evaluate both inference runs using the same explicit metric list and SciFact qrels.
 6. Compare metrics and verify the two resolved configs differ only at the intended query-repetition node and dynamic run/output fields.
 
-Run these commands from `projects/query-repetition-e5`. After indexing, replace the
-placeholder in [`configs/inference.yaml`](configs/inference.yaml) with `$indexRun` before
+Run these commands from `projects/query-repetition-e5`. Before launching, replace the
+index-id placeholder in [`configs/inference.yaml`](configs/inference.yaml) with `$indexId`
+and use the same value for indexing:
 launching the experiment:
 
 ```powershell
 $ErrorActionPreference = "Stop"
 $suffix = Get-Date -Format "yyyyMMdd-HHmmss"
-$indexRun = "query-repeat-e5-index-$suffix"
+$indexId = "query-repeat-e5-index-$suffix"
+$indexingRun = "query-repeat-e5-indexing-$suffix"
 $baselineRun = "query-repetition-e5-small-scifact--variant-dense_jsonl"
 $treatmentRun = "query-repetition-e5-small-scifact--variant-dense_query_repetition"
 $baselineEval = "query-repeat-e5-baseline-eval-$suffix"
@@ -84,7 +86,7 @@ uv sync --extra dev
 uv run pytest
 uv run prepare-beir --data-dir data --dataset scifact
 
-uv run stage indexing dataset=beir_scifact pipeline/indexing@pipeline=dense_jsonl selections/embedding_model=e5/small_v2 runtime.device.device=cpu runtime.concurrency_limit=4 stage.run_id=$indexRun
+uv run stage indexing dataset=beir_scifact runtime=cpu pipeline/indexing@pipeline=dense_jsonl selections/embedding_model=e5/small_v2 selections.index_id=$indexId runtime.concurrency_limit=4 stage.run_id=$indexingRun
 
 uv run python ../../dev-scripts/run_in_parallel_screens.py --experiment query-repetition-e5-small-scifact
 
@@ -94,11 +96,12 @@ uv run stage evaluation dataset=beir_scifact stage.inference_run_id=$treatmentRu
 uv run python scripts/compare_metrics.py "artifacts/runs/evaluation/$baselineEval/metrics.json" "artifacts/runs/evaluation/$treatmentEval/metrics.json"
 ```
 
-Run naming scheme: `query-repeat-e5-<role>-<YYYYMMDD-HHMMSS>`. Commands set exact `stage.run_id` values and intentionally omit `stage.run_name`; the latter is prepended to the run id by stage preparation and would require downstream references to use the resulting combined id.
+Run naming scheme: `query-repeat-e5-<role>-<YYYYMMDD-HHMMSS>`. Commands set these exact values through `stage.run_id`, which is the sole stage-run identifier used by artifact paths and downstream references.
 
 Expected artifacts:
 
-- `artifacts/runs/indexing/$indexRun/{index.jsonl,resolved_config.yaml,result.json,manifest.json}`
+- `artifacts/indexes/$indexId/index.jsonl`
+- `artifacts/runs/indexing/$indexingRun/{resolved_config.yaml,result.json,manifest.json}`
 - `artifacts/runs/inference/$baselineRun/{predictions.json,resolved_config.yaml,result.json,manifest.json}`
 - `artifacts/runs/inference/$treatmentRun/{predictions.json,resolved_config.yaml,result.json,manifest.json}`
 - `artifacts/runs/evaluation/$baselineEval/{metrics.json,resolved_config.yaml,result.json,manifest.json}`
@@ -107,12 +110,12 @@ Expected artifacts:
 ## Validity and risk checks
 
 - Confounders: the only substantive resolved pipeline difference must be the treatment's `query_repeater` component and its two adjacent connections. Dynamic run ids, output paths, descriptions, and config hashes will differ and will be classified separately.
-- Index fairness: both inference manifests must name the same exact `indexing_run_id` and resolved index artifact.
-- Data fairness: both inference and evaluation configs must point to identical SciFact documents, queries, qrels, and `input_mapping=full`.
+- Index fairness: both inference manifests must name the same exact `index_id` and resolved index artifact.
+- Data fairness: both inference configs must use the same SciFact dataset and null input mapping; evaluation must use the matching qrels.
 - Truncation: repetition may push long queries past the E5 tokenizer's 512-token limit. This is part of the treatment's behavior but will be measured as a diagnostic because it may explain degraded queries.
 - Leakage risk: do not tune separator, repetition count, retrieval depth, or the primary decision rule after inspecting SciFact results. Any follow-up must receive a new card or be labeled exploratory.
 - External dependencies: BEIR dataset hosting and the Hugging Face `intfloat/e5-small-v2` checkpoint must be available or cached. Run manifests must record non-`unknown` package versions and a Git commit when possible.
-- Existing script risk: [`run_experiment.ps1`](../../scripts/run_experiment.ps1) currently combines explicit `stage.run_id` and `stage.run_name`, while downstream commands reuse only the unprefixed id; it also inherits `top_k=5`. Use the commands in this card unless that script is aligned with this preregistered design.
+- Existing script risk: [`run_experiment.ps1`](../../scripts/run_experiment.ps1) inherits `top_k=5`. Use the commands in this card unless that script is aligned with this preregistered design.
 - Resource/time constraints: TBD after the first validated environment check; use CPU for both arms unless the card is amended before execution to use the same CUDA environment throughout.
 - Abort conditions: failed unit/config validation, incomplete dataset conversion, an existing immutable run directory, a missing manifest artifact, unequal prediction query counts, non-finite metrics, or any unplanned resolved-config difference.
 

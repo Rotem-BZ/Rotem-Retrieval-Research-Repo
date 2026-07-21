@@ -1,4 +1,5 @@
 defaults:
+  - /selections@_global_.selections: index
   - /selections/embedding_model@_global_.selections.embedding_model: ???
   - /component/query_preprocessor@components.query_preprocessor: prefix_cleanup
   - /component/query_embedder@components.query_embedder: sentence_transformers
@@ -10,10 +11,6 @@ components:
     type: retrieval_components.interfaces.stage_io.InferenceInput
   output:
     type: retrieval_components.interfaces.stage_io.InferenceOutput
-  retriever:
-    init_parameters:
-      index_path: ${stage.index_path}
-
 connections:
   - sender: input.query
     receiver: query_preprocessor.text

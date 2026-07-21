@@ -1,4 +1,5 @@
 defaults:
+  - /selections@_global_.selections: index
   - /selections/embedding_model@_global_.selections.embedding_model: ???
   - /component/document_source@components.document_source: jsonl
   - /component/document_preprocessor@components.document_prefixer: prefix_cleanup

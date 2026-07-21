@@ -3,17 +3,10 @@
 defaults:
   - /paths: local
   - /dataset: ???
-  - /input_mapping: ???
+  - /input_mapping_recipe: ???
   - _self_
 
 stage:
   name: prepare_mapping
-  run_name: null
-  run_id: ${now:%Y%m%d_%H%M%S_%f}
+  run_id: ???
   output_dir: ${paths.runs_dir}/${stage.name}/${stage.run_id}
-
-hydra:
-  job:
-    chdir: false
-  run:
-    dir: ${paths.runs_dir}/hydra/${stage.name}/${stage.run_id}

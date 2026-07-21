@@ -1,8 +1,7 @@
-"""Input-mapping resolution, generation, caching, and persistence."""
+"""Input-mapping resolution, generation, and persistence."""
 
 from __future__ import annotations
 
-import json
 import random
 from dataclasses import dataclass
 from pathlib import Path
@@ -13,8 +12,11 @@ from haystack import Document
 from omegaconf import DictConfig
 
 from retrieval_core.data_schema import EVALUATION_DATA_SCHEMA
-from retrieval_core.utils.hashing import file_sha256, sha256_text
 from retrieval_core.utils.io import project_path, read_json, read_jsonl, write_json_atomic
+
+INPUT_MAPPING_FILENAME = "input_mapping.json"
+INPUT_MAPPING_METADATA_FILENAME = "meta.json"
+RUN_ID_FORBIDDEN_CHARS = {"/", "\\", ":", "*", "?", '"', "<", ">", "|"}
 
 GENERATION_KEYS = (
     "seed",
@@ -72,7 +74,7 @@ def _document_from_record(record: dict[str, Any]) -> Document:
 
 
 def resolve_inference_mapping(cfg: DictConfig) -> InferenceMapping:
-    """Resolve configured inference candidates from dataset files and input_mapping config."""
+    """Resolve inference candidates from the dataset and an optional prepared mapping."""
 
     documents = read_jsonl(cfg.dataset.documents_path)
     queries = read_jsonl(cfg.dataset.queries_path)
@@ -92,10 +94,8 @@ def resolve_inference_mapping(cfg: DictConfig) -> InferenceMapping:
         queries_by_input[query_input] = query
     all_document_ids = list(documents_by_id)
 
-    mapping_cfg = cfg.get("input_mapping")
-    mapping_type = str(mapping_cfg.get("type", "full_dataset")) if mapping_cfg else "full_dataset"
-
-    if mapping_type == "full_dataset":
+    mapping_path = configured_input_mapping_path(cfg)
+    if mapping_path is None:
         return InferenceMapping(
             queries=queries,
             candidate_ids_by_query={},
@@ -103,65 +103,44 @@ def resolve_inference_mapping(cfg: DictConfig) -> InferenceMapping:
             default_candidate_ids=all_document_ids,
         )
 
-    if mapping_type == "generated":
-        mapping_path = materialized_mapping_path(cfg, mapping_cfg)
-        if not mapping_path.exists():
-            raise FileNotFoundError(
-                f"Generated input mapping is not prepared: {mapping_path}. Run: "
-                f"stage prepare_mapping dataset={cfg.dataset.name} "
-                f"input_mapping={mapping_cfg.get('name', 'generated')}"
-            )
-        return _resolve_file_mapping(
-            mapping_path,
-            mapping_cfg=mapping_cfg,
-            cfg=cfg,
-            queries_by_input=queries_by_input,
-            documents_by_id=documents_by_id,
-        )
-
-    if mapping_type != "file":
-        raise ValueError(f"Unsupported input mapping type: {mapping_type!r}")
-
     return _resolve_file_mapping(
-        project_path(mapping_cfg.path),
-        mapping_cfg=mapping_cfg,
-        cfg=cfg,
+        mapping_path,
         queries_by_input=queries_by_input,
         documents_by_id=documents_by_id,
     )
 
 
-def validate_input_mapping_config(cfg: DictConfig) -> Path | None:
-    """Return the configured input-mapping path, if it has one."""
+def configured_input_mapping_path(cfg: DictConfig) -> Path | None:
+    """Resolve the prepared mapping selected by folder name for inference."""
 
-    mapping_cfg = cfg.get("input_mapping")
-    mapping_type = str(mapping_cfg.get("type", "full_dataset")) if mapping_cfg else "full_dataset"
-    if mapping_type == "full_dataset":
+    configured_name = cfg.get("input_mapping")
+    if configured_name is None or not str(configured_name).strip():
         return None
-    if mapping_type == "file":
-        path = project_path(mapping_cfg.path)
-    elif mapping_type == "generated":
-        path = materialized_mapping_path(cfg, mapping_cfg)
-    else:
-        raise ValueError(f"Unsupported input mapping type: {mapping_type!r}")
-    return path
+    if isinstance(configured_name, DictConfig):
+        raise TypeError(
+            "Inference input_mapping must be a prepared mapping folder name, "
+            "not an input-mapping recipe. Run prepare_mapping first."
+        )
+    normalized = str(configured_name).strip()
+    if (
+        normalized in {".", ".."}
+        or Path(normalized).name != normalized
+        or any(character in normalized for character in RUN_ID_FORBIDDEN_CHARS)
+    ):
+        raise ValueError(
+            f"Inference input_mapping must be one folder name, got {configured_name!r}."
+        )
+    return project_path(cfg.paths.input_mappings_dir) / normalized / INPUT_MAPPING_FILENAME
 
 
 def _resolve_file_mapping(
     mapping_path: Path,
     *,
-    mapping_cfg: DictConfig,
-    cfg: DictConfig,
     queries_by_input: dict[str, dict[str, Any]],
     documents_by_id: dict[str, Document],
 ) -> InferenceMapping:
-    configured_dataset = mapping_cfg.get("dataset")
-    if configured_dataset is not None and str(configured_dataset) != str(cfg.dataset.name):
-        raise ValueError(
-            "Input mapping dataset does not match selected dataset: "
-            f"{configured_dataset!r} != {cfg.dataset.name!r}."
-        )
-
+    if not mapping_path.is_file():
+        raise FileNotFoundError(f"Prepared input mapping does not exist: {mapping_path}")
     raw_mapping = read_json(mapping_path)
     if not isinstance(raw_mapping, dict):
         raise ValueError("Input mapping JSON must be an object keyed by query input (`IN`).")
@@ -214,97 +193,43 @@ def input_mapping_generation_params(mapping_cfg: DictConfig) -> dict[str, Any]:
     return {key: params[key] for key in GENERATION_KEYS}
 
 
-def input_mapping_recipe_hash(mapping_cfg: DictConfig) -> str:
-    """Return a stable short hash for generation-affecting recipe parameters."""
+def prepared_mapping_dir(cfg: DictConfig) -> Path:
+    """Return the run-id output directory for a prepared mapping."""
 
-    payload = json.dumps(
-        input_mapping_generation_params(mapping_cfg),
-        sort_keys=True,
-        separators=(",", ":"),
-    )
-    return sha256_text(payload)[:12]
-
-
-def input_mapping_cache_key(
-    cfg: DictConfig,
-    mapping_cfg: DictConfig,
-    *,
-    source_fingerprints: dict[str, dict[str, Any]] | None = None,
-) -> str:
-    """Hash the generation recipe together with the exact dataset source contents."""
-
-    payload = {
-        "recipe": input_mapping_generation_params(mapping_cfg),
-        "sources": source_fingerprints or input_mapping_source_fingerprints(cfg),
-    }
-    serialized = json.dumps(payload, sort_keys=True, separators=(",", ":"))
-    return sha256_text(serialized)[:16]
-
-
-def input_mapping_source_fingerprints(cfg: DictConfig) -> dict[str, dict[str, Any]]:
-    fingerprints: dict[str, dict[str, Any]] = {}
-    for name, configured_path in (
-        ("documents", cfg.dataset.documents_path),
-        ("queries", cfg.dataset.queries_path),
-        ("qrels", cfg.dataset.qrels_path),
+    run_id = cfg.stage.get("run_id")
+    normalized = str(run_id).strip() if run_id is not None else ""
+    if not normalized:
+        raise ValueError("prepare_mapping requires a non-empty stage.run_id.")
+    if (
+        normalized in {".", ".."}
+        or Path(normalized).name != normalized
+        or any(character in normalized for character in RUN_ID_FORBIDDEN_CHARS)
     ):
-        path = project_path(configured_path)
-        if not path.is_file():
-            raise FileNotFoundError(f"Dataset {name} file does not exist: {path}")
-        fingerprints[name] = {
-            "path": path.as_posix(),
-            "sha256": file_sha256(path),
-            "size_bytes": path.stat().st_size,
-        }
-    return fingerprints
+        raise ValueError(f"stage.run_id must be one valid directory name, got {run_id!r}.")
+    return project_path(cfg.paths.input_mappings_dir) / normalized
 
 
-def materialized_mapping_path(
-    cfg: DictConfig,
-    mapping_cfg: DictConfig,
-    *,
-    source_fingerprints: dict[str, dict[str, Any]] | None = None,
-) -> Path:
-    """Return the content-addressed reusable path for a generated mapping."""
+def prepared_mapping_path(cfg: DictConfig) -> Path:
+    """Return the mapping JSON path for a prepare_mapping run."""
 
-    cache_key = input_mapping_cache_key(
-        cfg,
-        mapping_cfg,
-        source_fingerprints=source_fingerprints,
-    )
-    name = str(mapping_cfg.get("name", "generated"))
-    file_stem = name.replace("\\", "/").replace("/", "__")
-    filename = f"{file_stem}.{cache_key}.json"
-    return project_path(cfg.paths.input_mappings_dir) / str(cfg.dataset.name) / filename
+    return prepared_mapping_dir(cfg) / INPUT_MAPPING_FILENAME
 
 
-def prepare_generated_input_mapping(cfg: DictConfig) -> tuple[GeneratedInputMapping, Path, bool]:
-    """Generate or reuse a content-addressed input mapping for later inference runs."""
+def prepare_generated_input_mapping(cfg: DictConfig) -> tuple[GeneratedInputMapping, Path]:
+    """Generate a run-id-scoped input mapping for later inference runs."""
 
-    mapping_cfg = cfg.get("input_mapping")
+    mapping_cfg = cfg.get("input_mapping_recipe")
     mapping_type = str(mapping_cfg.get("type", "")) if mapping_cfg else ""
     if mapping_type != "generated":
-        raise ValueError("prepare_mapping requires an input_mapping config with type: generated.")
-
-    source_fingerprints = input_mapping_source_fingerprints(cfg)
-    mapping_path = materialized_mapping_path(
-        cfg,
-        mapping_cfg,
-        source_fingerprints=source_fingerprints,
-    )
-    metadata_path = metadata_path_for(mapping_path)
-    if mapping_path.is_file() and metadata_path.is_file():
-        return (
-            GeneratedInputMapping(
-                mapping=read_json(mapping_path),
-                metadata=read_json(metadata_path),
-            ),
-            mapping_path,
-            True,
+        raise ValueError(
+            "prepare_mapping requires an input_mapping_recipe config with type: generated."
         )
-    if mapping_path.exists() or metadata_path.exists():
+
+    mapping_path = prepared_mapping_path(cfg)
+    if mapping_path.parent.exists():
         raise FileExistsError(
-            f"Input mapping cache is incomplete; expected both {mapping_path} and {metadata_path}."
+            f"Input mapping run already exists; choose another stage.run_id: "
+            f"{mapping_path.parent}"
         )
 
     generated = generate_input_mapping(
@@ -314,17 +239,10 @@ def prepare_generated_input_mapping(cfg: DictConfig) -> tuple[GeneratedInputMapp
         qrels=read_jsonl(cfg.dataset.qrels_path),
         **input_mapping_generation_params(mapping_cfg),
     )
-    generated.metadata["mapping_name"] = str(mapping_cfg.get("name", "generated"))
-    generated.metadata["recipe_hash"] = input_mapping_recipe_hash(mapping_cfg)
-    generated.metadata["cache_key"] = input_mapping_cache_key(
-        cfg,
-        mapping_cfg,
-        source_fingerprints=source_fingerprints,
-    )
-    generated.metadata["recipe"] = input_mapping_generation_params(mapping_cfg)
-    generated.metadata["sources"] = source_fingerprints
-    write_generated_mapping(generated, mapping_path=mapping_path, overwrite=False)
-    return generated, mapping_path, False
+    generated.metadata["recipe_name"] = str(mapping_cfg.get("name", "generated"))
+    generated.metadata["run_id"] = str(cfg.stage.run_id).strip()
+    write_generated_mapping(generated, output_dir=mapping_path.parent, overwrite=False)
+    return generated, mapping_path
 
 
 def generate_input_mapping(
@@ -496,16 +414,16 @@ def generate_input_mapping(
 def write_generated_mapping(
     generated: GeneratedInputMapping,
     *,
-    mapping_path: Path,
+    output_dir: Path,
     overwrite: bool = False,
 ) -> tuple[Path, Path]:
-    """Write mapping JSON and sidecar metadata."""
+    """Write a prepared mapping directory with fixed artifact names."""
 
+    mapping_path = output_dir / INPUT_MAPPING_FILENAME
     metadata_path = metadata_path_for(mapping_path)
     if not overwrite:
-        for path in (mapping_path, metadata_path):
-            if path.exists():
-                raise FileExistsError(f"Refusing to overwrite existing file: {path}")
+        if output_dir.exists():
+            raise FileExistsError(f"Refusing to overwrite existing directory: {output_dir}")
 
     write_json_atomic(mapping_path, generated.mapping)
     write_json_atomic(metadata_path, generated.metadata)
@@ -513,7 +431,7 @@ def write_generated_mapping(
 
 
 def metadata_path_for(mapping_path: Path) -> Path:
-    return mapping_path.with_name(f"{mapping_path.stem}.meta.json")
+    return mapping_path.with_name(INPUT_MAPPING_METADATA_FILENAME)
 
 
 def _sample_new(

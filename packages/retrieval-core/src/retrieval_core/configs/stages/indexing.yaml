@@ -4,23 +4,10 @@ defaults:
   - /paths: local
   - /dataset: ???
   - /pipeline/indexing@pipeline: ???
+  - /runtime: ???
   - _self_
 
 stage:
   name: indexing
-  run_name: null
   run_id: ${now:%Y%m%d_%H%M%S_%f}
   output_dir: ${paths.runs_dir}/${stage.name}/${stage.run_id}
-
-runtime:
-  progress_bar: true
-  device:
-    type: single
-    device: cuda
-  concurrency_limit: 4
-
-hydra:
-  job:
-    chdir: false
-  run:
-    dir: ${paths.runs_dir}/hydra/${stage.name}/${stage.run_id}

@@ -4,7 +4,11 @@ from retrieval_core.utils.config import compose_stage_config, config_roots, core
 
 
 def test_bare_stage_name_resolves_to_stages_group() -> None:
-    overrides = ["dataset=toy", "pipeline/inference@pipeline=dummy_keyword"]
+    overrides = [
+        "dataset=toy",
+        "pipeline/inference@pipeline=dummy_keyword",
+        "runtime=gpu",
+    ]
 
     bare = compose_stage_config("inference", overrides)
     explicit = compose_stage_config("stages/inference", overrides)
@@ -96,11 +100,11 @@ def test_run_config_uses_hydra_defaults_without_cli_overrides(tmp_path: Path) ->
   - /stages/inference
   - override /dataset: toy
   - override /pipeline/inference@pipeline: dummy_keyword
+  - override /runtime: cpu
   - _self_
 
-runtime:
-  device:
-    device: cpu
+selections:
+  index_id: test-index
 """,
         encoding="utf-8",
     )

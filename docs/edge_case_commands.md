@@ -14,9 +14,11 @@ exits with code 1 even after a successful stage.
 $edgeTag = Get-Date -Format 'yyyyMMdd-HHmmss'
 $edgeRoot = "./artifacts/edge-cases-$edgeTag"
 $edgeRuns = "$edgeRoot/runs"
+$edgeIndexes = "$edgeRoot/indexes"
 $edgeMappings = "$edgeRoot/input-mappings"
 
-$indexRun = "edge-index-$edgeTag"
+$indexId = "edge-index-$edgeTag"
+$indexingRun = "edge-indexing-run-$edgeTag"
 $fullInferenceRun = "edge-full-inference-$edgeTag"
 $evaluationRun = "edge-evaluation-$edgeTag"
 $mappingRun1 = "edge-mapping-1-$edgeTag"
@@ -35,9 +37,12 @@ Basic indexing:
 ```powershell
 Invoke-EdgeStage indexing `
   dataset=toy `
+  runtime=cpu `
   'pipeline/indexing@pipeline=dummy_jsonl' `
   "paths.runs_dir=$edgeRuns" `
-  "stage.run_id=$indexRun" `
+  "paths.indexes_dir=$edgeIndexes" `
+  "selections.index_id=$indexId" `
+  "stage.run_id=$indexingRun" `
   runtime.progress_bar=false
 ```
 
@@ -47,9 +52,11 @@ corpus:
 ```powershell
 Invoke-EdgeStage inference `
   dataset=toy `
+  runtime=cpu `
   'pipeline/inference@pipeline=dummy_keyword' `
   "paths.runs_dir=$edgeRuns" `
-  "stage.indexing_run_id=$indexRun" `
+  "paths.indexes_dir=$edgeIndexes" `
+  "selections.index_id=$indexId" `
   "stage.run_id=$fullInferenceRun" `
   runtime.query_concurrency_limit=1 `
   runtime.progress_bar=false `
@@ -72,37 +79,24 @@ Prepare a judged-only mapping:
 ```powershell
 Invoke-EdgeStage prepare_mapping `
   dataset=toy `
-  input_mapping=judged_only `
+  input_mapping_recipe=judged_only `
   "paths.runs_dir=$edgeRuns" `
   "paths.input_mappings_dir=$edgeMappings" `
   "stage.run_id=$mappingRun1"
 ```
 
-Prepare the identical mapping again to exercise cache reuse:
-
-```powershell
-Invoke-EdgeStage prepare_mapping `
-  dataset=toy `
-  input_mapping=judged_only `
-  "paths.runs_dir=$edgeRuns" `
-  "paths.input_mappings_dir=$edgeMappings" `
-  "stage.run_id=$mappingRun2"
-
-Get-Content -Raw "$edgeRuns/prepare_mapping/$mappingRun2/result.json"
-```
-
-The second result should contain `"reused": true`.
-
-Inference using that generated mapping:
+Inference using that prepared mapping:
 
 ```powershell
 Invoke-EdgeStage inference `
   dataset=toy `
-  input_mapping=judged_only `
+  runtime=cpu `
+  "input_mapping=$mappingRun1" `
   'pipeline/inference@pipeline=dummy_keyword' `
   "paths.runs_dir=$edgeRuns" `
   "paths.input_mappings_dir=$edgeMappings" `
-  "stage.indexing_run_id=$indexRun" `
+  "paths.indexes_dir=$edgeIndexes" `
+  "selections.index_id=$indexId" `
   "stage.run_id=$mappedInferenceRun" `
   runtime.progress_bar=false
 ```
@@ -116,9 +110,9 @@ $emptyMappingRun = "edge-empty-mapping-$edgeTag"
 
 Invoke-EdgeStage prepare_mapping `
   dataset=toy `
-  input_mapping=random_smoke `
-  input_mapping.query_subset_size=0 `
-  input_mapping.random_docs_per_query=0 `
+  input_mapping_recipe=random_smoke `
+  input_mapping_recipe.query_subset_size=0 `
+  input_mapping_recipe.random_docs_per_query=0 `
   "paths.runs_dir=$edgeRuns" `
   "paths.input_mappings_dir=$edgeMappings" `
   "stage.run_id=$emptyMappingRun"
@@ -131,13 +125,13 @@ $emptyInferenceRun = "edge-empty-inference-$edgeTag"
 
 Invoke-EdgeStage inference `
   dataset=toy `
-  input_mapping=random_smoke `
-  input_mapping.query_subset_size=0 `
-  input_mapping.random_docs_per_query=0 `
+  runtime=cpu `
+  "input_mapping=$emptyMappingRun" `
   'pipeline/inference@pipeline=dummy_keyword' `
   "paths.runs_dir=$edgeRuns" `
   "paths.input_mappings_dir=$edgeMappings" `
-  "stage.indexing_run_id=$indexRun" `
+  "paths.indexes_dir=$edgeIndexes" `
+  "selections.index_id=$indexId" `
   "stage.run_id=$emptyInferenceRun" `
   runtime.progress_bar=false
 
@@ -161,22 +155,28 @@ Invoke-EdgeStage evaluation `
 
 Run these commands individually. Each should exit nonzero.
 
+Runtime selection missing:
+
+```powershell
+Invoke-EdgeStage indexing dataset=toy 'pipeline/indexing@pipeline=dummy_jsonl'
+```
+
 Missing dataset and indexing pipeline:
 
 ```powershell
-Invoke-EdgeStage indexing
+Invoke-EdgeStage indexing runtime=cpu
 ```
 
 Dataset supplied but indexing pipeline missing:
 
 ```powershell
-Invoke-EdgeStage indexing dataset=toy
+Invoke-EdgeStage indexing dataset=toy runtime=cpu
 ```
 
 Inference pipeline supplied but dataset missing:
 
 ```powershell
-Invoke-EdgeStage inference 'pipeline/inference@pipeline=dummy_keyword'
+Invoke-EdgeStage inference runtime=cpu 'pipeline/inference@pipeline=dummy_keyword'
 ```
 
 Evaluation dataset missing:
@@ -191,49 +191,41 @@ Unknown dataset:
 Invoke-EdgeStage evaluation dataset=does_not_exist
 ```
 
-Invalid run-name path characters:
+Invalid prepare-mapping run-id path characters:
 
 ```powershell
-Invoke-EdgeStage indexing `
+Invoke-EdgeStage prepare_mapping `
   dataset=toy `
-  'pipeline/indexing@pipeline=dummy_jsonl' `
-  'stage.run_name=bad/name'
-```
-
-Unsupported input-mapping type:
-
-```powershell
-Invoke-EdgeStage inference `
-  dataset=toy `
-  'pipeline/inference@pipeline=dummy_keyword' `
-  input_mapping.type=unknown `
-  "stage.index_path=$edgeRuns/indexing/$indexRun/index.jsonl" `
-  "paths.runs_dir=$edgeRuns" `
-  "stage.run_id=edge-bad-mapping-type-$edgeTag"
+  input_mapping_recipe=random_smoke `
+  'stage.run_id=bad/name'
 ```
 
 ## Expected Dependency Failures
 
-Unknown exact indexing run:
+Unknown index id:
 
 ```powershell
 Invoke-EdgeStage inference `
   dataset=toy `
+  runtime=cpu `
   'pipeline/inference@pipeline=dummy_keyword' `
   "paths.runs_dir=$edgeRuns" `
-  stage.indexing_run_id=does-not-exist `
+  "paths.indexes_dir=$edgeIndexes" `
+  selections.index_id=does-not-exist `
   "stage.run_id=edge-missing-index-$edgeTag"
 ```
 
-Conflicting indexing run and explicit index path:
+Non-canonical explicit index path:
 
 ```powershell
 Invoke-EdgeStage inference `
   dataset=toy `
+  runtime=cpu `
   'pipeline/inference@pipeline=dummy_keyword' `
   "paths.runs_dir=$edgeRuns" `
-  "stage.indexing_run_id=$indexRun" `
-  stage.index_path=./data/processed/toy/documents.jsonl `
+  "paths.indexes_dir=$edgeIndexes" `
+  "selections.index_id=$indexId" `
+  pipeline.components.retriever.init_parameters.index_path=./data/processed/toy/documents.jsonl `
   "stage.run_id=edge-conflicting-index-$edgeTag"
 ```
 
@@ -247,16 +239,18 @@ Invoke-EdgeStage evaluation `
   "stage.run_id=edge-missing-inference-$edgeTag"
 ```
 
-Use a generated mapping without preparing it:
+Use a prepared-mapping folder name that does not exist:
 
 ```powershell
 Invoke-EdgeStage inference `
   dataset=toy `
-  input_mapping=dev_tiny `
+  runtime=cpu `
+  input_mapping=missing `
   'pipeline/inference@pipeline=dummy_keyword' `
   "paths.runs_dir=$edgeRuns" `
   "paths.input_mappings_dir=$edgeRoot/unprepared-mappings" `
-  "stage.indexing_run_id=$indexRun" `
+  "paths.indexes_dir=$edgeIndexes" `
+  "selections.index_id=$indexId" `
   "stage.run_id=edge-unprepared-mapping-$edgeTag"
 ```
 
@@ -267,8 +261,8 @@ Query subset larger than the dataset:
 ```powershell
 Invoke-EdgeStage prepare_mapping `
   dataset=toy `
-  input_mapping=dev_tiny `
-  input_mapping.query_subset_size=999 `
+  input_mapping_recipe=dev_tiny `
+  input_mapping_recipe.query_subset_size=999 `
   "paths.runs_dir=$edgeRuns" `
   "paths.input_mappings_dir=$edgeMappings" `
   "stage.run_id=edge-too-many-queries-$edgeTag"
@@ -279,8 +273,8 @@ Negative document subset:
 ```powershell
 Invoke-EdgeStage prepare_mapping `
   dataset=toy `
-  input_mapping=random_smoke `
-  input_mapping.document_subset_size=-1 `
+  input_mapping_recipe=random_smoke `
+  input_mapping_recipe.document_subset_size=-1 `
   "paths.runs_dir=$edgeRuns" `
   "paths.input_mappings_dir=$edgeMappings" `
   "stage.run_id=edge-negative-docs-$edgeTag"
@@ -291,21 +285,11 @@ Request too many random documents:
 ```powershell
 Invoke-EdgeStage prepare_mapping `
   dataset=toy `
-  input_mapping=random_smoke `
-  input_mapping.random_docs_per_query=999 `
+  input_mapping_recipe=random_smoke `
+  input_mapping_recipe.random_docs_per_query=999 `
   "paths.runs_dir=$edgeRuns" `
   "paths.input_mappings_dir=$edgeMappings" `
   "stage.run_id=edge-too-many-random-$edgeTag"
-```
-
-Try preparing the virtual full-dataset mapping:
-
-```powershell
-Invoke-EdgeStage prepare_mapping `
-  dataset=toy `
-  input_mapping=full `
-  "paths.runs_dir=$edgeRuns" `
-  "stage.run_id=edge-prepare-full-$edgeTag"
 ```
 
 Zero query concurrency:
@@ -313,9 +297,11 @@ Zero query concurrency:
 ```powershell
 Invoke-EdgeStage inference `
   dataset=toy `
+  runtime=cpu `
   'pipeline/inference@pipeline=dummy_keyword' `
   "paths.runs_dir=$edgeRuns" `
-  "stage.indexing_run_id=$indexRun" `
+  "paths.indexes_dir=$edgeIndexes" `
+  "selections.index_id=$indexId" `
   "stage.run_id=edge-zero-concurrency-$edgeTag" `
   runtime.query_concurrency_limit=0
 ```
