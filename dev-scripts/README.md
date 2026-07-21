@@ -9,8 +9,9 @@ uv run python ../../dev-scripts/create_run.py experiments/<experiment-slug>
 uv run python ../../dev-scripts/run_in_parallel_screens.py
 ```
 
-`create_run.py` writes one minimal Hydra `runs/<name>.yaml` file that inherits a
-complete experiment base config. The experiment launcher
+`create_run.py` writes one minimal Hydra `configs/runs/<name>.yaml` entrypoint that
+inherits a complete config below `configs/base-experiment-configs/`. The experiment
+launcher
 requires Linux and GNU Screen; its worker, state models, and Screen adapter are
 implementation details used by the scripts above. The old `prepare_experiment.py`
 and `run_experiment.py` names remain compatibility aliases.

@@ -14,5 +14,5 @@ stage:
   predictions_path: ${stage.output_dir}/predictions.json
 
 # Null means every dataset document is a candidate for every query.
-# Otherwise set this to a folder name under paths.input_mappings_dir.
+# Otherwise, set this to a folder name under paths.input_mappings_dir.
 input_mapping: null

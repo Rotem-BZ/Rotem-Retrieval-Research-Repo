@@ -1,4 +1,4 @@
 # @package _global_
 defaults:
-  - /inference
+  - /base-experiment-configs/inference
   - _self_

@@ -4,6 +4,7 @@ import pytest
 
 from retrieval_core.cli import main
 from retrieval_core.stages import STAGE_RUNNERS
+from retrieval_core.utils.config import core_config_dir
 from retrieval_core.utils.io import read_json
 
 
@@ -17,13 +18,14 @@ def test_help_lists_default_stages(capsys) -> None:
     help_text = capsys.readouterr().out
 
     assert "usage: stage" in help_text
-    assert "STAGE_OR_CONFIG" in help_text
-    assert "materialized/production/toy_dense_indexing_reference" in help_text
+    assert "STAGE" in help_text
+    assert "--entrypoint" in help_text
     assert "indexing" in help_text
     assert "inference" in help_text
     assert "evaluation" in help_text
     assert "prepare_mapping" in help_text
-    assert "--experiment-dir" in help_text
+    assert "--experiment-dir" not in help_text
+    assert "--config-dir" not in help_text
 
 
 def test_prepare_mapping_stage_writes_run_id_mapping_directory(tmp_path: Path) -> None:
@@ -56,7 +58,13 @@ def test_materialized_config_dispatches_by_declared_stage(monkeypatch) -> None:
 
     monkeypatch.setitem(STAGE_RUNNERS, "indexing", fake_indexing_runner)
 
-    result = main(["materialized/production/toy_dense_indexing_reference"])
+    entrypoint = (
+        core_config_dir()
+        / "materialized"
+        / "production"
+        / "toy_dense_indexing_reference.yaml"
+    )
+    result = main(["indexing", "--entrypoint", str(entrypoint)])
 
     assert result == {"ok": True}
     assert captured == {
@@ -64,6 +72,19 @@ def test_materialized_config_dispatches_by_declared_stage(monkeypatch) -> None:
         "output_dir": "./artifacts/runs/indexing/20260705_231537",
         "preserve_run_config": True,
     }
+
+
+def test_entrypoint_stage_must_match_requested_stage(tmp_path: Path) -> None:
+    configs = tmp_path / "configs"
+    configs.mkdir()
+    entrypoint = configs / "evaluation.yaml"
+    entrypoint.write_text(
+        "defaults:\n  - /stages/evaluation\n  - override /dataset: toy\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(SystemExit, match="2"):
+        main(["inference", "--entrypoint", str(entrypoint)])
 
 
 def test_indexing_publishes_an_immutable_selected_index(tmp_path: Path) -> None:

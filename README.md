@@ -40,9 +40,9 @@ uv run stage inference dataset=beir_scifact runtime=cpu pipeline/inference@pipel
 ## Experiments and parallel runs
 
 Each project keeps durable research workspaces below `experiments/`. An experiment
-can contain its card, a complete experiment base under `configs/`, minimal Hydra
-entry configs under `runs/`, an analysis notebook, and a report. Create a run
-interactively with:
+can contain its card, complete shared stage configs under
+`configs/base-experiment-configs/`, minimal Hydra entrypoints under `configs/runs/`,
+an analysis notebook, and a report. Create a run interactively with:
 
 ```shell
 uv run python ../../dev-scripts/create_run.py experiments/<experiment-slug>
@@ -71,9 +71,10 @@ The repository is split into independently installable units:
   lockfile, so it can declare its own component-library version.
 - `data/processed/toy/` is the checked-in fixture used by core smoke tests.
 
-When `--experiment-dir` is used, Hydra searches the experiment's `configs/` first,
-then the consuming project's `configs/`, and finally the config package shipped by
-`retrieval-core`. Outside an experiment, project configs remain the primary source.
+Passing `--entrypoint experiments/<experiment>/configs/runs/<run>.yaml` makes the
+stage CLI infer the experiment and project from that path. Hydra then searches the
+experiment's `configs/`, the project's `configs/`, and finally the config package
+shipped by `retrieval-core`.
 
 ## Research workflow
 
@@ -82,6 +83,9 @@ experiment lifecycle: preregistering an experiment card, composing Hydra configs
 testing and running immutable stages, reusing exact artifacts, analyzing
 predictions in a notebook, generating an evidence-led report, and launching
 explicit experiment runs.
+
+For copy-ready stage invocations that use only the checked-in toy dataset, see
+[the example command guide](docs/example_commands.md).
 
 ## Query-repetition example
 

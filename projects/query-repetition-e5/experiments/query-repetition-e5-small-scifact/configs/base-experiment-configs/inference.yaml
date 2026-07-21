@@ -1,8 +1,9 @@
+# @package _global_
 defaults:
   - /stages/inference
-  - override /dataset: {{ cookiecutter.dataset_config }}
+  - override /dataset: beir_scifact
   - override /pipeline/inference@pipeline: dense_jsonl
-  - override /selections/embedding_model@selections.embedding_model: {{ cookiecutter.embedding_model }}
+  - override /selections/embedding_model@selections.embedding_model: e5/small_v2
   - override /runtime: cpu
   - _self_
 

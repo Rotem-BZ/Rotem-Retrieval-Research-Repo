@@ -24,15 +24,16 @@ from retrieval_core.utils.artifacts import run_manifest
 def test_run_definitions_are_minimal_hydra_configs_and_compose(tmp_path: Path) -> None:
     experiment = _experiment(tmp_path)
     definition = write_run_definition(
-        experiment / "runs" / "baseline.yaml",
-        base_config="indexing",
+        experiment / "configs" / "runs" / "baseline.yaml",
+        base_config="base-experiment-configs/indexing",
     )
 
     plan = load_plan(experiment)
     run = plan.runs[0]
 
     assert definition.read_text(encoding="utf-8") == (
-        "# @package _global_\ndefaults:\n- /indexing\n- _self_\n"
+        "# @package _global_\ndefaults:\n"
+        "- /base-experiment-configs/indexing\n- _self_\n"
     )
     assert run.name == "baseline"
     assert run.stage_name == "indexing"
@@ -43,17 +44,18 @@ def test_run_definitions_are_minimal_hydra_configs_and_compose(tmp_path: Path) -
             tmp_path / "artifacts" / "runs" / "indexing" / "example--baseline"
         ).resolve()
     )
-    command = render_hydra_command(run, experiment)
-    assert "--experiment-dir" in command
-    assert command.endswith("runs/baseline")
+    command = render_hydra_command(run)
+    assert "stage indexing" in command
+    assert "--entrypoint" in command
+    assert "baseline.yaml" in command
     assert "dataset=" not in command
 
 
 def test_run_definition_can_override_only_changed_fields(tmp_path: Path) -> None:
     experiment = _experiment(tmp_path)
     write_run_definition(
-        experiment / "runs" / "smaller.yaml",
-        base_config="indexing",
+        experiment / "configs" / "runs" / "smaller.yaml",
+        base_config="base-experiment-configs/indexing",
         fields={"runtime": {"concurrency_limit": 2}},
     )
 
@@ -152,6 +154,8 @@ def test_launch_runs_builds_dependency_lanes_and_writes_state_under_artifacts(
 
     assert len(launched) == 5
     assert len(launched_commands) == 5
+    assert all("--entrypoint" in command for command in launched_commands)
+    assert all("--experiment-dir" not in command for command in launched_commands)
     statuses = [read_status(status_path(experiment, run)) for run in plan.runs]
     assert [status["lane"] for status in statuses] == [1, 2, 1, 2, 1]
     assert statuses[2]["wait_for"]["run_name"] == plan.runs[0].name
@@ -240,10 +244,12 @@ def test_run_manifest_links_stage_artifact_to_experiment(tmp_path: Path) -> None
 
 def _experiment(root: Path, *, name: str = "example") -> Path:
     experiment = root / "experiments" / name
-    (experiment / "configs").mkdir(parents=True)
-    (experiment / "runs").mkdir()
-    (experiment / "configs" / "indexing.yaml").write_text(
-        """defaults:
+    configs = experiment / "configs"
+    (configs / "base-experiment-configs").mkdir(parents=True)
+    (configs / "runs").mkdir()
+    (configs / "base-experiment-configs" / "indexing.yaml").write_text(
+        """# @package _global_
+defaults:
   - /stages/indexing
   - override /dataset: toy
   - override /pipeline/indexing@pipeline: dummy_jsonl
@@ -260,8 +266,8 @@ selections:
 
 def _write_indexing_run(experiment: Path, name: str) -> Path:
     return write_run_definition(
-        experiment / "runs" / f"{name}.yaml",
-        base_config="indexing",
+        experiment / "configs" / "runs" / f"{name}.yaml",
+        base_config="base-experiment-configs/indexing",
     )
 
 
@@ -271,7 +277,6 @@ def _run(index: int, root: Path) -> ExperimentRun:
         index=index,
         name=name,
         definition_file=root / f"{name}.yaml",
-        config_name=f"runs/{name}",
         stage_name="indexing",
         stage_run_id=f"experiment--{name}",
         output_dir=root / "outputs" / name,

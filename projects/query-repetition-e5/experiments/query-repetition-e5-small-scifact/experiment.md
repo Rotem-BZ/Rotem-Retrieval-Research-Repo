@@ -67,8 +67,9 @@ No minimum effect-size threshold is preregistered because the project defines th
 6. Compare metrics and verify the two resolved configs differ only at the intended query-repetition node and dynamic run/output fields.
 
 Run these commands from `projects/query-repetition-e5`. Before launching, replace the
-index-id placeholder in [`configs/inference.yaml`](configs/inference.yaml) with `$indexId`
-and use the same value for indexing:
+index-id placeholder in
+[`configs/base-experiment-configs/inference.yaml`](configs/base-experiment-configs/inference.yaml)
+with `$indexId` and use the same value for indexing:
 launching the experiment:
 
 ```powershell
@@ -76,8 +77,8 @@ $ErrorActionPreference = "Stop"
 $suffix = Get-Date -Format "yyyyMMdd-HHmmss"
 $indexId = "query-repeat-e5-index-$suffix"
 $indexingRun = "query-repeat-e5-indexing-$suffix"
-$baselineRun = "query-repetition-e5-small-scifact--variant-dense_jsonl"
-$treatmentRun = "query-repetition-e5-small-scifact--variant-dense_query_repetition"
+$baselineRun = "query-repetition-e5-small-scifact--baseline"
+$treatmentRun = "query-repetition-e5-small-scifact--repeated"
 $baselineEval = "query-repeat-e5-baseline-eval-$suffix"
 $treatmentEval = "query-repeat-e5-treatment-eval-$suffix"
 $metrics = '["Recall@10","Recall@50","Recall@100","MRR@50","NDCG@10","HitRate@10"]'

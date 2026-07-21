@@ -1,16 +1,14 @@
+# @package _global_
 defaults:
   - /stages/inference
-  - override /dataset: beir_scifact
+  - override /dataset: toy
   - override /pipeline/inference@pipeline: dense_jsonl
   - override /selections/embedding_model@selections.embedding_model: e5/small_v2
   - override /runtime: cpu
   - _self_
 
-selections:
-  index_id: REPLACE_WITH_EXACT_INDEX_ID
+paths:
+  processed_data_dir: ${paths.project_root}/../../data/processed
 
-pipeline:
-  components:
-    retriever:
-      init_parameters:
-        top_k: 100
+selections:
+  index_id: toy-e5-small-index

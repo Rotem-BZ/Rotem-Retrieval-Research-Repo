@@ -49,12 +49,19 @@ It contains the research card, a complete experiment base config, minimal run la
 and an analysis notebook; the reusable repetition pipeline lives in the project's
 `configs/` tree. After creating the
 shared index, update its exact ID in
-[`configs/inference.yaml`](experiments/query-repetition-e5-small-scifact/configs/inference.yaml).
+[`base-experiment-configs/inference.yaml`](experiments/query-repetition-e5-small-scifact/configs/base-experiment-configs/inference.yaml).
 On Linux,
 `uv run python ../../dev-scripts/run_in_parallel_screens.py` lets you choose the
 experiment and the subset of runs to launch in GNU Screen. Use
 `uv run python ../../dev-scripts/create_run.py experiments/query-repetition-e5-small-scifact`
 to add another run interactively.
+
+On Windows or Linux, launch either checked-in run directly with its YAML entrypoint:
+
+```powershell
+uv run stage inference --entrypoint experiments/query-repetition-e5-small-scifact/configs/runs/baseline.yaml
+uv run stage inference --entrypoint experiments/query-repetition-e5-small-scifact/configs/runs/repeated.yaml
+```
 
 To run only the repeated-query pipeline directly on Windows or Linux, prepare the
 dataset and index once, then launch inference from this project directory:
@@ -85,3 +92,7 @@ notebook resolves each run's prediction artifact through its manifest and builds
   first relevant rank, reciprocal rank, recall, and query-length fields.
 
 Use these DataFrames directly for project-specific plots below the final notebook cell.
+
+For a small executable project run over the checked-in toy fixture, see
+[`query-repetition-e5-small-toy`](experiments/query-repetition-e5-small-toy/experiment.md)
+and the repository's [example command guide](../../docs/example_commands.md).

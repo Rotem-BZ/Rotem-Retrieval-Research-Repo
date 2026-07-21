@@ -14,7 +14,7 @@ from retrieval_core.stages import STAGE_RUNNERS, StageResult
 from retrieval_core.stages.base import prepare_stage_run_config
 from retrieval_core.stages.evaluation import prepare_evaluation_config
 from retrieval_core.stages.inference import prepare_inference_config
-from retrieval_core.utils.config import compose_stage_config
+from retrieval_core.utils.config import compose_entrypoint_config, compose_stage_config
 from retrieval_core.utils.console import print_stage_result, print_stage_start
 
 
@@ -26,50 +26,43 @@ def main(argv: Sequence[str] | None = None) -> StageResult:
             "Examples:\n"
             "  stage indexing dataset=toy runtime=gpu <required-config-group>=<choice>\n"
             "  stage inference dataset=toy runtime=cpu some.nested.field=value\n"
-            "  stage materialized/production/toy_dense_indexing_reference"
+            "  stage inference --entrypoint experiments/example/configs/runs/baseline.yaml"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
-        "--config-dir",
-        type=Path,
-        help="project Hydra config directory (core configs remain available as fallbacks)",
+        "stage_name",
+        metavar="STAGE",
+        choices=sorted(STAGE_RUNNERS),
+        help=f"stage to execute ({', '.join(sorted(STAGE_RUNNERS))})",
     )
     parser.add_argument(
-        "--experiment-dir",
+        "--entrypoint",
         type=Path,
         help=(
-            "experiment directory; configs resolve from its configs/ directory, then the "
-            "project configs/, then retrieval-core"
+            "YAML config entrypoint below a project or experiment configs/ directory; "
+            "defaults to the selected core stage config"
         ),
-    )
-    parser.add_argument(
-        "config_name",
-        metavar="STAGE_OR_CONFIG",
-        help=f"stage or config name ({', '.join(sorted(STAGE_RUNNERS))})",
     )
     parser.add_argument("overrides", nargs="*", metavar="OVERRIDE", help="Hydra override")
     args = parser.parse_args(argv)
 
-    if args.config_dir is not None and args.experiment_dir is not None:
-        parser.error("pass either --config-dir or --experiment-dir, not both")
-    cfg = compose_stage_config(
-        args.config_name,
-        args.overrides,
-        config_dir=args.config_dir,
-        experiment_dir=args.experiment_dir,
+    cfg = (
+        compose_entrypoint_config(args.entrypoint, args.overrides)
+        if args.entrypoint is not None
+        else compose_stage_config(args.stage_name, args.overrides)
     )
     if "stage" not in cfg or "name" not in cfg.stage:
-        parser.error(f"config '{args.config_name}' must define stage.name")
-    stage_name = str(cfg.stage.name)
-
-    try:
-        runner = STAGE_RUNNERS[stage_name]
-    except KeyError:
+        source = str(args.entrypoint) if args.entrypoint is not None else args.stage_name
+        parser.error(f"config entrypoint '{source}' must define stage.name")
+    configured_stage = str(cfg.stage.name)
+    if configured_stage != args.stage_name:
         parser.error(
-            f"config '{args.config_name}' declares unknown stage '{stage_name}'; "
-            f"valid stages: {', '.join(sorted(STAGE_RUNNERS))}"
+            f"config entrypoint declares stage '{configured_stage}', but the command "
+            f"requested '{args.stage_name}'"
         )
+    stage_name = args.stage_name
+    runner = STAGE_RUNNERS[stage_name]
 
     prepare_stage_run_config(cfg)
     if stage_name == "inference":

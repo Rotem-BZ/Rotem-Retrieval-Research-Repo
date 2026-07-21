@@ -1,6 +1,12 @@
 from pathlib import Path
 
-from retrieval_core.utils.config import compose_stage_config, config_roots, core_config_dir
+from retrieval_core.utils.config import (
+    compose_entrypoint_config,
+    compose_stage_config,
+    config_roots,
+    core_config_dir,
+    resolve_config_entrypoint,
+)
 
 
 def test_bare_stage_name_resolves_to_stages_group() -> None:
@@ -92,11 +98,13 @@ def test_run_config_uses_hydra_defaults_without_cli_overrides(tmp_path: Path) ->
     project = tmp_path / "project"
     experiment = project / "experiments" / "example"
     configs = experiment / "configs"
-    runs = experiment / "runs"
-    configs.mkdir(parents=True)
+    base_configs = configs / "base-experiment-configs"
+    runs = configs / "runs"
+    base_configs.mkdir(parents=True)
     runs.mkdir()
-    (configs / "inference.yaml").write_text(
-        """defaults:
+    (base_configs / "inference.yaml").write_text(
+        """# @package _global_
+defaults:
   - /stages/inference
   - override /dataset: toy
   - override /pipeline/inference@pipeline: dummy_keyword
@@ -111,20 +119,35 @@ selections:
     (runs / "baseline.yaml").write_text(
         """# @package _global_
 defaults:
-  - /inference
+  - /base-experiment-configs/inference
   - _self_
 """,
         encoding="utf-8",
     )
 
-    cfg = compose_stage_config(
-        "runs/baseline",
-        experiment_dir=experiment,
-    )
+    entrypoint = runs / "baseline.yaml"
+    resolved = resolve_config_entrypoint(entrypoint)
+    cfg = compose_entrypoint_config(entrypoint)
 
+    assert resolved.config_dir == configs.resolve()
+    assert resolved.config_name == "runs/baseline"
+    assert resolved.experiment_dir == experiment.resolve()
+    assert resolved.project_dir == project.resolve()
     assert cfg.stage.name == "inference"
     assert cfg.dataset.name == "toy"
     assert cfg.runtime.device.device == "cpu"
     assert cfg.stage.run_id == "example--baseline"
     assert cfg.experiment.run_name == "baseline"
     assert Path(cfg.paths.project_root) == project.resolve()
+
+
+def test_entrypoint_must_be_yaml_below_configs(tmp_path: Path) -> None:
+    outside = tmp_path / "entrypoint.yaml"
+    outside.write_text("value: true\n", encoding="utf-8")
+
+    try:
+        resolve_config_entrypoint(outside)
+    except ValueError as exc:
+        assert "below a configs/ directory" in str(exc)
+    else:
+        raise AssertionError("Expected an entrypoint outside configs/ to be rejected")

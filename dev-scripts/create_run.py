@@ -23,7 +23,7 @@ OutputFn = Callable[[str], None]
 
 def main(argv: Sequence[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
-        description="Interactively create a minimal runs/<name>.yaml Hydra config."
+        description="Interactively create a minimal configs/runs/<name>.yaml Hydra config."
     )
     parser.add_argument("experiment_dir", nargs="?", type=Path)
     args = parser.parse_args(argv)
@@ -43,17 +43,18 @@ def create_run(
     )
     project_root_for_experiment(directory)
     configs_dir = directory / "configs"
-    runs_dir = directory / "runs"
+    base_configs_dir = configs_dir / "base-experiment-configs"
+    runs_dir = configs_dir / "runs"
     configs_dir.mkdir(parents=True, exist_ok=True)
     runs_dir.mkdir(parents=True, exist_ok=True)
 
     base_configs = sorted(
         path.relative_to(configs_dir).with_suffix("").as_posix()
-        for path in configs_dir.glob("*.yaml")
+        for path in base_configs_dir.rglob("*.yaml")
     )
     if not base_configs:
         raise FileNotFoundError(
-            f"Create a complete experiment base config in {configs_dir} first."
+            f"Create a complete experiment base config in {base_configs_dir} first."
         )
     output_fn("Experiment base configs:")
     for index, config_name in enumerate(base_configs, start=1):
@@ -93,7 +94,7 @@ def create_run(
     output_fn("")
     output_fn(f"Created {path}")
     output_fn("Hydra command:")
-    output_fn(render_hydra_command(run, directory))
+    output_fn(render_hydra_command(run))
     return path
 
 

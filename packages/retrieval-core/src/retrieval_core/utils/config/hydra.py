@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from importlib.resources import files
 from pathlib import Path
 import re
@@ -13,6 +14,70 @@ from omegaconf import DictConfig
 from omegaconf import OmegaConf
 
 from retrieval_core.utils.config.searchpath import use_config_fallbacks
+
+
+@dataclass(frozen=True)
+class ConfigEntrypoint:
+    """Resolved ownership and Hydra name for one YAML config entrypoint."""
+
+    path: Path
+    config_dir: Path
+    config_name: str
+    project_dir: Path
+    experiment_dir: Path | None
+
+
+def resolve_config_entrypoint(entrypoint: str | Path) -> ConfigEntrypoint:
+    """Resolve a YAML entrypoint below a project or experiment ``configs/`` tree."""
+
+    path = Path(entrypoint).expanduser().resolve()
+    if not path.is_file():
+        raise FileNotFoundError(f"Config entrypoint does not exist: {path}")
+    if path.suffix.lower() != ".yaml":
+        raise ValueError(f"Config entrypoint must be a .yaml file: {path}")
+
+    config_dir = next((parent for parent in path.parents if parent.name == "configs"), None)
+    if config_dir is None:
+        raise ValueError(f"Config entrypoint must be below a configs/ directory: {path}")
+
+    relative = path.relative_to(config_dir)
+    config_name = relative.with_suffix("").as_posix()
+    owner = config_dir.parent
+    experiment_dir = owner if owner.parent.name == "experiments" else None
+    project_dir = (
+        _project_root_for_experiment(experiment_dir)
+        if experiment_dir is not None
+        else owner.resolve()
+    )
+    return ConfigEntrypoint(
+        path=path,
+        config_dir=config_dir.resolve(),
+        config_name=config_name,
+        project_dir=project_dir,
+        experiment_dir=experiment_dir.resolve() if experiment_dir is not None else None,
+    )
+
+
+def compose_entrypoint_config(
+    entrypoint: str | Path,
+    overrides: Sequence[str] | None = None,
+) -> DictConfig:
+    """Compose a concrete YAML entrypoint and infer its project context from its path."""
+
+    resolved = resolve_config_entrypoint(entrypoint)
+    if resolved.experiment_dir is not None:
+        return compose_stage_config(
+            resolved.config_name,
+            overrides,
+            experiment_dir=resolved.experiment_dir,
+            project_dir=resolved.project_dir,
+        )
+    return compose_stage_config(
+        resolved.config_name,
+        overrides,
+        config_dir=resolved.config_dir,
+        project_dir=resolved.project_dir,
+    )
 
 
 def compose_stage_config(
@@ -45,10 +110,9 @@ def compose_stage_config(
     if run_name is not None:
         if experiment is None:
             raise ValueError("Run configs require experiment_dir.")
-        run_file = experiment / "runs" / f"{run_name}.yaml"
+        run_file = experiment / "configs" / "runs" / f"{run_name}.yaml"
         if not run_file.is_file():
             raise FileNotFoundError(f"Experiment run config does not exist: {run_file}")
-        roots.insert(0, experiment)
     fallbacks = [
         (f"retrieval-config-{index}", _config_uri(path))
         for index, path in enumerate(roots[1:], start=1)

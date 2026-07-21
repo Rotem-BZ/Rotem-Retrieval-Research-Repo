@@ -127,7 +127,7 @@ def launch_interactively(
     print("")
     print("Hydra commands:")
     for run in eligible_runs:
-        print(f"  {run.index}. {render_hydra_command(run, directory)}")
+        print(f"  {run.index}. {render_hydra_command(run)}")
 
     registry_path, lock_path = launcher_registry_paths(plan.project_root)
     try:
@@ -251,10 +251,8 @@ def launch_runs(
             command = [
                 sys.executable,
                 str(Path(__file__).with_name("experiment_worker.py")),
-                "--experiment-dir",
-                str(experiment_dir),
-                "--run-name",
-                run.name,
+                "--entrypoint",
+                str(run.definition_file),
                 "--poll-seconds",
                 str(poll_seconds),
                 "--lost-grace-seconds",
@@ -374,8 +372,9 @@ def choose_experiment_dir(
         )
     if experiment_dir is not None:
         resolved = experiment_dir.expanduser().resolve()
-        if not list((resolved / "runs").glob("*.yaml")):
-            raise FileNotFoundError(f"No run config files found in {resolved / 'runs'}")
+        runs_dir = resolved / "configs" / "runs"
+        if not list(runs_dir.glob("*.yaml")):
+            raise FileNotFoundError(f"No run config files found in {runs_dir}")
         return resolved
 
     root = Path.cwd() / "experiments"
@@ -384,7 +383,8 @@ def choose_experiment_dir(
             (
                 path
                 for path in root.iterdir()
-                if path.is_dir() and list((path / "runs").glob("*.yaml"))
+                if path.is_dir()
+                and list((path / "configs" / "runs").glob("*.yaml"))
             ),
             key=lambda path: path.name,
         )
@@ -393,7 +393,7 @@ def choose_experiment_dir(
     )
     if not choices:
         raise FileNotFoundError(
-            f"No experiments with runs/*.yaml found below {root.resolve()}"
+            f"No experiments with configs/runs/*.yaml found below {root.resolve()}"
         )
 
     if experiment_name is not None:

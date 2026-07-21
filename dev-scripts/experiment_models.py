@@ -12,7 +12,7 @@ import yaml
 from omegaconf import OmegaConf
 
 from retrieval_core.stages import STAGE_RUNNERS
-from retrieval_core.utils.config import compose_stage_config
+from retrieval_core.utils.config import compose_entrypoint_config
 from retrieval_core.utils.io import read_json, write_json_atomic
 
 TERMINAL_STATES = {"succeeded", "failed", "launch_failed", "cancelled", "lost"}
@@ -24,7 +24,6 @@ class ExperimentRun:
     index: int
     name: str
     definition_file: Path
-    config_name: str
     stage_name: str
     stage_run_id: str
     output_dir: Path
@@ -44,7 +43,7 @@ def load_plan(experiment_dir: str | Path) -> ExperimentPlan:
 
     directory = Path(experiment_dir).expanduser().resolve()
     project_root = project_root_for_experiment(directory)
-    runs_dir = directory / "runs"
+    runs_dir = directory / "configs" / "runs"
     if not runs_dir.is_dir():
         raise FileNotFoundError(f"Experiment runs directory does not exist: {runs_dir}")
     definition_files = sorted(runs_dir.glob("*.yaml"))
@@ -56,7 +55,6 @@ def load_plan(experiment_dir: str | Path) -> ExperimentPlan:
         load_run_definition(
             path,
             index=index,
-            experiment_dir=directory,
             project_root=project_root,
         )
         for index, path in enumerate(definition_files, start=1)
@@ -74,7 +72,6 @@ def load_run_definition(
     path: Path,
     *,
     index: int,
-    experiment_dir: Path,
     project_root: Path,
 ) -> ExperimentRun:
     run_name = slugify(path.stem, fallback="run")
@@ -83,11 +80,7 @@ def load_run_definition(
             f"Run filenames must already be safe Hydra names; rename {path.name!r} "
             f"to {run_name + path.suffix!r}."
         )
-    config_name = f"runs/{path.stem}"
-    cfg = compose_stage_config(
-        config_name,
-        experiment_dir=experiment_dir,
-    )
+    cfg = compose_entrypoint_config(path)
     stage_name = str(cfg.stage.name)
     if stage_name not in STAGE_RUNNERS:
         raise ValueError(f"Run {path} resolves to unknown stage {stage_name!r}.")
@@ -99,7 +92,6 @@ def load_run_definition(
         index=index,
         name=run_name,
         definition_file=path.resolve(),
-        config_name=config_name,
         stage_name=stage_name,
         stage_run_id=str(cfg.stage.run_id),
         output_dir=output_dir.resolve(),
@@ -135,14 +127,14 @@ def write_run_definition(
     return path
 
 
-def render_hydra_command(run: ExperimentRun, experiment_dir: Path) -> str:
+def render_hydra_command(run: ExperimentRun) -> str:
     tokens = [
         "uv",
         "run",
         "stage",
-        "--experiment-dir",
-        str(experiment_dir.resolve()),
-        run.config_name,
+        run.stage_name,
+        "--entrypoint",
+        str(run.definition_file.resolve()),
     ]
     return shlex.join(tokens)
 

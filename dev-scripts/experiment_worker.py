@@ -19,6 +19,7 @@ from experiment_models import (
     update_status,
 )
 from retrieval_core.cli import main as stage_main
+from retrieval_core.utils.config import resolve_config_entrypoint
 from retrieval_core.utils.time import utc_now
 from screen import session_exists
 
@@ -27,15 +28,13 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
         description="Execute one experiment run definition."
     )
-    parser.add_argument("--experiment-dir", required=True, type=Path)
-    parser.add_argument("--run-name", required=True)
+    parser.add_argument("--entrypoint", required=True, type=Path)
     parser.add_argument("--poll-seconds", type=float, default=5.0)
     parser.add_argument("--lost-grace-seconds", type=float, default=30.0)
     args = parser.parse_args(argv)
     raise SystemExit(
         run_worker(
-            args.experiment_dir,
-            args.run_name,
+            args.entrypoint,
             poll_seconds=args.poll_seconds,
             lost_grace_seconds=args.lost_grace_seconds,
         )
@@ -43,13 +42,18 @@ def main(argv: Sequence[str] | None = None) -> None:
 
 
 def run_worker(
-    experiment_dir: Path,
-    run_name: str,
+    entrypoint: Path,
     *,
     poll_seconds: float,
     lost_grace_seconds: float,
 ) -> int:
-    directory = experiment_dir.expanduser().resolve()
+    resolved = resolve_config_entrypoint(entrypoint)
+    if resolved.experiment_dir is None or not resolved.config_name.startswith("runs/"):
+        raise ValueError(
+            f"Experiment worker requires a configs/runs/*.yaml entrypoint: {entrypoint}"
+        )
+    directory = resolved.experiment_dir
+    run_name = Path(resolved.config_name).name
     plan = load_plan(directory)
     run = next(
         (candidate for candidate in plan.runs if candidate.name == run_name), None
@@ -84,15 +88,15 @@ def run_worker(
             exit_code=None,
         )
         print("Hydra command:")
-        print(render_hydra_command(run, directory), flush=True)
+        print(render_hydra_command(run), flush=True)
         previous_cwd = Path.cwd()
         try:
             os.chdir(plan.project_root)
             stage_main(
                 [
-                    "--experiment-dir",
-                    str(directory),
-                    run.config_name,
+                    run.stage_name,
+                    "--entrypoint",
+                    str(run.definition_file),
                 ]
             )
         finally:

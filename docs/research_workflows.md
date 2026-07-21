@@ -24,8 +24,9 @@ of isolated commands:
 4. Exercise configuration and pipeline changes with focused tests before spending compute.
 5. Reuse exact upstream artifacts. A treatment that changes only inference should
    normally share the baseline's index, mapping, dataset, and qrels.
-6. Put the complete shared configuration in the experiment's `configs/` directory,
-   then record each invocation as a minimal Hydra composition layer in `runs/`.
+6. Put complete shared stage configurations in
+   `configs/base-experiment-configs/`, then record each invocation as a minimal
+   Hydra entrypoint in `configs/runs/`.
 7. Run inference and evaluation with immutable, exact run ids. Large stage artifacts
    remain below `artifacts/runs/`; their manifests link back to the experiment.
 8. Inspect aggregate and query-level behavior in the experiment's `analysis.ipynb`,
@@ -759,18 +760,20 @@ experiments/<experiment-slug>/
 ├── experiment.md
 ├── analysis.ipynb
 ├── report.md                    # added after results exist
-├── configs/
-│   ├── inference.yaml           # complete shared experiment configuration
-│   └── pipeline/...             # optional experiment-only config groups
-└── runs/
-    ├── baseline.yaml            # inherits the base unchanged
-    └── treatment.yaml           # contains only treatment differences
+└── configs/
+    ├── base-experiment-configs/
+    │   └── inference.yaml       # complete shared experiment configuration
+    ├── pipeline/...             # optional experiment-only config groups
+    └── runs/
+        ├── baseline.yaml        # inherits the base unchanged
+        └── treatment.yaml       # contains only treatment differences
 ```
 
 The base config uses Hydra's defaults list to select the stage, dataset, pipeline,
 models, and other shared choices, and holds all shared field values:
 
 ```yaml
+# @package _global_
 defaults:
   - /stages/inference
   - override /dataset: beir_scifact
@@ -788,7 +791,7 @@ The baseline run is only an entry layer:
 ```yaml
 # @package _global_
 defaults:
-  - /inference
+  - /base-experiment-configs/inference
   - _self_
 ```
 
@@ -797,7 +800,7 @@ The treatment adds only its differing Hydra selection:
 ```yaml
 # @package _global_
 defaults:
-  - /inference
+  - /base-experiment-configs/inference
   - override /pipeline/inference@pipeline: treatment_pipeline
   - _self_
 ```
@@ -810,14 +813,14 @@ uv run python ../../dev-scripts/create_run.py experiments/<experiment-slug>
 
 The filename becomes the run name. The run's defaults are composed with this search
 order: `<experiment>/configs/`, `<project>/configs/`, then the configs packaged by
-`retrieval-core`. The selected run can be launched without Hydra override arguments:
+`retrieval-core`. Launch a selected run by passing its YAML file as the entrypoint:
 
 ```bash
-uv run stage --experiment-dir experiments/<experiment-slug> runs/baseline
+uv run stage inference --entrypoint experiments/<experiment-slug>/configs/runs/baseline.yaml
 ```
 
 The runtime derives the project root, stable run ID, and experiment manifest metadata
-from the experiment directory and run filename; run files may not override those fields.
+from the entrypoint path and run filename; run files may not override those fields.
 Resolved configs and heavy outputs remain under `artifacts/runs/<stage>/<run-id>/`.
 Launcher status and Screen logs live under
 `artifacts/experiments/<experiment>/<run>/`, keeping the experiment workspace
@@ -829,7 +832,7 @@ On Linux, install GNU Screen and launch a subset interactively:
 uv run python ../../dev-scripts/run_in_parallel_screens.py
 ```
 
-The launcher lists experiments containing `runs/*.yaml`, prints the generated Hydra
+The launcher lists experiments containing `configs/runs/*.yaml`, prints the generated Hydra
 command for every run, asks which run files to use, and accepts selections such as
 `1,3,4-7`, `ready`, and `all`. It asks for a maximum number of executing runs, assigns
 selected runs to that many persistent lanes, launches the Screen sessions, and exits.
@@ -846,10 +849,10 @@ current lanes are terminal.
 
 ## Troubleshooting
 
-- **Hydra cannot find a stage or config group:** run from the intended project
-  directory, pass `--experiment-dir PATH`, or pass `--config-dir PATH`. Confirm that `retrieval-core` is
-  installed in the active environment so its `hydra_plugins` search-path plugin
-  can expose the shared config package.
+- **Hydra cannot find an entrypoint or config group:** pass an existing YAML file
+  below a project or experiment `configs/` directory to `--entrypoint`. Confirm that
+  `retrieval-core` is installed in the active environment so its `hydra_plugins`
+  search-path plugin can expose the shared config package.
 - **A required value is `???`:** select the missing config group, usually a
   dataset, pipeline, input mapping, embedding model, or reranker model. The
   interactive `uv run python ../../dev-scripts/build_command.py` flow can discover choices.

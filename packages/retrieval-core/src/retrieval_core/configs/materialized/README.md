@@ -24,5 +24,5 @@ Current examples:
 Run it directly with:
 
 ```bash
-uv run stage materialized/production/toy_dense_indexing_reference
+uv run stage indexing --entrypoint src/retrieval_core/configs/materialized/production/toy_dense_indexing_reference.yaml
 ```

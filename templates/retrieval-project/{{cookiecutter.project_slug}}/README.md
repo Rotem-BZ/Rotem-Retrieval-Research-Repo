@@ -52,7 +52,8 @@ immutable run IDs.
 The generated experiment workspace is
 [`experiments/{{ cookiecutter.project_slug }}`](experiments/{{ cookiecutter.project_slug }}).
 After creating a shared index, replace the placeholder index ID in
-`experiments/{{ cookiecutter.project_slug }}/configs/inference.yaml`. On Linux, use
+`experiments/{{ cookiecutter.project_slug }}/configs/base-experiment-configs/inference.yaml`.
+On Linux, use
 `uv run python ../../dev-scripts/run_in_parallel_screens.py` to choose the experiment
 and its run subset. Use
 `uv run python ../../dev-scripts/create_run.py experiments/{{ cookiecutter.project_slug }}`
