@@ -13,17 +13,18 @@ def _document_from_record(
     record: dict[str, Any],
     *,
     id_field: str,
-    content_field: str,
+    content_field: str | None,
 ) -> Document:
-    missing_fields = [field for field in (id_field, content_field) if field not in record]
-    if missing_fields:
-        raise ValueError(f"Document record is missing required fields: {missing_fields}")
-    reserved_fields = {id_field, content_field, "meta", "score", "embedding"}
+    if id_field not in record:
+        raise ValueError(f"Document record is missing required fields: {[id_field]}")
+    if content_field is not None and content_field not in record:
+        raise ValueError(f"Document record is missing required fields: {[content_field]}")
+    reserved_fields = {id_field, "meta", "score", "embedding"}
     meta = {key: value for key, value in record.items() if key not in reserved_fields}
     meta.update(dict(record.get("meta") or {}))
     return Document(
         id=str(record[id_field]),
-        content=str(record[content_field]),
+        content=None if content_field is None else str(record[content_field]),
         meta=meta,
         score=record.get("score"),
         embedding=record.get("embedding"),
@@ -34,7 +35,7 @@ def _read_jsonl_documents(
     path: Path,
     *,
     id_field: str,
-    content_field: str,
+    content_field: str | None,
 ) -> list[Document]:
     documents: list[Document] = []
     with path.open("r", encoding="utf-8") as handle:
@@ -54,7 +55,12 @@ def _read_jsonl_documents(
 class JsonlDocumentSource:
     """Read documents from a JSONL dataset file."""
 
-    def __init__(self, documents_path: str, id_field: str, content_field: str) -> None:
+    def __init__(
+        self,
+        documents_path: str,
+        id_field: str,
+        content_field: str | None = None,
+    ) -> None:
         self.documents_path = documents_path
         self.id_field = id_field
         self.content_field = content_field

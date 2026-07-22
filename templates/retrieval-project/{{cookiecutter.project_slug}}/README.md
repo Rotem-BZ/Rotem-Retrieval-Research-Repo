@@ -54,9 +54,9 @@ The generated experiment workspace is
 After creating a shared index, replace the placeholder index ID in
 `experiments/{{ cookiecutter.project_slug }}/configs/base-experiment-configs/inference.yaml`.
 On Linux, use
-`uv run python ../../dev-scripts/run_in_parallel_screens.py` to choose the experiment
+`uv run python ../../awesome-dev-tools/interactive_run_in_parallel_screens.py` to choose the experiment
 and its run subset. Use
-`uv run python ../../dev-scripts/create_run.py experiments/{{ cookiecutter.project_slug }}`
+`uv run python ../../awesome-dev-tools/interactive_create_run.py experiments/{{ cookiecutter.project_slug }}`
 to add another explicit run interactively.
 
 The default selections are:

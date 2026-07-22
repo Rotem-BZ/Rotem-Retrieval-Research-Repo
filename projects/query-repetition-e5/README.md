@@ -51,9 +51,9 @@ and an analysis notebook; the reusable repetition pipeline lives in the project'
 shared index, update its exact ID in
 [`base-experiment-configs/inference.yaml`](experiments/query-repetition-e5-small-scifact/configs/base-experiment-configs/inference.yaml).
 On Linux,
-`uv run python ../../dev-scripts/run_in_parallel_screens.py` lets you choose the
+`uv run python ../../awesome-dev-tools/interactive_run_in_parallel_screens.py` lets you choose the
 experiment and the subset of runs to launch in GNU Screen. Use
-`uv run python ../../dev-scripts/create_run.py experiments/query-repetition-e5-small-scifact`
+`uv run python ../../awesome-dev-tools/interactive_create_run.py experiments/query-repetition-e5-small-scifact`
 to add another run interactively.
 
 On Windows or Linux, launch either checked-in run directly with its YAML entrypoint:

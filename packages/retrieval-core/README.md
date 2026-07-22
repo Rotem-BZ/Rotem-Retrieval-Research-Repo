@@ -10,7 +10,8 @@ published.
 
 Feature modules remain directly under `retrieval_core` (`stages`, `input_mapping`,
 `data_schema`, and the stage CLI). `EvaluationDataSchema` is the single source of
-truth for evaluation-file field names and required-field validation. Shared infrastructure lives under
+truth for evaluation-file field names and identity validation; query and document
+content is materialized by pipeline parser components. Shared infrastructure lives under
 `retrieval_core.utils` and is grouped by responsibility:
 
 - `artifacts`: immutable run manifests and artifact resolution
@@ -26,5 +27,5 @@ Import shared helpers through their focused package, for example
 `from retrieval_core.utils.config import compose_stage_config`.
 
 Developer-only command building and GNU Screen experiment orchestration live in the
-repository-level `dev-scripts/` directory instead of this runtime package. Stage
+repository-level `awesome-dev-tools/` directory instead of this runtime package. Stage
 outputs use `artifacts/runs/` and carry experiment linkage in their manifests.

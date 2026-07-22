@@ -44,5 +44,5 @@ line-length = 100
 target-version = "py311"
 
 [tool.pytest.ini_options]
-testpaths = ["tests", "../../dev-scripts/tests"]
-pythonpath = ["src", "../retrieval-components/src", "../../dev-scripts"]
+testpaths = ["tests", "../../awesome-dev-tools/tests"]
+pythonpath = ["src", "../retrieval-components/src", "../../awesome-dev-tools"]

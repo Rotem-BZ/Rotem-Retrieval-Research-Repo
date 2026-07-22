@@ -36,11 +36,10 @@ def print_stage_start(
     input_mapping_recipe = cfg.get("input_mapping_recipe")
     if input_mapping_recipe:
         print(f"Input mapping recipe: {input_mapping_recipe.get('name', '<unnamed>')}")
-    input_mapping = cfg.get("input_mapping")
-    if input_mapping:
-        print(f"Input mapping: {input_mapping}")
 
     selections = cfg.get("selections")
+    if selections and selections.get("input_mapping"):
+        print(f"Input mapping: {selections.input_mapping}")
     if selections and selections.get("index_id"):
         print(f"Index id: {selections.index_id}")
 

@@ -5,6 +5,7 @@ from omegaconf import OmegaConf
 
 from retrieval_core.data_schema import EVALUATION_DATA_SCHEMA
 from retrieval_core.stages.evaluation import prepare_evaluation_config, run_evaluation
+from retrieval_core.utils.artifacts import discover_inference_run_ids
 from retrieval_core.utils.io import write_json, write_jsonl, write_predictions
 
 
@@ -99,3 +100,41 @@ def test_evaluation_does_not_accept_inference_run_prefixes(tmp_path: Path) -> No
 
     with pytest.raises(FileNotFoundError, match="No inference run exists"):
         prepare_evaluation_config(cfg)
+
+
+def test_discovers_completed_inference_runs_for_selected_dataset(tmp_path: Path) -> None:
+    runs_dir = tmp_path / "runs"
+    _write_inference_run(runs_dir, "toy-current", dataset_name="toy")
+    _write_inference_run(runs_dir, "other", dataset_name="other")
+    _write_inference_run(runs_dir, "toy-legacy", dataset_name="toy", legacy=True)
+    incomplete = runs_dir / "inference" / "incomplete"
+    incomplete.mkdir(parents=True)
+    write_json(incomplete / "manifest.json", {"inputs": {"dataset": "toy"}})
+
+    assert discover_inference_run_ids(runs_dir, dataset_name="toy") == [
+        "toy-current",
+        "toy-legacy",
+    ]
+
+
+def _write_inference_run(
+    runs_dir: Path,
+    run_id: str,
+    *,
+    dataset_name: str,
+    legacy: bool = False,
+) -> None:
+    run_dir = runs_dir / "inference" / run_id
+    predictions_path = run_dir / "predictions.json"
+    write_predictions(predictions_path, [])
+    manifest = {
+        "stage": {"name": "inference", "run_id": run_id},
+        "artifacts": {"predictions": str(predictions_path)},
+        "inputs": {} if legacy else {"dataset": dataset_name},
+    }
+    write_json(run_dir / "manifest.json", manifest)
+    if legacy:
+        (run_dir / "resolved_config.yaml").write_text(
+            f"dataset:\n  name: {dataset_name}\n",
+            encoding="utf-8",
+        )

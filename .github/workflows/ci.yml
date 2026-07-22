@@ -21,8 +21,8 @@ jobs:
             tests: packages/retrieval-components/tests
           - name: retrieval-core
             project: packages/retrieval-core
-            lint: packages/retrieval-core dev-scripts
-            tests: packages/retrieval-core/tests dev-scripts/tests
+            lint: packages/retrieval-core awesome-dev-tools
+            tests: packages/retrieval-core/tests awesome-dev-tools/tests
           - name: query-repetition-e5
             project: projects/query-repetition-e5
             lint: projects/query-repetition-e5

@@ -10,8 +10,8 @@ Build conclusions from run artifacts, not from remembered commands or intended c
 ## Workflow
 
 1. Read [references/report-template.md](references/report-template.md).
-2. Locate the experiment card when one exists. Treat its hypothesis, primary metric, and decision rule as preregistered; do not rewrite them after seeing results.
-3. Identify the exact baseline and treatment run ids for every relevant stage. Do not select "latest" implicitly. If run identity is ambiguous, stop and request the exact runs.
+2. Locate the experiment card when one exists. Treat any hypothesis, primary metric, and decision rule actually recorded there as preregistered; do not add or rewrite them after seeing results.
+3. Inspect checked-in run entrypoints under `projects/<project>/experiments/<experiment-slug>/configs/runs/` when available, then identify the exact baseline and treatment run ids for every relevant stage. Do not select "latest" implicitly. If run identity is ambiguous, stop and request the exact runs.
 4. Read each run's `manifest.json`, `resolved_config.yaml`, and `result.json`. Read manifest-declared artifacts such as `metrics.json` and inspect predictions only when needed for diagnostics.
 5. Verify comparability before calculating conclusions:
    - same dataset and qrels;
@@ -28,7 +28,7 @@ Build conclusions from run artifacts, not from remembered commands or intended c
    - interpretations or plausible mechanisms;
    - limitations and untested alternatives.
 10. Add concise diagnostic analysis only when it helps explain the aggregate result. Avoid presenting cherry-picked queries as representative.
-11. Save the report as `projects/<project>/experiments/<experiment-slug>/report.md`, beside the source `experiment.md`, reusable configs, resolved run configs, and analysis notebook. Link exact stage artifact directories under `artifacts/runs/`.
+11. Save the report as `projects/<project>/experiments/<experiment-slug>/report.md`, beside the source `experiment.md`, declarative `configs/`, and analysis notebook. Resolved configs remain in exact stage artifact directories under `artifacts/runs/`; link those directories rather than copying resolved configs into the experiment tree.
 12. Re-read every numeric and provenance claim against its source artifact before handing off the report.
 
 ## Guardrails

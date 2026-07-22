@@ -13,9 +13,11 @@ def test_run_queries_concurrently_and_preserve_input_order() -> None:
             self.active_runs = 0
             self.max_active_runs = 0
             self.pipeline_limits: list[int] = []
+            self.query_metas: list[dict] = []
 
         async def run_async(self, *, data, include_outputs_from, concurrency_limit):
             query = data["input"]["query"]
+            self.query_metas.append(data["input"]["query_meta"])
             self.active_runs += 1
             self.max_active_runs = max(self.max_active_runs, self.active_runs)
             self.pipeline_limits.append(concurrency_limit)
@@ -34,6 +36,7 @@ def test_run_queries_concurrently_and_preserve_input_order() -> None:
                 EVALUATION_DATA_SCHEMA.query_id: "external-q1",
                 EVALUATION_DATA_SCHEMA.IN: "q1",
                 EVALUATION_DATA_SCHEMA.query_content: "first",
+                "language": "en",
             },
             {
                 EVALUATION_DATA_SCHEMA.query_id: "external-q2",
@@ -62,6 +65,12 @@ def test_run_queries_concurrently_and_preserve_input_order() -> None:
 
     assert pipeline.max_active_runs == 2
     assert pipeline.pipeline_limits == [7, 7, 7]
+    assert [meta[EVALUATION_DATA_SCHEMA.query_content] for meta in pipeline.query_metas] == [
+        "first",
+        "second",
+        "third",
+    ]
+    assert pipeline.query_metas[0]["language"] == "en"
     assert [prediction[EVALUATION_DATA_SCHEMA.query_id] for prediction in predictions] == [
         "external-q1",
         "external-q2",
@@ -72,3 +81,39 @@ def test_run_queries_concurrently_and_preserve_input_order() -> None:
         "q2",
         "q3",
     ]
+
+
+def test_run_queries_accepts_parser_rendered_content_when_raw_content_is_missing() -> None:
+    class MetadataQueryPipeline:
+        async def run_async(self, *, data, include_outputs_from, concurrency_limit):
+            assert data["input"]["query"] == ""
+            return {
+                "output": {
+                    "query_content": data["input"]["query_meta"]["question"],
+                    "documents": [],
+                }
+            }
+
+    inference_mapping = InferenceMapping(
+        queries=[
+            {
+                EVALUATION_DATA_SCHEMA.query_id: "external-q1",
+                EVALUATION_DATA_SCHEMA.IN: "q1",
+                "question": "render me",
+            }
+        ],
+        candidate_ids_by_query={},
+        documents_by_id={},
+        default_candidate_ids=[],
+    )
+
+    predictions = asyncio.run(
+        _run_queries(
+            MetadataQueryPipeline(),  # type: ignore[arg-type]
+            inference_mapping,
+            query_concurrency_limit=1,
+            pipeline_concurrency_limit=1,
+        )
+    )
+
+    assert predictions[0][EVALUATION_DATA_SCHEMA.query_content] == "render me"

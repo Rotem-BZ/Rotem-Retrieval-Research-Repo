@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from retrieval_core.cli import main
+from retrieval_core.cli import main, run_stage
 from retrieval_core.stages import STAGE_RUNNERS
 from retrieval_core.utils.config import core_config_dir
 from retrieval_core.utils.io import read_json
@@ -28,6 +28,29 @@ def test_help_lists_default_stages(capsys) -> None:
     assert "--config-dir" not in help_text
 
 
+def test_console_main_does_not_return_or_print_full_stage_result(
+    monkeypatch,
+    capsys,
+) -> None:
+    marker = "FULL_RESULT_SHOULD_NOT_BE_PRINTED"
+    monkeypatch.setitem(STAGE_RUNNERS, "indexing", lambda cfg: [{"marker": marker}])
+
+    result = main(
+        [
+            "indexing",
+            "dataset=toy",
+            "pipeline/indexing@pipeline=dummy_jsonl",
+            "runtime=cpu",
+            "selections.index_id=test-index",
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert result is None
+    assert marker not in output
+    assert "'result_count': 1" in output
+
+
 def test_prepare_mapping_stage_writes_run_id_mapping_directory(tmp_path: Path) -> None:
     dataset_dir = Path("data/processed/toy").resolve()
     overrides = [
@@ -40,7 +63,7 @@ def test_prepare_mapping_stage_writes_run_id_mapping_directory(tmp_path: Path) -
         "stage.run_id=toy_dev_tiny",
     ]
 
-    result = main(["prepare_mapping", *overrides])
+    result = run_stage(["prepare_mapping", *overrides])
 
     mapping_path = Path(result["mapping_path"])
     assert mapping_path == tmp_path / "artifacts" / "input_mappings" / "toy_dev_tiny" / "input_mapping.json"
@@ -64,7 +87,7 @@ def test_materialized_config_dispatches_by_declared_stage(monkeypatch) -> None:
         / "production"
         / "toy_dense_indexing_reference.yaml"
     )
-    result = main(["indexing", "--entrypoint", str(entrypoint)])
+    result = run_stage(["indexing", "--entrypoint", str(entrypoint)])
 
     assert result == {"ok": True}
     assert captured == {

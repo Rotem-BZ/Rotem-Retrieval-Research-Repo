@@ -1,0 +1,6 @@
+type: haystack_integrations.components.rankers.fastembed.ranker.FastembedRanker
+init_parameters:
+  model_name: Xenova/ms-marco-MiniLM-L-6-v2
+  top_k: 100
+  batch_size: 64
+

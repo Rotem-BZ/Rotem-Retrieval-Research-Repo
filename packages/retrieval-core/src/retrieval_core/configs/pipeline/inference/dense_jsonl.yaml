@@ -1,6 +1,7 @@
 defaults:
   - /selections@_global_.selections: index
   - /selections/embedding_model@_global_.selections.embedding_model: ???
+  - /component/query_parser@components.query_parser: content_field
   - /component/query_preprocessor@components.query_preprocessor: prefix_cleanup
   - /component/query_embedder@components.query_embedder: sentence_transformers
   - /component/retriever@components.retriever: jsonl_embeddings
@@ -13,8 +14,12 @@ components:
     type: retrieval_components.interfaces.stage_io.InferenceOutput
 
 connections:
-  - sender: input.query
+  - sender: input.query_meta
+    receiver: query_parser.meta
+  - sender: query_parser.text
     receiver: query_preprocessor.text
+  - sender: query_parser.text
+    receiver: output.query_content
   - sender: input.candidate_document_ids
     receiver: retriever.candidate_document_ids
   - sender: query_preprocessor.text

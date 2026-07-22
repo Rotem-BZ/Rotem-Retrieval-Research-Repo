@@ -30,7 +30,7 @@ The treatment tests whether the gains associated with input repetition transfer 
 | Query prefix | `"query: "` after normalizing whitespace | `"query: "` after normalizing whitespace | Yes |
 | Document index | Shared document-level E5-small index | Exact same index run | Yes |
 | Dataset and split | BEIR SciFact test | BEIR SciFact test | Yes |
-| Candidate mapping | `input_mapping=null` | `input_mapping=null` | Yes |
+| Candidate mapping | `selections.input_mapping=null` | `selections.input_mapping=null` | Yes |
 | Retrieved depth | `top_k=100` | `top_k=100` | Yes |
 | Device and concurrency | CPU; query concurrency 4; pipeline concurrency 4 | Same | Yes |
 | Evaluation metrics | Same explicit metric list and qrels | Same | Yes |
@@ -89,7 +89,7 @@ uv run prepare-beir --data-dir data --dataset scifact
 
 uv run stage indexing dataset=beir_scifact runtime=cpu pipeline/indexing@pipeline=dense_jsonl selections/embedding_model=e5/small_v2 selections.index_id=$indexId runtime.concurrency_limit=4 stage.run_id=$indexingRun
 
-uv run python ../../dev-scripts/run_in_parallel_screens.py --experiment query-repetition-e5-small-scifact
+uv run python ../../awesome-dev-tools/interactive_run_in_parallel_screens.py --experiment query-repetition-e5-small-scifact
 
 uv run stage evaluation dataset=beir_scifact stage.inference_run_id=$baselineRun metrics=$metrics stage.run_id=$baselineEval
 uv run stage evaluation dataset=beir_scifact stage.inference_run_id=$treatmentRun metrics=$metrics stage.run_id=$treatmentEval

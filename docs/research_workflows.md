@@ -25,8 +25,9 @@ of isolated commands:
 5. Reuse exact upstream artifacts. A treatment that changes only inference should
    normally share the baseline's index, mapping, dataset, and qrels.
 6. Put complete shared stage configurations in
-   `configs/base-experiment-configs/`, then record each invocation as a minimal
-   Hydra entrypoint in `configs/runs/`.
+   `projects/<project>/experiments/<experiment-slug>/configs/base-experiment-configs/`,
+   then record each invocation as a minimal Hydra entrypoint in that experiment's
+   `configs/runs/` directory.
 7. Run inference and evaluation with immutable, exact run ids. Large stage artifacts
    remain below `artifacts/runs/`; their manifests link back to the experiment.
 8. Inspect aggregate and query-level behavior in the experiment's `analysis.ipynb`,
@@ -35,7 +36,8 @@ of isolated commands:
 
 Repository-local agent skills support the same lifecycle:
 
-- `create-experiment-card` plans a baseline-versus-treatment experiment.
+- `create-experiment-card` records a concise experiment description and a
+  user-supplied hypothesis.
 - `implement-new-component` adds reusable Haystack behavior.
 - `implement-new-stage` adds a new artifact-producing workflow phase.
 - `generate-experiment-report` checks provenance and reports completed results.
@@ -63,7 +65,7 @@ versus repo-specific adapters.
 The main runtime modules are:
 
 - `cli.py` dispatches `stage <stage-name>` commands to stage runners.
-- `dev-scripts/` contains the interactive command builder and GNU Screen experiment tools.
+- `awesome-dev-tools/` contains the interactive command builder and GNU Screen experiment tools.
 - reusable components live separately under `packages/retrieval-components/`.
 - `input_mapping/` owns candidate-set recipes and materialized mappings.
 - `notebooks/` contains cell-marked data-preparation scripts such as `prepare_beir.py`.
@@ -73,10 +75,11 @@ The main runtime modules are:
   evaluation, IO, pipelines, hashing, and time.
 
 The separate top-level `packages/retrieval-core/src/hydra_plugins/` namespace is
-intentional. Hydra auto-discovers its search-path plugin, which appends
-`pkg://retrieval_core.configs` after the consuming project's config directory.
-That ordering lets projects override only the config groups they own while using
-the shared core entry points and defaults as fallbacks.
+intentional. Hydra auto-discovers its search-path plugin, which supplies the fallback
+roots configured for each composition. An experiment entrypoint composes in this
+order: experiment `configs/`, project `configs/`, then
+`pkg://retrieval_core.configs`. That ordering lets an experiment or project override
+only the config groups it owns while using broader defaults as fallbacks.
 
 ## Design Philosophy
 
@@ -240,7 +243,8 @@ As a rule of thumb, use command-line overrides for small scalar changes,
 component config groups for reusable implementations, pipeline config groups for
 graph topology, and experiment cards for the research claim and decision rule.
 If a fully resolved configuration must be preserved as a runnable reference,
-store it under `configs/materialized/` and run it by config path.
+store it under the appropriate `configs/materialized/` tree and pass the YAML file
+to `stage <stage> --entrypoint`.
 
 ## Environment
 
@@ -265,26 +269,45 @@ tests. It is not automatically copied into every generated research project.
 To build a command interactively without running an experiment:
 
 ```bash
-uv run python ../../dev-scripts/build_command.py
+uv run python ../../awesome-dev-tools/interactive_build_command.py
 ```
 
+For `prepare_mapping`, the builder suggests a unique run id from the selected
+dataset and recipe, such as `toy-dev-tiny`, and prompts before adding it to the
+command. Press Enter to accept the suggestion or enter another folder-safe id.
+For evaluation, it scans completed inference manifests and presents only runs for
+the selected dataset; older runs are matched through their saved resolved config.
+
 After required Hydra choices are selected, the builder can review the selected
-config graph. From there you can switch default choices such as `input_mapping`,
+config graph. From there you can switch leaf fields such as `selections.input_mapping`,
 enter nested YAML configs such as selected embedding models, and render edited
 leaf fields as command-line overrides.
 
 ## Configuration Layout
 
-Hydra stage entry points live under `configs/stages/`:
+Composition can involve three distinct config roots:
+
+1. `packages/retrieval-core/src/retrieval_core/configs/` is the packaged core root.
+2. `projects/<project>/configs/` is the project overlay.
+3. `projects/<project>/experiments/<experiment-slug>/configs/` is the experiment
+   overlay and the home of checked-in run entrypoints.
+
+For an experiment entrypoint, Hydra searches those roots from most specific to least
+specific: experiment, project, then core. The CLI infers the experiment and project
+roots from the path passed to `--entrypoint`; YAML files do not import those roots.
+
+Shared Hydra stage entry points live under the core `configs/stages/` group:
 
 - `configs/stages/indexing.yaml`
 - `configs/stages/inference.yaml`
 - `configs/stages/evaluation.yaml`
 - `configs/stages/prepare_mapping.yaml`
 
-The `stage` CLI and `compose_stage_config` continue to accept bare names such as
-`inference`; they resolve to `stages/inference` when no explicit top-level config
-with that name exists.
+Without `--entrypoint`, `stage` composes the selected bare stage name, such as
+`inference`, against the current project's `configs/` tree when the working directory
+has one, then the core tree. The name resolves to `stages/inference` when no explicit
+top-level config with that name exists. The CLI never infers an experiment from the
+working directory; select an experiment run by passing its YAML path explicitly.
 
 Config groups provide reusable prefills:
 
@@ -292,7 +315,7 @@ Config groups provide reusable prefills:
 - `configs/paths/` contains artifact layout choices.
 - `configs/input_mapping_recipe/` contains reusable candidate-set recipes for the
   `prepare_mapping` stage. Inference uses all dataset queries and documents when
-  its `input_mapping` path is null.
+  its `selections.input_mapping` value is null.
 - `configs/runtime/` contains the required `gpu` and `cpu` execution profiles.
 - `configs/selections/` contains semantic experiment selections such as embedding
   model families and checkpoints.
@@ -343,7 +366,7 @@ without an `index_id` field.
 ### Input Mappings
 
 Inference uses every query and every document in the selected dataset when
-`input_mapping` is null. Smaller candidate sets are selected as reusable recipes
+`selections.input_mapping` is null. Smaller candidate sets are selected as reusable recipes
 for `prepare_mapping` and written under the stage run id:
 
 ```bash
@@ -360,10 +383,16 @@ so the chosen artifact is explicit and can be reused by any number of runs:
 uv run stage inference \
   dataset=beir_scifact \
   runtime=cpu \
-  input_mapping=scifact_dev_tiny \
+  selections.input_mapping=scifact_dev_tiny \
   pipeline/inference@pipeline=dense_candidate_reranker \
   selections/embedding_model=e5/small_v2
 ```
+
+The interactive command builder scans that directory after composing an inference
+command. It offers all completed mappings whose `meta.json` names the selected
+dataset, plus an all-documents option that leaves `selections.input_mapping` null.
+For index-backed pipelines, the input-mapping menu appears immediately before the
+required index-id menu.
 
 Materialized mappings are plain JSON objects keyed by query input (`IN`):
 
@@ -374,9 +403,9 @@ Materialized mappings are plain JSON objects keyed by query input (`IN`):
 ```
 
 If a mapping includes only a subset of queries, inference runs only those
-queries. Candidate ids and materialized candidate `Document` objects are passed
-to each inference pipeline through the fixed `input` interface component; each
-pipeline decides which internal components consume them.
+queries. Query metadata, candidate ids, and materialized candidate `Document`
+objects are passed to each inference pipeline through the fixed `input` interface
+component; each pipeline decides which internal components consume them.
 
 Useful built-in recipes live under `configs/input_mapping_recipe/`:
 
@@ -409,7 +438,7 @@ uv run stage prepare_mapping `
 uv run stage inference `
   dataset=toy `
   runtime=cpu `
-  input_mapping=toy_dev_tiny `
+  selections.input_mapping=toy_dev_tiny `
   pipeline/inference@pipeline=dense_candidate_reranker `
   selections/embedding_model=e5/small_v2 `
   stage.run_id=toy_e5_rerank
@@ -469,9 +498,9 @@ uv run stage inference `
 
 ### Reranking Pipelines
 
-The inference stage always sends the raw query, candidate ids, and materialized
-candidate documents through the `input` component. That lets reranking pipelines
-reuse the same stage contract.
+The inference stage always sends legacy query text, complete query metadata,
+candidate ids, and materialized candidate documents through the `input` component.
+That lets query parsers and reranking pipelines reuse the same stage contract.
 
 To rerank a candidate pool with a bi-encoder, use the candidate reranker
 topology. This embeds `input.candidate_documents`, embeds the query, scores by
@@ -483,14 +512,14 @@ uv run stage prepare_mapping dataset=beir_scifact input_mapping_recipe=judged_on
 uv run stage inference `
   dataset=beir_scifact `
   runtime=gpu `
-  input_mapping=scifact_judged_only `
+  selections.input_mapping=scifact_judged_only `
   pipeline/inference@pipeline=dense_candidate_reranker `
   selections/embedding_model=e5/small_v2 `
   pipeline.components.ranker.init_parameters.top_k=10
 ```
 
 For larger candidate pools, prepare an input mapping that limits the documents
-per query before reranking. With `input_mapping=null`, every dataset document is
+per query before reranking. With `selections.input_mapping=null`, every dataset document is
 passed as a candidate.
 
 To rerank the same candidate pool with a cross-encoder, select a reranker model
@@ -500,7 +529,7 @@ such as BGE reranker v2 M3:
 uv run stage inference `
   dataset=beir_scifact `
   runtime=gpu `
-  input_mapping=scifact_judged_only `
+  selections.input_mapping=scifact_judged_only `
   pipeline/inference@pipeline=cross_encoder_candidate_reranker `
   selections/reranker_model=bge/v2_m3 `
   stage.run_id=bge_v2_m3 `
@@ -529,7 +558,7 @@ Every stage has a narrow contract:
 | `evaluation` | Qrels plus an exact inference run or explicit predictions path | `metrics` |
 
 Generated input mappings are stored under the prepare-mapping run id. Leaving
-inference `input_mapping` null needs no preparation:
+inference `selections.input_mapping` null needs no preparation:
 
 ```bash
 uv run stage prepare_mapping dataset=beir_scifact input_mapping_recipe=dev_tiny stage.run_id=scifact_dev_tiny
@@ -558,8 +587,9 @@ Each saved run contains its outputs, `resolved_config.yaml`, `result.json`, and 
 `manifest.json` with exact input references, artifact paths, the resolved-config
 hash, package/Python versions, and Git commit when available.
 
-`stage.run_id` is the single identifier for a stage run. It defaults to a unique
-timestamp and may be set explicitly when a descriptive or stable id is useful:
+`stage.run_id` is the single identifier for a stage run. It defaults to a unique,
+Hydra-override-safe timestamp such as `20260723-011220-179277` and may be set
+explicitly when a descriptive or stable id is useful:
 
 ```bash
 uv run stage inference \
@@ -583,8 +613,8 @@ retrieved chunks from one source document collapse to one evaluated document.
 
 Qrels with labels less than or equal to zero are excluded. NDCG uses graded
 labels; Recall, Precision, HitRate, MAP, and MRR use binary relevance. Record
-the exact metric list in the experiment card before inspecting results, and use
-the same list for every run in a comparison.
+the exact metric list in versioned experiment configuration before inspecting
+results, and use the same list for every run in a comparison.
 
 For query-level analysis, open the experiment's `analysis.ipynb`, configure readable
 labels and exact inference run ids, and run the cells. The notebook resolves
@@ -647,11 +677,21 @@ Document JSONL records should look like:
 {"doc_id":"doc-1","text":"Text to index.","title":"An optional extra field"}
 ```
 
+Only `doc_id` is required by the dataset schema. All other JSON-serializable fields,
+including `text`, are preserved as document metadata. Built-in pipelines use
+`DocumentContentFieldParser(content_field="text")`; select or implement another
+document parser for datasets whose embedding text comes from different fields.
+
 Query JSONL records should look like:
 
 ```json
 {"query_id":"external-q-1","IN":"q-1","query_content":"Search text.","language":"en"}
 ```
+
+Only `query_id` and `IN` are required by the dataset schema. Other fields are exposed
+through `input.query_meta`. Built-in pipelines use
+`QueryContentFieldParser(content_field="query_content")`; alternate pipelines can
+select another field or render several metadata fields before embedding.
 
 Qrels JSONL records should look like:
 
@@ -756,7 +796,7 @@ experiment is the durable research unit; it may be a baseline/treatment pair, a
 hyperparameter sweep, or a single run. Its layout is:
 
 ```text
-experiments/<experiment-slug>/
+projects/<project>/experiments/<experiment-slug>/
 ├── experiment.md
 ├── analysis.ipynb
 ├── report.md                    # added after results exist
@@ -808,11 +848,12 @@ defaults:
 Create these files directly or use the interactive command builder:
 
 ```bash
-uv run python ../../dev-scripts/create_run.py experiments/<experiment-slug>
+uv run python ../../awesome-dev-tools/interactive_create_run.py experiments/<experiment-slug>
 ```
 
-The filename becomes the run name. The run's defaults are composed with this search
-order: `<experiment>/configs/`, `<project>/configs/`, then the configs packaged by
+The filename becomes the run name. Run definitions must be direct YAML children of
+`configs/runs/`. Their defaults are composed with this search order:
+`<experiment>/configs/`, `<project>/configs/`, then the configs packaged by
 `retrieval-core`. Launch a selected run by passing its YAML file as the entrypoint:
 
 ```bash
@@ -829,7 +870,7 @@ declarative and suitable for version control.
 On Linux, install GNU Screen and launch a subset interactively:
 
 ```bash
-uv run python ../../dev-scripts/run_in_parallel_screens.py
+uv run python ../../awesome-dev-tools/interactive_run_in_parallel_screens.py
 ```
 
 The launcher lists experiments containing `configs/runs/*.yaml`, prints the generated Hydra
@@ -855,14 +896,15 @@ current lanes are terminal.
   search-path plugin can expose the shared config package.
 - **A required value is `???`:** select the missing config group, usually a
   dataset, pipeline, input mapping, embedding model, or reranker model. The
-  interactive `uv run python ../../dev-scripts/build_command.py` flow can discover choices.
+  interactive `uv run python ../../awesome-dev-tools/interactive_build_command.py` flow can
+  discover choices.
 - **Inference cannot find an index:** select a completed directory under
   `paths.indexes_dir` with `selections.index_id`. The command builder lists valid
   directories that contain `index.jsonl`. Prefix matching and implicit "latest"
   resolution are intentionally unsupported. Candidate-only reranking pipelines
   do not use the selection.
 - **A prepared mapping is missing:** run `stage prepare_mapping` with a unique
-  `stage.run_id`, then pass that folder name as inference `input_mapping`.
+  `stage.run_id`, then pass that folder name as inference `selections.input_mapping`.
 - **The run directory already exists:** choose a new `stage.run_id`. Runs are
   immutable and are never overwritten.
 - **A command works from one directory but not another:** remember that the

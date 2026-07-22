@@ -7,7 +7,7 @@ from retrieval_core.utils.io.json import (
     write_json_atomic,
     write_jsonl,
 )
-from retrieval_core.utils.io.paths import ensure_parent, project_path
+from retrieval_core.utils.io.paths import ensure_parent, find_git_root, project_path
 from retrieval_core.utils.io.predictions import (
     predictions_from_mapping,
     predictions_to_mapping,
@@ -21,6 +21,7 @@ from retrieval_core.utils.io.yaml import read_yaml_mapping
 __all__ = [
     "config_to_yaml",
     "ensure_parent",
+    "find_git_root",
     "predictions_from_mapping",
     "predictions_to_mapping",
     "project_path",

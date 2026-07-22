@@ -1,5 +1,6 @@
+repo_root: ${git_repo_root:}
 project_root: .
-data_dir: ${paths.project_root}/data
+data_dir: ${paths.repo_root}/data
 raw_data_dir: ${paths.data_dir}/raw
 interim_data_dir: ${paths.data_dir}/interim
 processed_data_dir: ${paths.data_dir}/processed

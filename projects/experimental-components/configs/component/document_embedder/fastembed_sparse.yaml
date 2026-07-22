@@ -1,0 +1,6 @@
+type: haystack_integrations.components.embedders.fastembed.fastembed_sparse_document_embedder.FastembedSparseDocumentEmbedder
+init_parameters:
+  model: prithivida/Splade_PP_en_v1
+  progress_bar: ${runtime.progress_bar}
+  batch_size: 32
+

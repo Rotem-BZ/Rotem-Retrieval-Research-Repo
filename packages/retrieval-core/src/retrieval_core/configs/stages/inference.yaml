@@ -3,16 +3,17 @@
 defaults:
   - /paths: local
   - /dataset: ???
-  - _self_
   - /pipeline/inference@pipeline: ???
   - /runtime: ???
+  - _self_
 
 stage:
   name: inference
-  run_id: ${now:%Y%m%d_%H%M%S_%f}
+  run_id: ${now:%Y%m%d-%H%M%S-%f}
   output_dir: ${paths.runs_dir}/${stage.name}/${stage.run_id}
   predictions_path: ${stage.output_dir}/predictions.json
 
-# Null means every dataset document is a candidate for every query.
-# Otherwise, set this to a folder name under paths.input_mappings_dir.
-input_mapping: null
+selections:
+  # Null means every dataset document is a candidate for every query.
+  # Otherwise, set this to a folder name under paths.input_mappings_dir.
+  input_mapping: null

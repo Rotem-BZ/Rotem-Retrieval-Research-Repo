@@ -1,0 +1,6 @@
+type: haystack_integrations.components.embedders.fastembed.fastembed_text_embedder.FastembedTextEmbedder
+init_parameters:
+  model: ${selections.embedding_model.checkpoint}
+  prefix: ${selections.embedding_model.query_prefix}
+  progress_bar: ${runtime.progress_bar}
+

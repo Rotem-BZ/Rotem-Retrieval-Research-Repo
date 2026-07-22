@@ -1,0 +1,22 @@
+# @package _global_
+defaults:
+  - /stages/inference
+  - override /dataset: beir_scifact
+  - override /pipeline/inference@pipeline: dense_sentence_transformers_reranker
+  - override /selections/embedding_model@selections.embedding_model: e5/small_v2
+  - override /selections/reranker_model@selections.reranker_model: ms_marco_minilm_l6_v2
+  - override /runtime: cpu
+  - _self_
+
+selections:
+  index_id: fastembed-rankers-scifact-e5-candidates
+
+pipeline:
+  components:
+    retriever:
+      init_parameters:
+        top_k: 100
+    ranker:
+      init_parameters:
+        top_k: 100
+

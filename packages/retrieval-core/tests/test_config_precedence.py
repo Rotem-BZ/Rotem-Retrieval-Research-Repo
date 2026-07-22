@@ -25,6 +25,29 @@ def test_bare_stage_name_resolves_to_stages_group() -> None:
     assert explicit.pipeline == bare.pipeline
 
 
+def test_paths_expose_git_root_and_use_its_data_directory(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    repository = tmp_path / "repository"
+    project = repository / "projects" / "example"
+    repository_data = repository / "data"
+    repository_data.mkdir(parents=True)
+    project.mkdir(parents=True)
+    monkeypatch.chdir(project)
+    monkeypatch.setattr(
+        "retrieval_core.utils.config.hydra.find_git_root",
+        lambda: repository.resolve(),
+    )
+
+    cfg = compose_stage_config("evaluation", ["dataset=toy"])
+
+    assert Path(cfg.paths.repo_root) == repository.resolve()
+    assert Path(cfg.paths.data_dir) == repository_data.resolve()
+    assert Path(cfg.paths.processed_data_dir) == repository_data.resolve() / "processed"
+    assert Path(cfg.paths.artifacts_dir) == Path("artifacts")
+
+
 def test_experiment_configs_override_project_then_core(tmp_path: Path) -> None:
     project = tmp_path / "project"
     experiment = project / "experiments" / "example"

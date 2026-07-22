@@ -1,0 +1,48 @@
+[build-system]
+requires = ["hatchling>=1.26"]
+build-backend = "hatchling.build"
+
+[project]
+name = "experimental-components"
+version = "0.1.0"
+description = "Isolated experiments for third-party Haystack integration components."
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+license = { text = "MIT" }
+dependencies = [
+  "chonkie[model2vec]>=1.6.4,<2",
+  "chonkie-haystack>=1,<2",
+  "fastembed-haystack>=2.3,<3",
+  "retrieval-core",
+  "retrieval-components==0.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8,<9",
+  "ruff>=0.8,<1",
+]
+
+[tool.uv]
+package = true
+# chonkie-haystack 1.0.0 requires chonkie[all], including unrelated API/server
+# extras whose huggingface-hub constraint conflicts with this repository's
+# SentenceTransformers stack. The configured splitters only need model2vec.
+override-dependencies = [
+  "chonkie[model2vec]>=1.6.4,<2",
+]
+
+[tool.uv.sources]
+retrieval-core = { path = "../../packages/retrieval-core", editable = true }
+retrieval-components = { path = "../../packages/retrieval-components", editable = true }
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/experimental_components"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

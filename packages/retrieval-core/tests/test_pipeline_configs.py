@@ -48,7 +48,11 @@ def test_abstract_dense_e5_indexing_config_keeps_pipeline_haystack_shaped() -> N
     assert cfg.selections.embedding_model.checkpoint == "intfloat/e5-small-v2"
     document_source_parameters = pipeline_config["components"]["document_source"]["init_parameters"]
     assert document_source_parameters["id_field"] == EVALUATION_DATA_SCHEMA.doc_id
-    assert document_source_parameters["content_field"] == EVALUATION_DATA_SCHEMA.text
+    assert document_source_parameters["content_field"] is None
+    assert (
+        pipeline_config["components"]["document_parser"]["init_parameters"]["content_field"]
+        == EVALUATION_DATA_SCHEMA.text
+    )
     assert (
         pipeline_config["components"]["document_prefixer"]["init_parameters"]["prefix"]
         == "passage: "
@@ -134,9 +138,15 @@ def test_abstract_dense_e5_inference_config_prefixes_queries() -> None:
         pipeline_config["components"]["query_embedder"]["init_parameters"]["progress_bar"] is True
     )
     assert pipeline_config["components"]["retriever"]["init_parameters"]["similarity"] == "cosine"
-    assert {"sender": "input.query", "receiver": "query_preprocessor.text"} in pipeline_config[
+    assert {"sender": "input.query_meta", "receiver": "query_parser.meta"} in pipeline_config[
         "connections"
     ]
+    assert {"sender": "query_parser.text", "receiver": "query_preprocessor.text"} in (
+        pipeline_config["connections"]
+    )
+    assert {"sender": "query_parser.text", "receiver": "output.query_content"} in (
+        pipeline_config["connections"]
+    )
     assert {
         "sender": "input.candidate_document_ids",
         "receiver": "retriever.candidate_document_ids",
@@ -166,6 +176,10 @@ def test_dense_candidate_reranker_uses_candidate_documents() -> None:
     assert pipeline_config["components"]["ranker"]["init_parameters"]["similarity"] == "cosine"
     assert {
         "sender": "input.candidate_documents",
+        "receiver": "document_parser.documents",
+    } in pipeline_config["connections"]
+    assert {
+        "sender": "document_parser.documents",
         "receiver": "document_prefixer.documents",
     } in pipeline_config["connections"]
     assert {
@@ -202,6 +216,10 @@ def test_cross_encoder_candidate_reranker_uses_bge_selection() -> None:
     assert pipeline_config["components"]["ranker"]["init_parameters"]["scale_score"] is True
     assert {
         "sender": "input.candidate_documents",
+        "receiver": "document_parser.documents",
+    } in pipeline_config["connections"]
+    assert {
+        "sender": "document_parser.documents",
         "receiver": "ranker.documents",
     } in pipeline_config["connections"]
     assert {"sender": "ranker.documents", "receiver": "output.documents"} in pipeline_config[
@@ -209,7 +227,7 @@ def test_cross_encoder_candidate_reranker_uses_bge_selection() -> None:
     ]
 
 
-def test_dummy_keyword_inference_keeps_retriever_query_input() -> None:
+def test_dummy_keyword_inference_parses_retriever_query_input() -> None:
     cfg = compose_stage_config(
         "inference",
         [
@@ -221,7 +239,10 @@ def test_dummy_keyword_inference_keeps_retriever_query_input() -> None:
     )
     pipeline_config = to_container(cfg.pipeline)
 
-    assert {"sender": "input.query", "receiver": "retriever.query"} in pipeline_config[
+    assert {"sender": "input.query_meta", "receiver": "query_parser.meta"} in pipeline_config[
+        "connections"
+    ]
+    assert {"sender": "query_parser.text", "receiver": "retriever.query"} in pipeline_config[
         "connections"
     ]
     assert {

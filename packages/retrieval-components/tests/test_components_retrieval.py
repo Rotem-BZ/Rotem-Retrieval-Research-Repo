@@ -61,7 +61,24 @@ def test_jsonl_document_source_uses_configured_fields_and_preserves_extras(
 
     assert document.id == "d1"
     assert document.content == "document text"
-    assert document.meta == {"title": "Title", "split": "test"}
+    assert document.meta == {"text": "document text", "title": "Title", "split": "test"}
+
+
+def test_jsonl_document_source_can_preserve_metadata_without_content(tmp_path: Path) -> None:
+    documents_path = tmp_path / "source.jsonl"
+    documents_path.write_text(
+        '{"doc_id":"d1","fields":{"title":"Nested"},"tags":["a","b"]}\n',
+        encoding="utf-8",
+    )
+
+    document = JsonlDocumentSource(
+        documents_path=str(documents_path),
+        id_field="doc_id",
+    ).run()["documents"][0]
+
+    assert document.id == "d1"
+    assert document.content is None
+    assert document.meta == {"fields": {"title": "Nested"}, "tags": ["a", "b"]}
 
 
 def test_elasticsearch_document_indexer_uses_injected_client() -> None:

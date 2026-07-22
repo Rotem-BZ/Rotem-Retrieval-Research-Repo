@@ -8,6 +8,7 @@ from retrieval_core.data_schema import EVALUATION_DATA_SCHEMA
 from retrieval_core.input_mapping import (
     INPUT_MAPPING_FILENAME,
     INPUT_MAPPING_METADATA_FILENAME,
+    discover_input_mapping_ids,
     generate_input_mapping,
     metadata_path_for,
     prepared_mapping_path,
@@ -74,6 +75,30 @@ def test_full_input_mapping_runs_all_queries_against_all_documents(tmp_path: Pat
     assert mapping.queries[0]["language"] == "en"
 
 
+def test_inference_mapping_accepts_metadata_only_content_records(tmp_path: Path) -> None:
+    cfg = _cfg(tmp_path, None)
+    write_jsonl(
+        cfg.dataset.documents_path,
+        [{EVALUATION_DATA_SCHEMA.doc_id: "d1", "body": {"text": "nested"}}],
+    )
+    write_jsonl(
+        cfg.dataset.queries_path,
+        [
+            {
+                EVALUATION_DATA_SCHEMA.query_id: "external-q1",
+                EVALUATION_DATA_SCHEMA.IN: "q1",
+                "question": "metadata query",
+            }
+        ],
+    )
+
+    mapping = resolve_inference_mapping(cfg)
+
+    assert mapping.documents_by_id["d1"].content is None
+    assert mapping.documents_by_id["d1"].meta == {"body": {"text": "nested"}}
+    assert mapping.queries[0]["question"] == "metadata query"
+
+
 def test_file_input_mapping_runs_only_mapped_queries(tmp_path: Path) -> None:
     mapping_path = (
         tmp_path / "artifacts" / "input_mappings" / "custom_mapping" / INPUT_MAPPING_FILENAME
@@ -138,6 +163,27 @@ def test_inference_requires_existing_prepared_mapping(tmp_path: Path) -> None:
 
     with pytest.raises(FileNotFoundError, match="Prepared input mapping does not exist"):
         resolve_inference_mapping(cfg)
+
+
+def test_discovers_completed_input_mappings_for_selected_dataset(tmp_path: Path) -> None:
+    root = tmp_path / "input_mappings"
+    for mapping_id, dataset_name in (
+        ("toy-b", "toy"),
+        ("toy-a", "toy"),
+        ("other", "other"),
+    ):
+        output_dir = root / mapping_id
+        write_json(output_dir / INPUT_MAPPING_FILENAME, {})
+        write_json(output_dir / INPUT_MAPPING_METADATA_FILENAME, {"dataset": dataset_name})
+
+    write_json(root / "incomplete" / INPUT_MAPPING_FILENAME, {})
+    write_json(root / "invalid-metadata" / INPUT_MAPPING_FILENAME, {})
+    (root / "invalid-metadata" / INPUT_MAPPING_METADATA_FILENAME).write_text(
+        "not json",
+        encoding="utf-8",
+    )
+
+    assert discover_input_mapping_ids(root, dataset_name="toy") == ["toy-a", "toy-b"]
 
 
 @pytest.mark.parametrize("name", ["../mapping", "nested/mapping", "nested\\mapping"])
@@ -280,7 +326,9 @@ def _cfg(tmp_path: Path, input_mapping: object, *, run_id: str | None = None):
                 "queries_path": str(queries_path),
                 "qrels_path": str(qrels_path),
             },
-            "input_mapping": None if isinstance(input_mapping, dict) else input_mapping,
+            "selections": {
+                "input_mapping": None if isinstance(input_mapping, dict) else input_mapping
+            },
             "input_mapping_recipe": input_mapping if isinstance(input_mapping, dict) else None,
             "paths": {"input_mappings_dir": str(tmp_path / "artifacts" / "input_mappings")},
             "stage": {"run_id": run_id},

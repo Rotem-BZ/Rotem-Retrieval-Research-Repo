@@ -8,7 +8,7 @@ defaults:
 stage:
   name: evaluation
   inference_run_id: null
-  run_id: ${now:%Y%m%d_%H%M%S_%f}
+  run_id: ${now:%Y%m%d-%H%M%S-%f}
   output_dir: ${paths.runs_dir}/${stage.name}/${stage.run_id}
   predictions_path: null
   metrics_path: ${stage.output_dir}/metrics.json

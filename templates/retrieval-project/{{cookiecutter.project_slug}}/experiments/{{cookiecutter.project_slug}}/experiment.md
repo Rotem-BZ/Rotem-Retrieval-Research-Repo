@@ -19,7 +19,7 @@ retrieval depth, runtime, and evaluation procedure fixed.
 1. Create the shared index.
 2. Replace `REPLACE_WITH_EXACT_INDEX_ID` in
    `configs/base-experiment-configs/inference.yaml`.
-3. On Linux, run `uv run python ../../dev-scripts/run_in_parallel_screens.py --experiment {{ cookiecutter.project_slug }}`.
+3. On Linux, run `uv run python ../../awesome-dev-tools/interactive_run_in_parallel_screens.py --experiment {{ cookiecutter.project_slug }}`.
 4. Record evaluation commands, acceptance criteria, and results here.
 
 The complete shared configuration lives in

@@ -9,9 +9,11 @@ from typing import Any
 
 @dataclass(frozen=True)
 class EvaluationDataSchema:
-    """Required JSONL fields shared by queries, documents, and qrels.
+    """Canonical JSONL fields shared by queries, documents, and qrels.
 
     `IN` is the query-to-qrel join key; `query_id` is the external query identifier.
+    Query and document content fields are optional at the dataset boundary and are
+    materialized by pipeline parser components.
     """
 
     query_id: str = "query_id"
@@ -22,10 +24,17 @@ class EvaluationDataSchema:
     label: str = "label"
 
     def validate_query(self, record: Mapping[str, Any]) -> None:
-        self._validate(record, (self.query_id, self.IN, self.query_content), "Query")
+        self._validate(record, (self.query_id, self.IN), "Query")
 
     def validate_document(self, record: Mapping[str, Any]) -> None:
-        self._validate(record, (self.doc_id, self.text), "Document")
+        self._validate(record, (self.doc_id,), "Document")
+
+    def validate_prediction(self, record: Mapping[str, Any]) -> None:
+        self._validate(
+            record,
+            (self.query_id, self.IN, self.query_content),
+            "Prediction",
+        )
 
     def validate_qrel(self, record: Mapping[str, Any]) -> None:
         self._validate(record, (self.IN, self.doc_id, self.label), "Qrel")

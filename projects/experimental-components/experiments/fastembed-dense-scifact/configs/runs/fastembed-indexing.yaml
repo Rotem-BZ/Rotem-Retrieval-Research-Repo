@@ -1,0 +1,9 @@
+# @package _global_
+defaults:
+  - /base-experiment-configs/indexing
+  - override /pipeline/indexing@pipeline: fastembed_dense_jsonl
+  - _self_
+
+selections:
+  index_id: fastembed-dense-scifact-fastembed
+

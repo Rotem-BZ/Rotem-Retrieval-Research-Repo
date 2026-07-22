@@ -6,11 +6,16 @@ from retrieval_core.utils.artifacts.indexes import (
     index_artifact_path,
     validate_index_id,
 )
-from retrieval_core.utils.artifacts.runs import artifact_for_run, run_manifest
+from retrieval_core.utils.artifacts.runs import (
+    artifact_for_run,
+    discover_inference_run_ids,
+    run_manifest,
+)
 
 __all__ = [
     "INDEX_FILENAME",
     "artifact_for_run",
+    "discover_inference_run_ids",
     "discover_index_ids",
     "index_artifact_path",
     "run_manifest",

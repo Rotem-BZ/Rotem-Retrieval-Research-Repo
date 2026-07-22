@@ -91,7 +91,7 @@ Inference using that prepared mapping:
 Invoke-EdgeStage inference `
   dataset=toy `
   runtime=cpu `
-  "input_mapping=$mappingRun1" `
+  "selections.input_mapping=$mappingRun1" `
   'pipeline/inference@pipeline=dummy_keyword' `
   "paths.runs_dir=$edgeRuns" `
   "paths.input_mappings_dir=$edgeMappings" `
@@ -126,7 +126,7 @@ $emptyInferenceRun = "edge-empty-inference-$edgeTag"
 Invoke-EdgeStage inference `
   dataset=toy `
   runtime=cpu `
-  "input_mapping=$emptyMappingRun" `
+  "selections.input_mapping=$emptyMappingRun" `
   'pipeline/inference@pipeline=dummy_keyword' `
   "paths.runs_dir=$edgeRuns" `
   "paths.input_mappings_dir=$edgeMappings" `
@@ -245,7 +245,7 @@ Use a prepared-mapping folder name that does not exist:
 Invoke-EdgeStage inference `
   dataset=toy `
   runtime=cpu `
-  input_mapping=missing `
+  selections.input_mapping=missing `
   'pipeline/inference@pipeline=dummy_keyword' `
   "paths.runs_dir=$edgeRuns" `
   "paths.input_mappings_dir=$edgeRoot/unprepared-mappings" `

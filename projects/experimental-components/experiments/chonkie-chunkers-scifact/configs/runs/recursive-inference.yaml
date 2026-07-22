@@ -1,0 +1,8 @@
+# @package _global_
+defaults:
+  - /base-experiment-configs/inference
+  - _self_
+
+selections:
+  index_id: chonkie-chunkers-scifact-recursive
+

@@ -45,7 +45,7 @@ can contain its card, complete shared stage configs under
 an analysis notebook, and a report. Create a run interactively with:
 
 ```shell
-uv run python ../../dev-scripts/create_run.py experiments/<experiment-slug>
+uv run python ../../awesome-dev-tools/interactive_create_run.py experiments/<experiment-slug>
 ```
 
 With no path, the helper lets you select or create an experiment. On Linux with GNU
@@ -53,13 +53,15 @@ Screen installed, the launcher chooses an experiment and then a subset of its ru
 files:
 
 ```shell
-uv run python ../../dev-scripts/run_in_parallel_screens.py
+uv run python ../../awesome-dev-tools/interactive_run_in_parallel_screens.py
 ```
 
 The launcher displays ready, waiting, running, succeeded, and failed runs; accepts
 selections such as `1,3,4-7`; asks for the maximum number of executing runs;
 launches the selected Screen sessions; and exits. Waiting sessions form persistent
 dependency lanes, so the concurrency cap remains effective after the launcher exits.
+See the [awesome dev tools guide](awesome-dev-tools/README.md) for every
+exposed script and its purpose.
 
 The repository is split into independently installable units:
 
@@ -133,7 +135,7 @@ uv sync --project packages/retrieval-components --extra dev
 uv run --project packages/retrieval-components pytest packages/retrieval-components/tests
 
 uv sync --project packages/retrieval-core --extra dev
-uv run --project packages/retrieval-core pytest packages/retrieval-core/tests dev-scripts/tests
+uv run --project packages/retrieval-core pytest packages/retrieval-core/tests awesome-dev-tools/tests
 
 uv sync --project projects/query-repetition-e5 --extra dev
 uv run --project projects/query-repetition-e5 pytest projects/query-repetition-e5/tests

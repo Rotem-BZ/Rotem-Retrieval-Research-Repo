@@ -18,7 +18,15 @@ from retrieval_core.utils.config import compose_entrypoint_config, compose_stage
 from retrieval_core.utils.console import print_stage_result, print_stage_start
 
 
-def main(argv: Sequence[str] | None = None) -> StageResult:
+def main(argv: Sequence[str] | None = None) -> None:
+    """Run a stage as a console command without returning its result to ``sys.exit``."""
+
+    run_stage(argv)
+
+
+def run_stage(argv: Sequence[str] | None = None) -> StageResult:
+    """Run a stage and return its result for programmatic callers."""
+
     parser = argparse.ArgumentParser(
         prog="stage",
         description="Run a retrieval experiment stage.",

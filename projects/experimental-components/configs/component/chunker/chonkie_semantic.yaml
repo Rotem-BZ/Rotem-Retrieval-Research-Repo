@@ -1,0 +1,10 @@
+type: haystack_integrations.components.preprocessors.chonkie.semantic_splitter.ChonkieSemanticDocumentSplitter
+init_parameters:
+  embedding_model: minishlab/potion-base-32M
+  threshold: 0.8
+  chunk_size: 360
+  similarity_window: 3
+  min_sentences_per_chunk: 1
+  min_characters_per_sentence: 24
+  skip_empty_documents: true
+

@@ -13,7 +13,7 @@ def predictions_to_mapping(predictions: list[dict[str, Any]]) -> dict[str, dict[
     payload: dict[str, dict[str, Any]] = {}
 
     for prediction in predictions:
-        EVALUATION_DATA_SCHEMA.validate_query(prediction)
+        EVALUATION_DATA_SCHEMA.validate_prediction(prediction)
         query_input = str(prediction[EVALUATION_DATA_SCHEMA.IN])
         payload[query_input] = {
             EVALUATION_DATA_SCHEMA.query_id: str(prediction[EVALUATION_DATA_SCHEMA.query_id]),
@@ -44,7 +44,7 @@ def predictions_from_mapping(payload: dict[str, Any]) -> list[dict[str, Any]]:
             ],
             "documents": documents,
         }
-        EVALUATION_DATA_SCHEMA.validate_query(prediction)
+        EVALUATION_DATA_SCHEMA.validate_prediction(prediction)
         predictions.append(prediction)
 
     return predictions

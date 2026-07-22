@@ -1,3 +1,5 @@
+import re
+
 import pytest
 from hydra.errors import ConfigCompositionException
 from omegaconf import OmegaConf
@@ -87,7 +89,8 @@ def test_explicit_stage_selections_compose() -> None:
     assert indexing_cfg.dataset.name == "toy"
     assert "indexer" in indexing_cfg.pipeline.components
     assert inference_cfg.dataset.name == "toy"
-    assert inference_cfg.input_mapping is None
+    assert "input_mapping" not in inference_cfg
+    assert inference_cfg.selections.input_mapping is None
     assert "retriever" in inference_cfg.pipeline.components
     assert mapping_cfg.input_mapping_recipe.type == "generated"
     assert mapping_cfg.input_mapping_recipe.name == "dev_tiny"
@@ -114,13 +117,13 @@ def test_inference_accepts_prepared_input_mapping_name() -> None:
         [
             "dataset=toy",
             "runtime=cpu",
-            "input_mapping=toy_dev_tiny",
+            "selections.input_mapping=toy_dev_tiny",
             "pipeline/inference@pipeline=dense_candidate_reranker",
             "selections/embedding_model=e5/small_v2",
         ],
     )
 
-    assert cfg.input_mapping == "toy_dev_tiny"
+    assert cfg.selections.input_mapping == "toy_dev_tiny"
 
 
 def test_explicit_inference_run_id_updates_derived_paths_and_prediction_artifact() -> None:
@@ -139,3 +142,17 @@ def test_explicit_inference_run_id_updates_derived_paths_and_prediction_artifact
     assert cfg.stage.run_id == "bge"
     assert str(cfg.stage.output_dir).endswith("artifacts/runs/inference/bge")
     assert str(cfg.stage.predictions_path).endswith("artifacts/runs/inference/bge/predictions.json")
+
+
+def test_generated_timestamp_run_id_can_be_reused_as_hydra_override() -> None:
+    cfg = compose_stage_config("evaluation", ["dataset=toy"])
+    run_id = str(cfg.stage.run_id)
+
+    assert re.fullmatch(r"\d{8}-\d{6}-\d{6}", run_id)
+
+    overridden = compose_stage_config(
+        "evaluation",
+        ["dataset=toy", f"stage.run_id={run_id}"],
+    )
+
+    assert overridden.stage.run_id == run_id

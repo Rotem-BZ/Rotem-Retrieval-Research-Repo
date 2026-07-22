@@ -1,16 +1,12 @@
 defaults:
   - /selections@_global_.selections: index
+  - /component/document_source@components.document_source: jsonl
+  - /component/document_parser@components.document_parser: content_field
   - _self_
 
 components:
   output:
     type: retrieval_components.interfaces.stage_io.IndexingOutput
-  document_source:
-    type: retrieval_components.sources.jsonl_document_source.JsonlDocumentSource
-    init_parameters:
-      documents_path: ${dataset.documents_path}
-      id_field: doc_id
-      content_field: text
   indexer:
     type: retrieval_components.indexing.jsonl_document_indexer.JsonlDocumentIndexer
     init_parameters:
@@ -19,6 +15,8 @@ components:
 
 connections:
   - sender: document_source.documents
+    receiver: document_parser.documents
+  - sender: document_parser.documents
     receiver: indexer.documents
   - sender: indexer.index_path
     receiver: output.index_path

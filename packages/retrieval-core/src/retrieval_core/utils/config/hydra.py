@@ -14,6 +14,7 @@ from omegaconf import DictConfig
 from omegaconf import OmegaConf
 
 from retrieval_core.utils.config.searchpath import use_config_fallbacks
+from retrieval_core.utils.io.paths import find_git_root
 
 
 @dataclass(frozen=True)
@@ -90,6 +91,7 @@ def compose_stage_config(
 ) -> DictConfig:
     """Compose with experiment, project, then core config precedence."""
 
+    _register_config_resolvers()
     if GlobalHydra.instance().is_initialized():
         GlobalHydra.instance().clear()
 
@@ -132,6 +134,15 @@ def compose_stage_config(
         assert experiment is not None
         _apply_experiment_run_identity(cfg, experiment=experiment, run_name=run_name)
     return cfg
+
+
+def _register_config_resolvers() -> None:
+    OmegaConf.register_new_resolver(
+        "git_repo_root",
+        lambda: find_git_root().as_posix(),
+        replace=True,
+        use_cache=True,
+    )
 
 
 def core_config_dir() -> Path:

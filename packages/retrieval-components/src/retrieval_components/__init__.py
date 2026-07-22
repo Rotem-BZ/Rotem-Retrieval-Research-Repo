@@ -11,7 +11,12 @@ from retrieval_components.fusion import (
 )
 from retrieval_components.indexing import ElasticsearchDocumentIndexer, JsonlDocumentIndexer
 from retrieval_components.interfaces import IndexingOutput, InferenceInput, InferenceOutput
-from retrieval_components.preprocessing import DocumentTextPrefixer, TextPreprocessor
+from retrieval_components.preprocessing import (
+    DocumentContentFieldParser,
+    DocumentTextPrefixer,
+    QueryContentFieldParser,
+    TextPreprocessor,
+)
 from retrieval_components.ranking import EmbeddingSimilarityRanker
 from retrieval_components.reformulation import HttpQueryReformulator
 from retrieval_components.retrieval import (
@@ -26,6 +31,7 @@ __version__ = "0.1.0"
 __all__ = [
     "ChunkCascade",
     "DocumentContentFilter",
+    "DocumentContentFieldParser",
     "DocumentTextPrefixer",
     "ElasticsearchBM25Retriever",
     "ElasticsearchDocumentIndexer",
@@ -41,6 +47,7 @@ __all__ = [
     "LangChainDocumentSplitter",
     "LinearScoreFusion",
     "ReciprocalRankFusion",
+    "QueryContentFieldParser",
     "ScoreFusion",
     "TextPreprocessor",
     "TopKDocuments",

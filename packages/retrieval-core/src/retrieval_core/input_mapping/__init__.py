@@ -7,6 +7,7 @@ from retrieval_core.input_mapping.operations import (
     GeneratedInputMapping,
     InferenceMapping,
     configured_input_mapping_path,
+    discover_input_mapping_ids,
     generate_input_mapping,
     input_mapping_generation_params,
     metadata_path_for,
@@ -14,6 +15,7 @@ from retrieval_core.input_mapping.operations import (
     prepared_mapping_path,
     prepare_generated_input_mapping,
     resolve_inference_mapping,
+    validate_input_mapping_id,
     write_generated_mapping,
 )
 
@@ -24,6 +26,7 @@ __all__ = [
     "GeneratedInputMapping",
     "InferenceMapping",
     "configured_input_mapping_path",
+    "discover_input_mapping_ids",
     "generate_input_mapping",
     "input_mapping_generation_params",
     "metadata_path_for",
@@ -31,5 +34,6 @@ __all__ = [
     "prepared_mapping_path",
     "prepare_generated_input_mapping",
     "resolve_inference_mapping",
+    "validate_input_mapping_id",
     "write_generated_mapping",
 ]

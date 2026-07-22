@@ -68,4 +68,4 @@ uv run --project packages/retrieval-core pytest packages/retrieval-core/tests/<f
 uv run --project packages/retrieval-core pytest packages/retrieval-core/tests
 ```
 
-From a project directory, also run a representative lightweight `uv run stage <stage-name> ...` command.
+From a project directory, also run a representative lightweight `uv run stage <stage-name> ...` command. When validating a project or experiment entrypoint, pass its exact YAML path with `--entrypoint`.

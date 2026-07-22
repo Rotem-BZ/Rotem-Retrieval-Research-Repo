@@ -1,0 +1,18 @@
+# @package _global_
+defaults:
+  - /stages/inference
+  - override /dataset: beir_scifact
+  - override /pipeline/inference@pipeline: dense_chunked_jsonl
+  - override /selections/embedding_model@selections.embedding_model: e5/small_v2
+  - override /runtime: cpu
+  - _self_
+
+selections:
+  index_id: chonkie-chunkers-scifact-baseline
+
+pipeline:
+  components:
+    retriever:
+      init_parameters:
+        top_k: 100
+

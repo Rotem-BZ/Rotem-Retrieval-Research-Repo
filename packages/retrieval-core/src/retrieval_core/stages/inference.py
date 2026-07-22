@@ -49,7 +49,7 @@ async def run_inference(cfg: DictConfig) -> list[dict[str, Any]]:
             "query_count": len(predictions),
         },
     )
-    inputs: dict[str, Any] = {}
+    inputs: dict[str, Any] = {"dataset": str(cfg.dataset.name)}
     index_parameters = _index_parameters(cfg)
     if index_parameters:
         inputs["index_id"] = str(cfg.selections.index_id)
@@ -127,12 +127,15 @@ async def _run_query(
     EVALUATION_DATA_SCHEMA.validate_query(query)
     query_id = str(query[EVALUATION_DATA_SCHEMA.query_id])
     query_input = str(query[EVALUATION_DATA_SCHEMA.IN])
-    query_content = str(query[EVALUATION_DATA_SCHEMA.query_content])
+    raw_query_content = query.get(EVALUATION_DATA_SCHEMA.query_content)
+    query_content = None if raw_query_content is None else str(raw_query_content)
+    query_meta = _query_meta(query)
     candidate_document_ids = list(inference_mapping.candidate_ids(query_input))
     result = await pipeline.run_async(
         data={
             INFERENCE_INPUT_COMPONENT: {
-                "query": query_content,
+                "query": query_content or "",
+                "query_meta": query_meta,
                 "candidate_document_ids": candidate_document_ids,
                 "candidate_documents": [
                     inference_mapping.documents_by_id[document_id]
@@ -143,11 +146,20 @@ async def _run_query(
         include_outputs_from={INFERENCE_OUTPUT_COMPONENT},
         concurrency_limit=pipeline_concurrency_limit,
     )
-    documents = list(result[INFERENCE_OUTPUT_COMPONENT][INFERENCE_DOCUMENTS_FIELD])
-    return {
+    output = result[INFERENCE_OUTPUT_COMPONENT]
+    documents = list(output[INFERENCE_DOCUMENTS_FIELD])
+    parsed_query_content = output.get(EVALUATION_DATA_SCHEMA.query_content)
+    if parsed_query_content is None:
+        parsed_query_content = query_content
+    if parsed_query_content is None:
+        raise ValueError(
+            "The inference pipeline did not return query_content and the query record "
+            f"{query_id!r} has no {EVALUATION_DATA_SCHEMA.query_content!r} field."
+        )
+    prediction = {
         EVALUATION_DATA_SCHEMA.query_id: query_id,
         EVALUATION_DATA_SCHEMA.IN: query_input,
-        EVALUATION_DATA_SCHEMA.query_content: query_content,
+        EVALUATION_DATA_SCHEMA.query_content: str(parsed_query_content),
         "documents": [
             {
                 "id": document.id,
@@ -158,6 +170,21 @@ async def _run_query(
             for document in documents
         ],
     }
+    EVALUATION_DATA_SCHEMA.validate_prediction(prediction)
+    return prediction
+
+
+def _query_meta(query: dict[str, Any]) -> dict[str, Any]:
+    """Return query fields available to parser components as metadata."""
+
+    reserved_fields = {
+        EVALUATION_DATA_SCHEMA.query_id,
+        EVALUATION_DATA_SCHEMA.IN,
+        "meta",
+    }
+    meta = {key: value for key, value in query.items() if key not in reserved_fields}
+    meta.update(dict(query.get("meta") or {}))
+    return meta
 
 
 def prepare_inference_config(cfg: DictConfig) -> None:

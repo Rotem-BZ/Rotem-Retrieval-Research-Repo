@@ -59,7 +59,7 @@ Then rerank those materialized candidate documents with E5-small:
 uv run --project packages/retrieval-core stage inference `
   dataset=toy `
   runtime=cpu `
-  input_mapping=toy-dev-tiny `
+  selections.input_mapping=toy-dev-tiny `
   pipeline/inference@pipeline=dense_candidate_reranker `
   selections/embedding_model=e5/small_v2 `
   pipeline.components.ranker.init_parameters.top_k=5 `

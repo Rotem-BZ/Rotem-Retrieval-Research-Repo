@@ -79,7 +79,7 @@ Primary metric outcome: ...
 
 ## Reproduction
 
-<Exact project directory, run ids, commands/configs, and linked artifact paths.>
+<Exact project directory, `configs/runs/*.yaml` entrypoints when present, run ids, commands, and linked artifact paths.>
 ```
 
 ## Arithmetic and Aggregation Checks

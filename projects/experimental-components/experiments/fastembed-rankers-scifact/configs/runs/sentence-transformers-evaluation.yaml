@@ -1,0 +1,8 @@
+# @package _global_
+defaults:
+  - /base-experiment-configs/evaluation
+  - _self_
+
+stage:
+  inference_run_id: fastembed-rankers-scifact--sentence-transformers-inference
+

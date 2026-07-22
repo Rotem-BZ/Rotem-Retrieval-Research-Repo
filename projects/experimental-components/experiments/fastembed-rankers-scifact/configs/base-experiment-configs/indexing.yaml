@@ -1,0 +1,12 @@
+# @package _global_
+defaults:
+  - /stages/indexing
+  - override /dataset: beir_scifact
+  - override /pipeline/indexing@pipeline: dense_jsonl
+  - override /selections/embedding_model@selections.embedding_model: e5/small_v2
+  - override /runtime: cpu
+  - _self_
+
+selections:
+  index_id: fastembed-rankers-scifact-e5-candidates
+

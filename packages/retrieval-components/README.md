@@ -18,7 +18,7 @@ listed classes from its `__init__.py`.
 | `retrieval_components.indexing` | `ElasticsearchDocumentIndexer`, `JsonlDocumentIndexer` | Write documents to Elasticsearch or a local JSONL artifact. |
 | `retrieval_components.interfaces` | `IndexingOutput`, `InferenceInput`, `InferenceOutput` | Define fixed stage-boundary sockets for indexing and inference. |
 | `retrieval_components.models` | `SentenceTransformersDocumentEmbedder`, `SentenceTransformersSimilarityRanker`, `SentenceTransformersTextEmbedder`, `TransformersSimilarityRanker` | Re-export native Haystack model components for categorized imports. |
-| `retrieval_components.preprocessing` | `DocumentTextPrefixer`, `TextPreprocessor` | Apply prefix, suffix, case, whitespace, and regex text transforms. |
+| `retrieval_components.preprocessing` | `DocumentContentFieldParser`, `DocumentTextPrefixer`, `QueryContentFieldParser`, `TextPreprocessor` | Materialize content from metadata fields and apply prefix, suffix, case, whitespace, and regex text transforms. |
 | `retrieval_components.ranking` | `EmbeddingSimilarityRanker` | Rank already-embedded documents against a query embedding. |
 | `retrieval_components.reformulation` | `HttpQueryReformulator` | Call an injected HTTP reformulation service. |
 | `retrieval_components.retrieval` | `ElasticsearchBM25Retriever`, `JsonlEmbeddingRetriever`, `JsonlKeywordRetriever` | Retrieve from Elasticsearch or local JSONL artifacts. |
@@ -35,6 +35,8 @@ required contract:
 - The four classes in `retrieval_components.models` are direct Haystack re-exports.
 - `DocumentTextPrefixer` and `TextPreprocessor` add prefix/suffix and small regex
   transforms beyond the relevant native cleaner contracts.
+- `DocumentContentFieldParser` and `QueryContentFieldParser` provide strict dataset-field
+  boundaries before experiment-specific metadata renderers run.
 - The fusion components add weighted, dynamic named sockets beyond the fixed-input
   use cases covered by `DocumentJoiner`. `LinearScoreFusion` and `ZScoreFusion`
   provide distinct per-source normalization contracts.

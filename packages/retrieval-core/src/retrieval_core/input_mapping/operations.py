@@ -57,7 +57,6 @@ def _document_from_record(record: dict[str, Any]) -> Document:
     EVALUATION_DATA_SCHEMA.validate_document(record)
     reserved_fields = {
         EVALUATION_DATA_SCHEMA.doc_id,
-        EVALUATION_DATA_SCHEMA.text,
         "meta",
         "score",
         "embedding",
@@ -66,7 +65,11 @@ def _document_from_record(record: dict[str, Any]) -> Document:
     meta.update(dict(record.get("meta") or {}))
     return Document(
         id=str(record[EVALUATION_DATA_SCHEMA.doc_id]),
-        content=str(record[EVALUATION_DATA_SCHEMA.text]),
+        content=(
+            str(record[EVALUATION_DATA_SCHEMA.text])
+            if EVALUATION_DATA_SCHEMA.text in record
+            else None
+        ),
         meta=meta,
         score=record.get("score"),
         embedding=record.get("embedding"),
@@ -113,24 +116,63 @@ def resolve_inference_mapping(cfg: DictConfig) -> InferenceMapping:
 def configured_input_mapping_path(cfg: DictConfig) -> Path | None:
     """Resolve the prepared mapping selected by folder name for inference."""
 
-    configured_name = cfg.get("input_mapping")
+    selections = cfg.get("selections")
+    configured_name = selections.get("input_mapping") if selections else None
     if configured_name is None or not str(configured_name).strip():
         return None
     if isinstance(configured_name, DictConfig):
         raise TypeError(
-            "Inference input_mapping must be a prepared mapping folder name, "
+            "Inference selections.input_mapping must be a prepared mapping folder name, "
             "not an input-mapping recipe. Run prepare_mapping first."
         )
-    normalized = str(configured_name).strip()
+    normalized = validate_input_mapping_id(configured_name)
+    return project_path(cfg.paths.input_mappings_dir) / normalized / INPUT_MAPPING_FILENAME
+
+
+def validate_input_mapping_id(input_mapping_id: object) -> str:
+    """Return an input-mapping id that is safe as one directory name."""
+
+    normalized = str(input_mapping_id).strip()
     if (
-        normalized in {".", ".."}
+        not normalized
+        or normalized in {".", ".."}
         or Path(normalized).name != normalized
         or any(character in normalized for character in RUN_ID_FORBIDDEN_CHARS)
     ):
         raise ValueError(
-            f"Inference input_mapping must be one folder name, got {configured_name!r}."
+            f"Input mapping id must be one folder name, got {input_mapping_id!r}."
         )
-    return project_path(cfg.paths.input_mappings_dir) / normalized / INPUT_MAPPING_FILENAME
+    return normalized
+
+
+def discover_input_mapping_ids(
+    input_mappings_dir: str | Path,
+    *,
+    dataset_name: str | None = None,
+) -> list[str]:
+    """Return completed prepared-mapping ids, optionally for one dataset."""
+
+    root = project_path(input_mappings_dir)
+    if not root.is_dir():
+        return []
+
+    input_mapping_ids: list[str] = []
+    for directory in root.iterdir():
+        mapping_path = directory / INPUT_MAPPING_FILENAME
+        metadata_path = directory / INPUT_MAPPING_METADATA_FILENAME
+        if not directory.is_dir() or not mapping_path.is_file() or not metadata_path.is_file():
+            continue
+        try:
+            input_mapping_id = validate_input_mapping_id(directory.name)
+            metadata = read_json(metadata_path)
+        except (OSError, ValueError):
+            continue
+        if not isinstance(metadata, dict):
+            continue
+        if dataset_name is not None and str(metadata.get("dataset", "")) != str(dataset_name):
+            continue
+        input_mapping_ids.append(input_mapping_id)
+    return sorted(input_mapping_ids)
 
 
 def _resolve_file_mapping(

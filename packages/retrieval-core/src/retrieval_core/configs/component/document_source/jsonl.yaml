@@ -2,4 +2,4 @@ type: retrieval_components.sources.jsonl_document_source.JsonlDocumentSource
 init_parameters:
   documents_path: ${dataset.documents_path}
   id_field: doc_id
-  content_field: text
+  content_field: null
