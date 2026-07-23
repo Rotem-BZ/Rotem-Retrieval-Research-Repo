@@ -11,6 +11,14 @@ uv run python ../../awesome-dev-tools/run_in_screen.py --name toy-index -- uv ru
 uv run python ../../awesome-dev-tools/interactive_run_in_parallel_screens.py
 ```
 
+When `bash_aliases.sh` has been sourced from the repository root, the command builder
+and Screen cleanup utility have short Bash commands:
+
+```shell
+build-command
+kill-screens
+```
+
 The exposed scripts are:
 
 - `interactive_build_command.py`: interactively build a `retrieval-core` stage command. It uses
@@ -36,6 +44,7 @@ The exposed scripts are:
   on Linux without creating an experiment. Use `--cwd <project>` when invoking it
   outside the command's project directory; logs default to
   `<cwd>/artifacts/screens/<session>.log`.
+- `kill_screens.sh`: close every GNU Screen session owned by the current user.
 - `interactive_prepare_experiment.py`: compatibility alias for
   `interactive_create_run.py`.
 - `interactive_run_experiment.py`: compatibility alias for

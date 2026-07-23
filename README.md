@@ -6,20 +6,26 @@ Hydra-managed information-retrieval experiments built around Haystack
 ## Quick start
 
 Install [Git](https://git-scm.com/) and [uv](https://docs.astral.sh/uv/), then run
-the following commands from a terminal on Windows or Linux:
+the following commands from Bash on Linux, WSL, or Git Bash:
 
 ```shell
 git clone https://github.com/Rotem-BZ/Rotem-Retrieval-Research-Repo.git
-cd Rotem-Retrieval-Research-Repo/projects/query-repetition-e5
+cd Rotem-Retrieval-Research-Repo
+source ./bash_aliases.sh
+cd projects/query-repetition-e5
 uv sync --extra dev
 uv run nbstripout --install --attributes ../../.gitattributes
 uv run pre-commit install --install-hooks
 uv run stage --help
+build-command
 ```
 
 Each project owns its environment and resolves the shared monorepo packages through
 editable local dependencies. Run stage commands through `uv run` from the project
 directory so project-specific components and configuration are available.
+After sourcing `bash_aliases.sh`, `build-command` launches the interactive command
+builder from any directory while using the current project's `uv` environment.
+`kill-screens` closes every GNU Screen session owned by the current user.
 
 The setup also installs two repository-local Git protections. `nbstripout` keeps
 notebook outputs in the working copy but strips them from commits, while the
