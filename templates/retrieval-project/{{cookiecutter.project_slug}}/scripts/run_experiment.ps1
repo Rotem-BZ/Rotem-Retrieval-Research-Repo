@@ -17,13 +17,13 @@ $treatmentEvaluation = "{{ cookiecutter.project_slug }}-treatment-eval-$suffix"
 uv run prepare-beir --data-dir data --dataset {{ cookiecutter.beir_dataset }}
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-uv run stage indexing dataset={{ cookiecutter.dataset_config }} pipeline/indexing@pipeline=dense_jsonl selections/embedding_model={{ cookiecutter.embedding_model }} selections.index_id=$indexId runtime=$Runtime stage.run_id=$indexingRun
+uv run stage indexing dataset={{ cookiecutter.dataset_config }} pipeline/indexing@pipeline=dense/documents_jsonl selections/embedding_model={{ cookiecutter.embedding_model }} selections.index_id=$indexId runtime=$Runtime stage.run_id=$indexingRun
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-uv run stage inference dataset={{ cookiecutter.dataset_config }} pipeline/inference@pipeline=dense_jsonl selections/embedding_model={{ cookiecutter.embedding_model }} selections.index_id=$indexId runtime=$Runtime stage.run_id=$baselineRun
+uv run stage inference dataset={{ cookiecutter.dataset_config }} pipeline/inference@pipeline=retrieve/dense_jsonl selections/embedding_model={{ cookiecutter.embedding_model }} selections.index_id=$indexId runtime=$Runtime stage.run_id=$baselineRun
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-uv run stage inference dataset={{ cookiecutter.dataset_config }} pipeline/inference@pipeline={{ cookiecutter.pipeline_name }} selections/embedding_model={{ cookiecutter.embedding_model }} selections.index_id=$indexId runtime=$Runtime stage.run_id=$treatmentRun
+uv run stage inference dataset={{ cookiecutter.dataset_config }} pipeline/inference@pipeline={{ cookiecutter.package_name }}/{{ cookiecutter.pipeline_name }} selections/embedding_model={{ cookiecutter.embedding_model }} selections.index_id=$indexId runtime=$Runtime stage.run_id=$treatmentRun
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 uv run stage evaluation dataset={{ cookiecutter.dataset_config }} stage.inference_run_id=$baselineRun stage.run_id=$baselineEvaluation

@@ -2,7 +2,7 @@
 defaults:
   - /stages/inference
   - override /dataset: {{ cookiecutter.dataset_config }}
-  - override /pipeline/inference@pipeline: dense_jsonl
+  - override /pipeline/inference@pipeline: retrieve/dense_jsonl
   - override /selections/embedding_model@selections.embedding_model: {{ cookiecutter.embedding_model }}
   - override /runtime: cpu
   - _self_

@@ -1,9 +1,8 @@
 # @package _global_
 defaults:
   - /base-experiment-configs/indexing
-  - override /pipeline/indexing@pipeline: chonkie_recursive_dense_chunked_jsonl
+  - override /pipeline/indexing@pipeline: experimental_components/chonkie_recursive_dense_chunked_jsonl
   - _self_
 
 selections:
   index_id: chonkie-chunkers-scifact-recursive
-

@@ -10,8 +10,8 @@ Describe the expected treatment effect and name the primary metric before runnin
 
 ## Comparison
 
-The baseline uses `dense_jsonl`; the treatment uses
-`{{ cookiecutter.pipeline_name }}`. Keep the dataset, embedding model, shared index,
+The baseline uses `retrieve/dense_jsonl`; the treatment uses
+`{{ cookiecutter.package_name }}/{{ cookiecutter.pipeline_name }}`. Keep the dataset, embedding model, shared index,
 retrieval depth, runtime, and evaluation procedure fixed.
 
 ## Execution

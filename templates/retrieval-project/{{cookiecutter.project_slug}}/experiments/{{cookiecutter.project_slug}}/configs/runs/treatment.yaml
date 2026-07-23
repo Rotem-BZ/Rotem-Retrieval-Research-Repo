@@ -1,5 +1,5 @@
 # @package _global_
 defaults:
   - /base-experiment-configs/inference
-  - override /pipeline/inference@pipeline: {{ cookiecutter.pipeline_name }}
+  - override /pipeline/inference@pipeline: {{ cookiecutter.package_name }}/{{ cookiecutter.pipeline_name }}
   - _self_

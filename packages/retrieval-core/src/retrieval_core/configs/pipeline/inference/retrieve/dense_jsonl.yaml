@@ -1,0 +1,44 @@
+defaults:
+  - /selections@_global_.selections: index
+  - /selections/embedding_model@_global_.selections.embedding_model: ???
+  - /component/query_parser@components.query_parser: content_field
+  - /component/query_preprocessor@components.query_preprocessor: prefix_cleanup
+  - /component/query_embedder@components.query_embedder: sentence_transformers
+  - /component/retriever@components.retriever: jsonl_embeddings
+  - _self_
+
+components:
+  input:
+    type: retrieval_components.interfaces.stage_io.InferenceInput
+  output:
+    type: retrieval_components.interfaces.stage_io.InferenceOutput
+
+connections:
+  - sender: input.query_meta
+    receiver: query_parser.meta
+  - sender: query_parser.text
+    receiver: query_preprocessor.text
+  - sender: query_parser.text
+    receiver: output.query_content
+  - sender: input.candidate_document_ids
+    receiver: retriever.candidate_document_ids
+  - sender: query_preprocessor.text
+    receiver: query_embedder.text
+  - sender: query_embedder.embedding
+    receiver: retriever.query_embedding
+  - sender: retriever.documents
+    receiver: output.documents
+
+max_runs_per_component: 100
+metadata:
+  description: Abstract dense retrieval topology for document- or chunk-level JSONL indexes.
+  role: retrieve
+  maturity: reusable
+  input_mode: index
+  storage_backend: jsonl
+  compatible_index_granularity:
+    - document
+    - chunk
+  requires:
+    - selections.index_id
+    - selections.embedding_model

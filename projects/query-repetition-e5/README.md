@@ -4,6 +4,10 @@ This project tests one deliberately small change: repeat each raw query twice be
 the standard E5 query prefix is added, then compare it with the unchanged dense
 `intfloat/e5-small-v2` pipeline.
 
+Its project-owned Hydra pipeline is selected as
+`query_repetition_e5/dense_query_repetition`; unqualified pipeline choices come from
+`retrieval-core`.
+
 The motivation is related to [Prompt Repetition Improves Non-Reasoning
 LLMs](https://arxiv.org/abs/2512.14982) and, more directly, [Repetition Improves
 Language Model Embeddings](https://arxiv.org/abs/2402.15449). This project is an
@@ -68,8 +72,8 @@ dataset and index once, then launch inference from this project directory:
 
 ```shell
 uv run prepare-beir --data-dir data --dataset scifact
-uv run stage indexing dataset=beir_scifact runtime=cpu pipeline/indexing@pipeline=dense_jsonl selections/embedding_model=e5/small_v2 selections.index_id=e5-small-index stage.run_id=e5-small-indexing
-uv run stage inference dataset=beir_scifact runtime=cpu pipeline/inference@pipeline=dense_query_repetition selections/embedding_model=e5/small_v2 selections.index_id=e5-small-index runtime.query_concurrency_limit=8
+uv run stage indexing dataset=beir_scifact runtime=cpu pipeline/indexing@pipeline=dense/documents_jsonl selections/embedding_model=e5/small_v2 selections.index_id=e5-small-index stage.run_id=e5-small-indexing
+uv run stage inference dataset=beir_scifact runtime=cpu pipeline/inference@pipeline=query_repetition_e5/dense_query_repetition selections/embedding_model=e5/small_v2 selections.index_id=e5-small-index runtime.query_concurrency_limit=8
 ```
 
 Index IDs are immutable. Change `e5-small-index` before repeating the indexing command,

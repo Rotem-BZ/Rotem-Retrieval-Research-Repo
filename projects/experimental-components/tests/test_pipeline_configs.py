@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pytest
+import yaml
 
 from retrieval_core.utils.config import compose_entrypoint_config
 from retrieval_core.utils.pipelines import load_async_pipeline
@@ -9,6 +10,16 @@ from retrieval_core.utils.pipelines import load_async_pipeline
 PROJECT_DIR = Path(__file__).parents[1]
 EXPERIMENTS_DIR = PROJECT_DIR / "experiments"
 RUN_CONFIGS = sorted(EXPERIMENTS_DIR.glob("*/configs/runs/*.yaml"))
+
+
+def test_project_owned_config_choices_are_namespaced() -> None:
+    config_files = sorted((PROJECT_DIR / "configs").rglob("*.yaml"))
+
+    assert config_files
+    assert all(
+        path.relative_to(PROJECT_DIR / "configs").parts[2] == "experimental_components"
+        for path in config_files
+    )
 
 
 @pytest.mark.parametrize(
@@ -45,7 +56,7 @@ def test_chonkie_indexing_configs_keep_source_document_identity(entrypoint: Path
 
 def test_all_expected_integration_classes_are_represented() -> None:
     configured_types = {
-        path.read_text(encoding="utf-8").splitlines()[0].removeprefix("type: ")
+        yaml.safe_load(path.read_text(encoding="utf-8"))["type"]
         for path in (PROJECT_DIR / "configs" / "component").rglob("*.yaml")
     }
 

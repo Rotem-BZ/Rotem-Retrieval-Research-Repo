@@ -1,0 +1,8 @@
+type: retrieval_components.fusion.reciprocal_rank_fusion.ReciprocalRankFusion
+init_parameters:
+  # Equal source weights produce classic reciprocal rank fusion.
+  weights:
+    lexical: 1.0
+    dense: 1.0
+  top_k: 5
+  rrf_k: 60

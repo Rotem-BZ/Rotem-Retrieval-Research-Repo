@@ -27,7 +27,7 @@ uv run pytest
 
 The generated treatment is deliberately an identity transformation. Edit
 `src/<package_name>/components.py` and its initialization parameters in
-`experiments/<project-slug>/configs/pipeline/inference/<pipeline_name>.yaml` before treating the comparison as
+`configs/pipeline/inference/<package_name>/<pipeline_name>.yaml` before treating the comparison as
 a research run. Leaving it unchanged is useful as an end-to-end parity smoke test.
 
 `uv sync` creates the generated project's own `uv.lock`; the template does not copy
@@ -37,7 +37,8 @@ another experiment's resolved dependency graph.
 
 - `project_slug` becomes the directory, distribution, and run-ID prefix.
 - `package_name` must be a valid Python package name.
-- `pipeline_name` names the project-owned Hydra inference configuration.
+- `pipeline_name` names the project-owned Hydra inference configuration selected as
+  `<package_name>/<pipeline_name>`.
 - `component_class_name` names the starter Haystack component.
 - `beir_dataset` is the name accepted by `prepare-beir`, such as `scifact`.
 - `dataset_config` is the corresponding Hydra dataset selection, such as

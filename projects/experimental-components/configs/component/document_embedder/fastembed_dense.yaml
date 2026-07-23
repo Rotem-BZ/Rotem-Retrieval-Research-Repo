@@ -1,7 +1,0 @@
-type: haystack_integrations.components.embedders.fastembed.fastembed_document_embedder.FastembedDocumentEmbedder
-init_parameters:
-  model: ${selections.embedding_model.checkpoint}
-  prefix: ${selections.embedding_model.document_prefix}
-  progress_bar: ${runtime.progress_bar}
-  batch_size: 256
-

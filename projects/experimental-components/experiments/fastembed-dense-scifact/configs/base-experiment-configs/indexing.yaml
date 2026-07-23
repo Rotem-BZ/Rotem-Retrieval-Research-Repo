@@ -2,11 +2,10 @@
 defaults:
   - /stages/indexing
   - override /dataset: beir_scifact
-  - override /pipeline/indexing@pipeline: dense_jsonl
-  - override /selections/embedding_model@selections.embedding_model: fastembed/bge_small_en_v1_5
+  - override /pipeline/indexing@pipeline: dense/documents_jsonl
+  - override /selections/embedding_model@selections.embedding_model: experimental_components/fastembed/bge_small_en_v1_5
   - override /runtime: cpu
   - _self_
 
 selections:
   index_id: fastembed-dense-scifact-st
-

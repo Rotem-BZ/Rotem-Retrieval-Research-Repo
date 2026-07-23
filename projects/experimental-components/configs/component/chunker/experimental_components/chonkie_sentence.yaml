@@ -1,0 +1,9 @@
+# Project-owned choice: experimental_components
+type: haystack_integrations.components.preprocessors.chonkie.sentence_splitter.ChonkieSentenceDocumentSplitter
+init_parameters:
+  tokenizer: character
+  chunk_size: 360
+  chunk_overlap: 60
+  min_sentences_per_chunk: 1
+  min_characters_per_sentence: 12
+  skip_empty_documents: true

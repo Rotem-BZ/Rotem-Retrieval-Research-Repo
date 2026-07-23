@@ -1,0 +1,34 @@
+defaults:
+  - /selections@_global_.selections: index
+  - /component/document_source@components.document_source: jsonl
+  - /component/document_parser@components.document_parser: content_field
+  - _self_
+
+components:
+  output:
+    type: retrieval_components.interfaces.stage_io.IndexingOutput
+  indexer:
+    type: retrieval_components.indexing.jsonl_document_indexer.JsonlDocumentIndexer
+    init_parameters:
+      output_path: ${paths.indexes_dir}/${selections.index_id}/index.jsonl
+      overwrite: false
+
+connections:
+  - sender: document_source.documents
+    receiver: document_parser.documents
+  - sender: document_parser.documents
+    receiver: indexer.documents
+  - sender: indexer.index_path
+    receiver: output.index_path
+  - sender: indexer.indexed_count
+    receiver: output.indexed_count
+
+max_runs_per_component: 100
+metadata:
+  description: Minimal JSONL document indexing pipeline for scaffold validation.
+  role: indexing
+  maturity: scaffold
+  storage_backend: jsonl
+  document_granularity: document
+  requires:
+    - selections.index_id

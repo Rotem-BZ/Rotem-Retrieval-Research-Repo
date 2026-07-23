@@ -38,7 +38,7 @@ Basic indexing:
 Invoke-EdgeStage indexing `
   dataset=toy `
   runtime=cpu `
-  'pipeline/indexing@pipeline=dummy_jsonl' `
+  'pipeline/indexing@pipeline=scaffold/documents_jsonl' `
   "paths.runs_dir=$edgeRuns" `
   "paths.indexes_dir=$edgeIndexes" `
   "selections.index_id=$indexId" `
@@ -53,7 +53,7 @@ corpus:
 Invoke-EdgeStage inference `
   dataset=toy `
   runtime=cpu `
-  'pipeline/inference@pipeline=dummy_keyword' `
+  'pipeline/inference@pipeline=scaffold/keyword_jsonl' `
   "paths.runs_dir=$edgeRuns" `
   "paths.indexes_dir=$edgeIndexes" `
   "selections.index_id=$indexId" `
@@ -92,7 +92,7 @@ Invoke-EdgeStage inference `
   dataset=toy `
   runtime=cpu `
   "selections.input_mapping=$mappingRun1" `
-  'pipeline/inference@pipeline=dummy_keyword' `
+  'pipeline/inference@pipeline=scaffold/keyword_jsonl' `
   "paths.runs_dir=$edgeRuns" `
   "paths.input_mappings_dir=$edgeMappings" `
   "paths.indexes_dir=$edgeIndexes" `
@@ -127,7 +127,7 @@ Invoke-EdgeStage inference `
   dataset=toy `
   runtime=cpu `
   "selections.input_mapping=$emptyMappingRun" `
-  'pipeline/inference@pipeline=dummy_keyword' `
+  'pipeline/inference@pipeline=scaffold/keyword_jsonl' `
   "paths.runs_dir=$edgeRuns" `
   "paths.input_mappings_dir=$edgeMappings" `
   "paths.indexes_dir=$edgeIndexes" `
@@ -158,7 +158,7 @@ Run these commands individually. Each should exit nonzero.
 Runtime selection missing:
 
 ```powershell
-Invoke-EdgeStage indexing dataset=toy 'pipeline/indexing@pipeline=dummy_jsonl'
+Invoke-EdgeStage indexing dataset=toy 'pipeline/indexing@pipeline=scaffold/documents_jsonl'
 ```
 
 Missing dataset and indexing pipeline:
@@ -176,7 +176,7 @@ Invoke-EdgeStage indexing dataset=toy runtime=cpu
 Inference pipeline supplied but dataset missing:
 
 ```powershell
-Invoke-EdgeStage inference runtime=cpu 'pipeline/inference@pipeline=dummy_keyword'
+Invoke-EdgeStage inference runtime=cpu 'pipeline/inference@pipeline=scaffold/keyword_jsonl'
 ```
 
 Evaluation dataset missing:
@@ -208,7 +208,7 @@ Unknown index id:
 Invoke-EdgeStage inference `
   dataset=toy `
   runtime=cpu `
-  'pipeline/inference@pipeline=dummy_keyword' `
+  'pipeline/inference@pipeline=scaffold/keyword_jsonl' `
   "paths.runs_dir=$edgeRuns" `
   "paths.indexes_dir=$edgeIndexes" `
   selections.index_id=does-not-exist `
@@ -221,7 +221,7 @@ Non-canonical explicit index path:
 Invoke-EdgeStage inference `
   dataset=toy `
   runtime=cpu `
-  'pipeline/inference@pipeline=dummy_keyword' `
+  'pipeline/inference@pipeline=scaffold/keyword_jsonl' `
   "paths.runs_dir=$edgeRuns" `
   "paths.indexes_dir=$edgeIndexes" `
   "selections.index_id=$indexId" `
@@ -246,7 +246,7 @@ Invoke-EdgeStage inference `
   dataset=toy `
   runtime=cpu `
   selections.input_mapping=missing `
-  'pipeline/inference@pipeline=dummy_keyword' `
+  'pipeline/inference@pipeline=scaffold/keyword_jsonl' `
   "paths.runs_dir=$edgeRuns" `
   "paths.input_mappings_dir=$edgeRoot/unprepared-mappings" `
   "paths.indexes_dir=$edgeIndexes" `
@@ -298,7 +298,7 @@ Zero query concurrency:
 Invoke-EdgeStage inference `
   dataset=toy `
   runtime=cpu `
-  'pipeline/inference@pipeline=dummy_keyword' `
+  'pipeline/inference@pipeline=scaffold/keyword_jsonl' `
   "paths.runs_dir=$edgeRuns" `
   "paths.indexes_dir=$edgeIndexes" `
   "selections.index_id=$indexId" `

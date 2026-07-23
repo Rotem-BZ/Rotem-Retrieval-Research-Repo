@@ -1,0 +1,7 @@
+# Project-owned choice: experimental_components
+type: haystack_integrations.components.preprocessors.chonkie.token_splitter.ChonkieTokenDocumentSplitter
+init_parameters:
+  tokenizer: character
+  chunk_size: 360
+  chunk_overlap: 60
+  skip_empty_documents: true

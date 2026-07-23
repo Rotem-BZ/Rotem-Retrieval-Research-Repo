@@ -18,14 +18,14 @@ Create a keyword-search index and use that exact index for inference:
 uv run --project packages/retrieval-core stage indexing `
   dataset=toy `
   runtime=cpu `
-  pipeline/indexing@pipeline=dummy_jsonl `
+  pipeline/indexing@pipeline=scaffold/documents_jsonl `
   selections.index_id=toy-keyword-index `
   stage.run_id=toy-keyword-indexing
 
 uv run --project packages/retrieval-core stage inference `
   dataset=toy `
   runtime=cpu `
-  pipeline/inference@pipeline=dummy_keyword `
+  pipeline/inference@pipeline=scaffold/keyword_jsonl `
   selections.index_id=toy-keyword-index `
   stage.run_id=toy-keyword-inference
 ```
@@ -60,7 +60,7 @@ uv run --project packages/retrieval-core stage inference `
   dataset=toy `
   runtime=cpu `
   selections.input_mapping=toy-dev-tiny `
-  pipeline/inference@pipeline=dense_candidate_reranker `
+  pipeline/inference@pipeline=rerank/bi_encoder `
   selections/embedding_model=e5/small_v2 `
   pipeline.components.ranker.init_parameters.top_k=5 `
   stage.run_id=toy-e5-reranker
@@ -97,13 +97,13 @@ uv run stage indexing `
   dataset=toy `
   paths.processed_data_dir=../../data/processed `
   runtime=cpu `
-  pipeline/indexing@pipeline=dense_jsonl `
+  pipeline/indexing@pipeline=dense/documents_jsonl `
   selections/embedding_model=e5/small_v2 `
   selections.index_id=toy-e5-small-index `
   stage.run_id=toy-e5-small-indexing
 ```
 
-Select the project-owned `dense_query_repetition` pipeline to execute
+Select the project-owned `query_repetition_e5/dense_query_repetition` pipeline to execute
 `query_repetition_e5.components.QueryRepeater` directly:
 
 ```powershell
@@ -111,7 +111,7 @@ uv run stage inference `
   dataset=toy `
   paths.processed_data_dir=../../data/processed `
   runtime=cpu `
-  pipeline/inference@pipeline=dense_query_repetition `
+  pipeline/inference@pipeline=query_repetition_e5/dense_query_repetition `
   selections/embedding_model=e5/small_v2 `
   selections.index_id=toy-e5-small-index `
   stage.run_id=toy-query-repetition-component

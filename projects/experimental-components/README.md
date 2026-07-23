@@ -8,6 +8,9 @@ shared `retrieval-components` package. Its reusable configuration fragments cove
 - FastEmbed cross-encoder and late-interaction rankers; and
 - Chonkie token, sentence, recursive, and semantic document splitters.
 
+Every project-owned Hydra choice is selected through the `experimental_components/`
+namespace. Unqualified choices in these pipelines come from `retrieval-core`.
+
 The project contains three SciFact experiment suites:
 
 | Experiment | Question |

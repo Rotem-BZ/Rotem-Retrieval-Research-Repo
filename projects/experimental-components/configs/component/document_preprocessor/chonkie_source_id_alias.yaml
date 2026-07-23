@@ -1,5 +1,0 @@
-type: experimental_components.components.SourceDocumentIdAdapter
-init_parameters:
-  source_field: source_id
-  target_field: source_document_id
-

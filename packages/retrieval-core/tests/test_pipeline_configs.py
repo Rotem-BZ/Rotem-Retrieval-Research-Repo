@@ -5,23 +5,35 @@ from retrieval_core.utils.config import compose_stage_config
 from retrieval_core.utils.pipelines import load_async_pipeline, to_container
 
 
-def test_rrf_fusion_pipeline_config_loads_with_dynamic_weight_socket() -> None:
+def test_hybrid_rrf_pipeline_loads_with_uniform_dynamic_weight_sockets() -> None:
     cfg = compose_stage_config(
         "inference",
         [
             "dataset=toy",
             "runtime=gpu",
-            "pipeline/inference@pipeline=rrf_fusion",
-            "pipeline.components.fusion.init_parameters.weights={lexical:1.0}",
+            "pipeline/inference@pipeline=retrieve/hybrid_rrf_jsonl",
+            "selections.index_id=toy-hybrid",
+            "selections/embedding_model=e5/small_v2",
         ],
     )
 
     pipeline = load_async_pipeline(cfg.pipeline)
     pipeline_config = to_container(cfg.pipeline)
 
-    assert "fusion" in pipeline.graph.nodes
+    assert {"lexical_retriever", "dense_retriever", "fusion"} <= set(pipeline.graph.nodes)
+    assert pipeline_config["components"]["fusion"]["init_parameters"]["weights"] == {
+        "lexical": 1.0,
+        "dense": 1.0,
+    }
     assert pipeline_config["components"]["fusion"]["init_parameters"]["rrf_k"] == 60
-    assert "retrieval" not in cfg
+    assert {
+        "sender": "lexical_retriever.documents",
+        "receiver": "fusion.lexical",
+    } in pipeline_config["connections"]
+    assert {
+        "sender": "dense_retriever.documents",
+        "receiver": "fusion.dense",
+    } in pipeline_config["connections"]
 
 
 def test_abstract_dense_e5_indexing_config_keeps_pipeline_haystack_shaped() -> None:
@@ -30,7 +42,7 @@ def test_abstract_dense_e5_indexing_config_keeps_pipeline_haystack_shaped() -> N
         [
             "dataset=toy",
             "runtime=gpu",
-            "pipeline/indexing@pipeline=dense_jsonl",
+            "pipeline/indexing@pipeline=dense/documents_jsonl",
             "selections.index_id=toy-dense",
             "selections/embedding_model=e5/small_v2",
         ],
@@ -69,13 +81,13 @@ def test_abstract_dense_e5_indexing_config_keeps_pipeline_haystack_shaped() -> N
     assert "embedder" in pipeline.graph.nodes
 
 
-def test_abstract_chunked_e5_configs_use_chunked_index_artifact() -> None:
+def test_chunked_indexing_and_dense_retrieval_share_index_artifact() -> None:
     indexing_cfg = compose_stage_config(
         "indexing",
         [
             "dataset=toy",
             "runtime=gpu",
-            "pipeline/indexing@pipeline=dense_chunked_jsonl",
+            "pipeline/indexing@pipeline=dense/chunks_jsonl",
             "selections.index_id=toy-dense-chunked",
             "selections/embedding_model=e5/small_v2",
         ],
@@ -85,7 +97,7 @@ def test_abstract_chunked_e5_configs_use_chunked_index_artifact() -> None:
         [
             "dataset=toy",
             "runtime=gpu",
-            "pipeline/inference@pipeline=dense_chunked_jsonl",
+            "pipeline/inference@pipeline=retrieve/dense_jsonl",
             "selections.index_id=toy-dense-chunked",
             "selections/embedding_model=e5/small_v2",
         ],
@@ -109,7 +121,7 @@ def test_abstract_dense_e5_inference_config_prefixes_queries() -> None:
         [
             "dataset=toy",
             "runtime=gpu",
-            "pipeline/inference@pipeline=dense_jsonl",
+            "pipeline/inference@pipeline=retrieve/dense_jsonl",
             "selections.index_id=toy-dense",
             "selections/embedding_model=e5/small_v2",
         ],
@@ -156,13 +168,13 @@ def test_abstract_dense_e5_inference_config_prefixes_queries() -> None:
     ]
 
 
-def test_dense_candidate_reranker_uses_candidate_documents() -> None:
+def test_bi_encoder_reranker_uses_candidate_documents() -> None:
     cfg = compose_stage_config(
         "inference",
         [
             "dataset=toy",
             "runtime=gpu",
-            "pipeline/inference@pipeline=dense_candidate_reranker",
+            "pipeline/inference@pipeline=rerank/bi_encoder",
             "selections/embedding_model=e5/small_v2",
         ],
     )
@@ -191,13 +203,13 @@ def test_dense_candidate_reranker_uses_candidate_documents() -> None:
     ]
 
 
-def test_cross_encoder_candidate_reranker_uses_bge_selection() -> None:
+def test_cross_encoder_reranker_uses_bge_selection() -> None:
     cfg = compose_stage_config(
         "inference",
         [
             "dataset=toy",
             "runtime=gpu",
-            "pipeline/inference@pipeline=cross_encoder_candidate_reranker",
+            "pipeline/inference@pipeline=rerank/cross_encoder",
             "selections/reranker_model=bge/v2_m3",
         ],
     )
@@ -227,13 +239,13 @@ def test_cross_encoder_candidate_reranker_uses_bge_selection() -> None:
     ]
 
 
-def test_dummy_keyword_inference_parses_retriever_query_input() -> None:
+def test_scaffold_keyword_inference_parses_retriever_query_input() -> None:
     cfg = compose_stage_config(
         "inference",
         [
             "dataset=toy",
             "runtime=gpu",
-            "pipeline/inference@pipeline=dummy_keyword",
+            "pipeline/inference@pipeline=scaffold/keyword_jsonl",
             "selections.index_id=toy-keyword",
         ],
     )

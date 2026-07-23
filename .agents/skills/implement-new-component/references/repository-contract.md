@@ -24,7 +24,10 @@ Use snake_case module names and PascalCase classes. In the shared package, follo
 
 ## Configuration Boundaries
 
-- Put cross-project component choices under `packages/retrieval-core/src/retrieval_core/configs/component/`, project-wide choices under `projects/<project>/configs/component/`, and choices used only by one experiment under that experiment's `configs/component/` overlay.
+- Put cross-project component choices under `packages/retrieval-core/src/retrieval_core/configs/component/`.
+- Put project-wide choices under `projects/<project>/configs/<group>/<package_name>/<choice>.yaml` and select them as `<package_name>/<choice>` inside the unchanged Hydra group. This ownership namespace applies to project-owned `component`, `pipeline`, and `selections` choices.
+- Put choices used only by one experiment under that experiment's `configs/<group>/<experiment_namespace>/<choice>.yaml` overlay and select them with the same experiment namespace.
+- Keep core choices unqualified. Do not prefix the Hydra group itself with `project-configs` or another ownership directory; that creates a different group instead of overriding the core slot.
 - Put experiment base entrypoints under `experiments/<experiment>/configs/base-experiment-configs/` and concrete run entrypoints directly under `experiments/<experiment>/configs/runs/`; do not put reusable component fragments in either directory.
 - Put semantic choices shared by multiple components, such as embedding checkpoint and prefixes, under root `selections`.
 - Keep the resolved `pipeline` subtree valid Haystack serialization: `components`, `connections`, `max_runs_per_component`, and `metadata`.

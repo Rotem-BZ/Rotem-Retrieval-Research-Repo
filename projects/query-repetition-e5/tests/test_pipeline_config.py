@@ -11,6 +11,16 @@ TOY_EXPERIMENT_DIR = (
 )
 
 
+def test_project_owned_config_choices_are_namespaced() -> None:
+    config_files = sorted((PROJECT_DIR / "configs").rglob("*.yaml"))
+
+    assert config_files
+    assert all(
+        path.relative_to(PROJECT_DIR / "configs").parts[2] == "query_repetition_e5"
+        for path in config_files
+    )
+
+
 def test_project_pipeline_composes_with_core_config_groups() -> None:
     cfg = compose_entrypoint_config(
         EXPERIMENT_DIR / "configs" / "runs" / "repeated.yaml",
@@ -44,7 +54,7 @@ def test_documented_direct_toy_component_command_composes() -> None:
             "dataset=toy",
             "paths.processed_data_dir=../../data/processed",
             "runtime=cpu",
-            "pipeline/inference@pipeline=dense_query_repetition",
+            "pipeline/inference@pipeline=query_repetition_e5/dense_query_repetition",
             "selections/embedding_model=e5/small_v2",
             "selections.index_id=toy-e5-small-index",
             "stage.run_id=toy-query-repetition-component",

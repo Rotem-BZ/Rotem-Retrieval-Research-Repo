@@ -11,7 +11,7 @@ procedure constant.
 The generated `{{ cookiecutter.component_class_name }}` is an identity
 transformation. Replace its `run` implementation with the experimental behavior,
 then update its unit test. Constructor parameters belong in
-`experiments/{{ cookiecutter.project_slug }}/configs/pipeline/inference/{{ cookiecutter.pipeline_name }}.yaml`.
+`configs/pipeline/inference/{{ cookiecutter.package_name }}/{{ cookiecutter.pipeline_name }}.yaml`.
 
 Keeping the identity implementation is useful for a parity check: baseline and
 treatment metrics should be identical when both arms consume the same index.
@@ -63,8 +63,8 @@ The default selections are:
 
 - dataset: `{{ cookiecutter.dataset_config }}`;
 - embedding model: `{{ cookiecutter.embedding_model }}`;
-- baseline pipeline: `dense_jsonl`; and
-- treatment pipeline: `{{ cookiecutter.pipeline_name }}`.
+- baseline pipeline: `retrieve/dense_jsonl`; and
+- treatment pipeline: `{{ cookiecutter.package_name }}/{{ cookiecutter.pipeline_name }}`.
 
 Small changes on one dataset are exploratory evidence. Broaden the dataset and seed
 coverage before drawing a general conclusion.

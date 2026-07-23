@@ -2,7 +2,7 @@
 defaults:
   - /stages/inference
   - override /dataset: toy
-  - override /pipeline/inference@pipeline: dense_jsonl
+  - override /pipeline/inference@pipeline: retrieve/dense_jsonl
   - override /selections/embedding_model@selections.embedding_model: e5/small_v2
   - override /runtime: cpu
   - _self_

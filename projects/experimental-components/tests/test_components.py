@@ -97,8 +97,8 @@ def test_non_model_chonkie_splitters_preserve_source_identity(splitter: object) 
 @pytest.mark.parametrize(
     "relative_path",
     [
-        "configs/component/document_embedder/fastembed_sparse.yaml",
-        "configs/component/query_embedder/fastembed_sparse.yaml",
+        "configs/component/document_embedder/experimental_components/fastembed_sparse.yaml",
+        "configs/component/query_embedder/experimental_components/fastembed_sparse.yaml",
     ],
 )
 def test_sparse_fastembed_component_configs_deserialize(relative_path: str) -> None:

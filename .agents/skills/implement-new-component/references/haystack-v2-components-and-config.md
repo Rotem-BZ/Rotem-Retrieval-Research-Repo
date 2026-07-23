@@ -361,10 +361,20 @@ Placement:
 
 - Cross-project fragment: `packages/retrieval-core/src/retrieval_core/configs/component/<group>/<choice>.yaml`.
 - Cross-project topology: the matching core `configs/pipeline/<stage>/` group.
-- Project-wide fragment or topology: `projects/<project>/configs/component/` or `projects/<project>/configs/pipeline/`.
-- One-experiment fragment or topology: that experiment's `configs/component/` or `configs/pipeline/` overlay.
+- Project-wide fragment or topology: `projects/<project>/configs/<group>/<package_name>/<choice>.yaml`, selected as `<package_name>/<choice>` within the unchanged group.
+- One-experiment fragment or topology: that experiment's `configs/<group>/<experiment_namespace>/<choice>.yaml` overlay, selected as `<experiment_namespace>/<choice>`.
 - Experiment base entrypoint: `experiments/<experiment>/configs/base-experiment-configs/`.
 - Concrete run entrypoint: `experiments/<experiment>/configs/runs/`.
+
+Keep shared/core choices unqualified. Namespace the choice, not the Hydra group:
+
+```yaml
+# Correct: replaces the core pipeline/inference choice with a project-owned choice.
+- override /pipeline/inference@pipeline: my_project/my_topology
+
+# Incorrect: creates a different group and leaves pipeline/inference unresolved.
+- override /project-configs/pipeline/inference@pipeline: my_topology
+```
 
 Do not place reusable component fragments in `base-experiment-configs/` or `runs/`. A run may override constructor values after composition:
 

@@ -39,7 +39,7 @@ def test_console_main_does_not_return_or_print_full_stage_result(
         [
             "indexing",
             "dataset=toy",
-            "pipeline/indexing@pipeline=dummy_jsonl",
+            "pipeline/indexing@pipeline=scaffold/documents_jsonl",
             "runtime=cpu",
             "selections.index_id=test-index",
         ]
@@ -118,7 +118,7 @@ def test_indexing_publishes_an_immutable_selected_index(tmp_path: Path) -> None:
         f'dataset.documents_path="{(dataset_dir / "documents.jsonl").as_posix()}"',
         f'dataset.queries_path="{(dataset_dir / "queries.jsonl").as_posix()}"',
         f'dataset.qrels_path="{(dataset_dir / "qrels.jsonl").as_posix()}"',
-        "pipeline/indexing@pipeline=dummy_jsonl",
+        "pipeline/indexing@pipeline=scaffold/documents_jsonl",
         "runtime=cpu",
         "runtime.progress_bar=false",
         "selections.index_id=toy-index",

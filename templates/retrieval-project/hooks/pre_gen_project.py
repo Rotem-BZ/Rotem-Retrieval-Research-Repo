@@ -33,10 +33,6 @@ for field, pattern in RULES.items():
         print(f"ERROR: {field}={VALUES[field]!r} does not match {pattern!r}.", file=sys.stderr)
         sys.exit(1)
 
-if VALUES["pipeline_name"] == "dense_jsonl":
-    print("ERROR: pipeline_name must not shadow the dense_jsonl baseline.", file=sys.stderr)
-    sys.exit(1)
-
 if keyword.iskeyword(VALUES["package_name"]):
     print("ERROR: package_name must not be a Python keyword.", file=sys.stderr)
     sys.exit(1)

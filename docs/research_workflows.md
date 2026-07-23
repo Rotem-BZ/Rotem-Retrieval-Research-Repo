@@ -6,8 +6,8 @@ This repo is organized around three ideas:
 2. Experiment selection and parameterization lives in Hydra configs.
 3. Long-running experiment workflows are split into explicit stages.
 
-The scaffold includes both dummy components and real retrieval components. The
-dummy pieces are still useful because they exercise the intended contracts
+The scaffold includes both minimal scaffold components and real retrieval components. The
+scaffold pieces are still useful because they exercise the intended contracts
 without requiring a model, document store, or external service.
 
 ## Research Lifecycle
@@ -109,7 +109,7 @@ For example, the shared dense inference topology fixes the graph while requiring
 the semantic embedding-model selection:
 
 ```yaml
-# configs/pipeline/inference/dense_jsonl.yaml
+# configs/pipeline/inference/retrieve/dense_jsonl.yaml
 defaults:
   - /selections/embedding_model@_global_.selections.embedding_model: ???
   - /component/query_preprocessor@components.query_preprocessor: prefix_cleanup
@@ -143,7 +143,7 @@ The command line supplies the model selection separately from the topology:
 uv run stage inference \
   dataset=beir_scifact \
   runtime=gpu \
-  pipeline/inference@pipeline=dense_jsonl \
+  pipeline/inference@pipeline=retrieve/dense_jsonl \
   selections/embedding_model=e5/small_v2 \
   selections.index_id=YOUR_INDEX_ID
 ```
@@ -180,7 +180,7 @@ pipeline syntax. It should contain `components`, `connections`,
 selections by composing them into the root `selections` namespace:
 
 ```yaml
-# configs/pipeline/indexing/dense_jsonl.yaml
+# configs/pipeline/indexing/dense/documents_jsonl.yaml
 defaults:
   - /selections/embedding_model@_global_.selections.embedding_model: ???
   - /component/document_preprocessor@components.document_prefixer: prefix_cleanup
@@ -216,7 +216,7 @@ inserting one local treatment component. The query-repetition project follows
 this pattern:
 
 ```yaml
-# projects/query-repetition-e5/configs/pipeline/inference/dense_query_repetition.yaml
+# projects/query-repetition-e5/configs/pipeline/inference/query_repetition_e5/dense_query_repetition.yaml
 defaults:
   - /selections/embedding_model@_global_.selections.embedding_model: ???
   - /component/query_preprocessor@components.query_preprocessor: prefix_cleanup
@@ -236,7 +236,7 @@ components:
 ```
 
 Its graph routes `input.query` through `query_repeater` before the shared query
-preprocessor and embedder. The baseline uses the shared `dense_jsonl` topology,
+preprocessor and embedder. The baseline uses the shared `retrieve/dense_jsonl` topology,
 so the local component is the intended difference.
 
 As a rule of thumb, use command-line overrides for small scalar changes,
@@ -323,6 +323,48 @@ Config groups provide reusable prefills:
 - `configs/pipeline/indexing/` contains Haystack indexing pipelines.
 - `configs/pipeline/inference/` contains Haystack inference pipelines.
 
+Pipeline choices are grouped by intent below each stage. See
+`configs/pipeline/README.md` for the concise choice catalog.
+
+### Ownership namespaces for overlay choices
+
+Reusable choices in a project overlay must keep the existing Hydra group and add
+the owning project's snake-case Python package name as the first choice path
+segment:
+
+```text
+projects/query-repetition-e5/configs/
+└── pipeline/inference/
+    └── query_repetition_e5/
+        └── dense_query_repetition.yaml
+```
+
+Select that project-owned topology as:
+
+```yaml
+- override /pipeline/inference@pipeline: query_repetition_e5/dense_query_repetition
+```
+
+The same rule applies to project-owned `component` and `selections` choices. For
+example, an experimental-components topology selects its local embedder with:
+
+```yaml
+- /component/query_embedder@components.query_embedder: experimental_components/fastembed_dense
+```
+
+Core-owned choices remain unqualified, such as `retrieve/dense_jsonl`,
+`sentence_transformers`, and `e5/small_v2`. This makes ownership visible at every
+selection site without changing the Hydra group being overridden. Do not wrap the
+group itself in a directory such as `project-configs/pipeline/inference`; that
+creates a different Hydra group and will not satisfy the core stage's
+`pipeline/inference` override slot.
+
+If a reusable choice truly belongs to only one experiment, use the normalized
+experiment slug as the first choice segment under that experiment's config
+overlay. Base experiment configs and concrete files under `configs/runs/` are
+entrypoints rather than reusable choices, so they remain directly in their
+established directories.
+
 Dataset records live as data files, not as Hydra config payloads. The core test
 fixture is in:
 
@@ -384,7 +426,7 @@ uv run stage inference \
   dataset=beir_scifact \
   runtime=cpu \
   selections.input_mapping=scifact_dev_tiny \
-  pipeline/inference@pipeline=dense_candidate_reranker \
+  pipeline/inference@pipeline=rerank/bi_encoder \
   selections/embedding_model=e5/small_v2
 ```
 
@@ -439,23 +481,21 @@ uv run stage inference `
   dataset=toy `
   runtime=cpu `
   selections.input_mapping=toy_dev_tiny `
-  pipeline/inference@pipeline=dense_candidate_reranker `
+  pipeline/inference@pipeline=rerank/bi_encoder `
   selections/embedding_model=e5/small_v2 `
   stage.run_id=toy_e5_rerank
 ```
 
-### Abstract E5 Dense Pipelines
+### Dense Pipelines
 
-The concrete `pipeline/indexing@pipeline=e5_jsonl` and
-`pipeline/inference@pipeline=e5_jsonl` configs remain available as simple,
-fully written E5 examples. For more composable experiments, use the abstract
-dense topologies and select E5 through `selections/embedding_model`:
+Dense topologies remain model-agnostic. Select the embedding model separately
+through `selections/embedding_model`:
 
 ```powershell
 uv run stage indexing `
   dataset=beir_scifact `
   runtime=gpu `
-  pipeline/indexing@pipeline=dense_jsonl `
+  pipeline/indexing@pipeline=dense/documents_jsonl `
   selections/embedding_model=e5/small_v2 `
   selections.index_id=YOUR_NEW_INDEX_ID
 ```
@@ -464,7 +504,7 @@ uv run stage indexing `
 uv run stage inference `
   dataset=beir_scifact `
   runtime=gpu `
-  pipeline/inference@pipeline=dense_jsonl `
+  pipeline/inference@pipeline=retrieve/dense_jsonl `
   selections.index_id=YOUR_INDEX_ID `
   selections/embedding_model=e5/small_v2 `
   pipeline.components.retriever.init_parameters.top_k=100
@@ -474,14 +514,14 @@ uv run stage inference `
 uv run stage evaluation dataset=beir_scifact stage.inference_run_id=YOUR_EXACT_INFERENCE_RUN_ID
 ```
 
-To run the same model through the chunked topology, switch both pipeline
-selections:
+To create a chunked index, switch the indexing choice. The same dense retrieval
+topology consumes both document- and chunk-level indexes:
 
 ```powershell
 uv run stage indexing `
   dataset=beir_scifact `
   runtime=gpu `
-  pipeline/indexing@pipeline=dense_chunked_jsonl `
+  pipeline/indexing@pipeline=dense/chunks_jsonl `
   selections/embedding_model=e5/small_v2 `
   selections.index_id=YOUR_NEW_CHUNKED_INDEX_ID
 ```
@@ -490,11 +530,30 @@ uv run stage indexing `
 uv run stage inference `
   dataset=beir_scifact `
   runtime=gpu `
-  pipeline/inference@pipeline=dense_chunked_jsonl `
+  pipeline/inference@pipeline=retrieve/dense_jsonl `
   selections.index_id=YOUR_CHUNKED_INDEX_ID `
   selections/embedding_model=e5/small_v2 `
   pipeline.components.retriever.init_parameters.top_k=100
 ```
+
+### Hybrid RRF Retrieval
+
+Use `retrieve/hybrid_rrf_jsonl` to combine keyword and dense retrieval from the
+same JSONL index. The shared RRF component fragment defines `lexical` and
+`dense` inputs with equal weights, producing classic reciprocal rank fusion:
+
+```powershell
+uv run stage inference `
+  dataset=beir_scifact `
+  runtime=gpu `
+  pipeline/inference@pipeline=retrieve/hybrid_rrf_jsonl `
+  selections.index_id=YOUR_INDEX_ID `
+  selections/embedding_model=e5/small_v2
+```
+
+Complete project topologies can select `/component/fusion@components.fusion:
+rrf` and override its source-weight mapping when they use different producer
+names or weighted RRF.
 
 ### Reranking Pipelines
 
@@ -513,7 +572,7 @@ uv run stage inference `
   dataset=beir_scifact `
   runtime=gpu `
   selections.input_mapping=scifact_judged_only `
-  pipeline/inference@pipeline=dense_candidate_reranker `
+  pipeline/inference@pipeline=rerank/bi_encoder `
   selections/embedding_model=e5/small_v2 `
   pipeline.components.ranker.init_parameters.top_k=10
 ```
@@ -530,7 +589,7 @@ uv run stage inference `
   dataset=beir_scifact `
   runtime=gpu `
   selections.input_mapping=scifact_judged_only `
-  pipeline/inference@pipeline=cross_encoder_candidate_reranker `
+  pipeline/inference@pipeline=rerank/cross_encoder `
   selections/reranker_model=bge/v2_m3 `
   stage.run_id=bge_v2_m3 `
   pipeline.components.ranker.init_parameters.top_k=10
@@ -569,8 +628,8 @@ query-repetition project. Prepare SciFact first and choose unique ids:
 
 ```text
 uv run prepare-beir --data-dir data --dataset scifact
-uv run stage indexing dataset=beir_scifact runtime=cpu pipeline/indexing@pipeline=dense_jsonl selections/embedding_model=e5/small_v2 selections.index_id=YOUR_UNIQUE_INDEX_ID stage.run_id=YOUR_UNIQUE_INDEXING_RUN_ID
-uv run stage inference dataset=beir_scifact runtime=cpu pipeline/inference@pipeline=dense_jsonl selections/embedding_model=e5/small_v2 selections.index_id=YOUR_UNIQUE_INDEX_ID stage.run_id=YOUR_UNIQUE_INFERENCE_RUN_ID
+uv run stage indexing dataset=beir_scifact runtime=cpu pipeline/indexing@pipeline=dense/documents_jsonl selections/embedding_model=e5/small_v2 selections.index_id=YOUR_UNIQUE_INDEX_ID stage.run_id=YOUR_UNIQUE_INDEXING_RUN_ID
+uv run stage inference dataset=beir_scifact runtime=cpu pipeline/inference@pipeline=retrieve/dense_jsonl selections/embedding_model=e5/small_v2 selections.index_id=YOUR_UNIQUE_INDEX_ID stage.run_id=YOUR_UNIQUE_INFERENCE_RUN_ID
 uv run stage evaluation dataset=beir_scifact stage.inference_run_id=YOUR_UNIQUE_INFERENCE_RUN_ID stage.run_id=YOUR_UNIQUE_EVALUATION_RUN_ID
 ```
 
@@ -595,7 +654,7 @@ explicitly when a descriptive or stable id is useful:
 uv run stage inference \
   dataset=beir_scifact \
   runtime=gpu \
-  pipeline/inference@pipeline=dense_jsonl \
+  pipeline/inference@pipeline=retrieve/dense_jsonl \
   selections/embedding_model=e5/small_v2 \
   selections.index_id=YOUR_INDEX_ID \
   stage.run_id=keyword_smoke
@@ -655,8 +714,8 @@ small overrides on the command line.
 Examples:
 
 ```bash
-uv run stage indexing dataset=beir_scifact runtime=cpu pipeline/indexing@pipeline=dense_jsonl selections/embedding_model=e5/small_v2 selections.index_id=YOUR_NEW_INDEX_ID
-uv run stage inference dataset=beir_scifact runtime=cpu pipeline/inference@pipeline=dense_jsonl selections/embedding_model=e5/small_v2 selections.index_id=YOUR_INDEX_ID pipeline.components.retriever.init_parameters.top_k=10
+uv run stage indexing dataset=beir_scifact runtime=cpu pipeline/indexing@pipeline=dense/documents_jsonl selections/embedding_model=e5/small_v2 selections.index_id=YOUR_NEW_INDEX_ID
+uv run stage inference dataset=beir_scifact runtime=cpu pipeline/inference@pipeline=retrieve/dense_jsonl selections/embedding_model=e5/small_v2 selections.index_id=YOUR_INDEX_ID pipeline.components.retriever.init_parameters.top_k=10
 uv run stage evaluation dataset=beir_scifact stage.inference_run_id=YOUR_EXACT_INFERENCE_RUN_ID metrics='["Recall@10","MRR@10","NDCG@10","Precision@10","HitRate@10"]'
 ```
 
@@ -700,12 +759,12 @@ Qrels JSONL records should look like:
 ```
 
 Then select those paths from a project-local dataset config and run the relevant
-pipeline. The following dummy pipelines are useful for contract tests and do not
+pipeline. The following scaffold pipelines are useful for contract tests and do not
 require a model:
 
 ```bash
-uv run stage indexing dataset=my_dataset runtime=cpu pipeline/indexing@pipeline=dummy_jsonl selections.index_id=YOUR_NEW_INDEX_ID
-uv run stage inference dataset=my_dataset runtime=cpu pipeline/inference@pipeline=dummy_keyword selections.index_id=YOUR_INDEX_ID
+uv run stage indexing dataset=my_dataset runtime=cpu pipeline/indexing@pipeline=scaffold/documents_jsonl selections.index_id=YOUR_NEW_INDEX_ID
+uv run stage inference dataset=my_dataset runtime=cpu pipeline/inference@pipeline=scaffold/keyword_jsonl selections.index_id=YOUR_INDEX_ID
 uv run stage evaluation dataset=my_dataset stage.inference_run_id=YOUR_EXACT_INFERENCE_RUN_ID
 ```
 
@@ -817,7 +876,7 @@ models, and other shared choices, and holds all shared field values:
 defaults:
   - /stages/inference
   - override /dataset: beir_scifact
-  - override /pipeline/inference@pipeline: dense_jsonl
+  - override /pipeline/inference@pipeline: retrieve/dense_jsonl
   - override /selections/embedding_model@selections.embedding_model: e5/small_v2
   - override /runtime: gpu
   - _self_
@@ -841,7 +900,7 @@ The treatment adds only its differing Hydra selection:
 # @package _global_
 defaults:
   - /base-experiment-configs/inference
-  - override /pipeline/inference@pipeline: treatment_pipeline
+  - override /pipeline/inference@pipeline: my_project/treatment_pipeline
   - _self_
 ```
 

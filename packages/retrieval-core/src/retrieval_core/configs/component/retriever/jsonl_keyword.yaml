@@ -1,0 +1,4 @@
+type: retrieval_components.retrieval.jsonl_keyword_retriever.JsonlKeywordRetriever
+init_parameters:
+  index_path: ${paths.indexes_dir}/${selections.index_id}/index.jsonl
+  top_k: 5

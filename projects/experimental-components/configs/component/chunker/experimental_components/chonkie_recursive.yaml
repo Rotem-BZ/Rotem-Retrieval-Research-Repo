@@ -1,0 +1,7 @@
+# Project-owned choice: experimental_components
+type: haystack_integrations.components.preprocessors.chonkie.recursive_splitter.ChonkieRecursiveDocumentSplitter
+init_parameters:
+  tokenizer: character
+  chunk_size: 360
+  min_characters_per_chunk: 24
+  skip_empty_documents: true

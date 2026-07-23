@@ -1,6 +1,5 @@
 # @package _global_
 defaults:
   - /base-experiment-configs/inference
-  - override /pipeline/inference@pipeline: dense_fastembed_late_interaction_reranker
+  - override /pipeline/inference@pipeline: experimental_components/dense_fastembed_late_interaction_reranker
   - _self_
-

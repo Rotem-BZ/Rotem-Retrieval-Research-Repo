@@ -1,0 +1,31 @@
+defaults:
+  - /selections@_global_.selections: index
+  - /component/query_parser@components.query_parser: content_field
+  - /component/retriever@components.retriever: jsonl_keyword
+  - _self_
+
+components:
+  input:
+    type: retrieval_components.interfaces.stage_io.InferenceInput
+  output:
+    type: retrieval_components.interfaces.stage_io.InferenceOutput
+connections:
+  - sender: input.query_meta
+    receiver: query_parser.meta
+  - sender: query_parser.text
+    receiver: retriever.query
+  - sender: query_parser.text
+    receiver: output.query_content
+  - sender: input.candidate_document_ids
+    receiver: retriever.candidate_document_ids
+  - sender: retriever.documents
+    receiver: output.documents
+max_runs_per_component: 100
+metadata:
+  description: Minimal keyword retrieval pipeline for scaffold validation.
+  role: retrieve
+  maturity: scaffold
+  input_mode: index
+  storage_backend: jsonl
+  requires:
+    - selections.index_id

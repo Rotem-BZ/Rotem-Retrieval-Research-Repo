@@ -11,6 +11,7 @@ the following commands from Bash on Linux, WSL, or Git Bash:
 ```shell
 git clone https://github.com/Rotem-BZ/Rotem-Retrieval-Research-Repo.git
 cd Rotem-Retrieval-Research-Repo
+git config --global --add safe.directory "$(pwd -P)"
 source ./bash_aliases.sh
 cd projects/query-repetition-e5
 uv sync --extra dev
@@ -26,6 +27,9 @@ directory so project-specific components and configuration are available.
 After sourcing `bash_aliases.sh`, `build-command` launches the interactive command
 builder from any directory while using the current project's `uv` environment.
 `kill-screens` closes every GNU Screen session owned by the current user.
+The `safe.directory` command trusts only this clone's absolute path. It avoids
+Git's "dubious ownership" error on shared or mounted remote-server filesystems;
+only use it for a repository you trust.
 
 The setup also installs two repository-local Git protections. `nbstripout` keeps
 notebook outputs in the working copy but strips them from commits, while the
@@ -40,7 +44,7 @@ uv run pre-commit run --all-files
 For example, after creating an index, inference can be launched with:
 
 ```shell
-uv run stage inference dataset=beir_scifact runtime=cpu pipeline/inference@pipeline=dense_query_repetition selections/embedding_model=e5/small_v2 selections.index_id=YOUR_INDEX_ID runtime.query_concurrency_limit=8
+uv run stage inference dataset=beir_scifact runtime=cpu pipeline/inference@pipeline=query_repetition_e5/dense_query_repetition selections/embedding_model=e5/small_v2 selections.index_id=YOUR_INDEX_ID runtime.query_concurrency_limit=8
 ```
 
 ## Experiments and parallel runs

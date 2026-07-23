@@ -24,7 +24,7 @@ The treatment tests whether the gains associated with input repetition transfer 
 
 | Dimension | Baseline | Treatment | Held fixed? |
 | --- | --- | --- | --- |
-| Inference pipeline | Core [`dense_jsonl`](../../../../packages/retrieval-core/src/retrieval_core/configs/pipeline/inference/dense_jsonl.yaml) | Project [`dense_query_repetition`](../../configs/pipeline/inference/dense_query_repetition.yaml) | No; this is the treatment boundary |
+| Inference pipeline | Core [`retrieve/dense_jsonl`](../../../../packages/retrieval-core/src/retrieval_core/configs/pipeline/inference/retrieve/dense_jsonl.yaml) | Project [`query_repetition_e5/dense_query_repetition`](../../configs/pipeline/inference/query_repetition_e5/dense_query_repetition.yaml) | No; this is the treatment boundary |
 | Query transformation | Raw query goes directly to E5 preprocessing | [`QueryRepeater`](../../src/query_repetition_e5/components.py) emits `"<query> <query>"` before E5 preprocessing | No; primary treatment |
 | Embedding model | `intfloat/e5-small-v2` | `intfloat/e5-small-v2` | Yes |
 | Query prefix | `"query: "` after normalizing whitespace | `"query: "` after normalizing whitespace | Yes |
@@ -87,7 +87,7 @@ uv sync --extra dev
 uv run pytest
 uv run prepare-beir --data-dir data --dataset scifact
 
-uv run stage indexing dataset=beir_scifact runtime=cpu pipeline/indexing@pipeline=dense_jsonl selections/embedding_model=e5/small_v2 selections.index_id=$indexId runtime.concurrency_limit=4 stage.run_id=$indexingRun
+uv run stage indexing dataset=beir_scifact runtime=cpu pipeline/indexing@pipeline=dense/documents_jsonl selections/embedding_model=e5/small_v2 selections.index_id=$indexId runtime.concurrency_limit=4 stage.run_id=$indexingRun
 
 uv run python ../../awesome-dev-tools/interactive_run_in_parallel_screens.py --experiment query-repetition-e5-small-scifact
 

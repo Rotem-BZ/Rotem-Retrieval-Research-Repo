@@ -1,0 +1,7 @@
+# Project-owned choice: experimental_components
+name: ms_marco_minilm_l6_v2
+artifact_name: ms_marco_minilm_l6_v2
+checkpoint: cross-encoder/ms-marco-MiniLM-L-6-v2
+scale_score: true
+tokenizer_kwargs:
+  model_max_length: 512

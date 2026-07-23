@@ -12,7 +12,7 @@ from retrieval_core.utils.config import (
 def test_bare_stage_name_resolves_to_stages_group() -> None:
     overrides = [
         "dataset=toy",
-        "pipeline/inference@pipeline=dummy_keyword",
+        "pipeline/inference@pipeline=scaffold/keyword_jsonl",
         "runtime=gpu",
     ]
 
@@ -130,7 +130,7 @@ def test_run_config_uses_hydra_defaults_without_cli_overrides(tmp_path: Path) ->
 defaults:
   - /stages/inference
   - override /dataset: toy
-  - override /pipeline/inference@pipeline: dummy_keyword
+  - override /pipeline/inference@pipeline: scaffold/keyword_jsonl
   - override /runtime: cpu
   - _self_
 

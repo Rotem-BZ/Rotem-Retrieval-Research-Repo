@@ -18,4 +18,4 @@ research conclusions from the toy metrics. Before launching its run, create the
 
 The `repeated` run inherits the complete toy inference configuration from
 `configs/base-experiment-configs/inference.yaml` and changes only the inference
-pipeline to the project-owned `dense_query_repetition` topology.
+pipeline to the project-owned `query_repetition_e5/dense_query_repetition` topology.

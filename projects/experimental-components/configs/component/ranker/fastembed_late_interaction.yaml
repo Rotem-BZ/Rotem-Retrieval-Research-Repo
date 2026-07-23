@@ -1,6 +1,0 @@
-type: haystack_integrations.components.rankers.fastembed.late_interaction_ranker.FastembedLateInteractionRanker
-init_parameters:
-  model_name: colbert-ir/colbertv2.0
-  top_k: 100
-  batch_size: 64
-
