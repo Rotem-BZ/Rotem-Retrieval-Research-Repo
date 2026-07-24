@@ -2,9 +2,18 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 from haystack import Document, component
+
+from retrieval_components.dataclasses import Query
+
+
+@component
+class IndexingInput:
+    """Expose the fixed indexing stage input as a Haystack output socket."""
+
+    @component.output_types(documents=list[Document])
+    def run(self, documents: list[Document]) -> dict[str, list[Document]]:
+        return {"documents": documents}
 
 
 @component
@@ -12,21 +21,18 @@ class InferenceInput:
     """Expose the fixed inference stage inputs as Haystack output sockets."""
 
     @component.output_types(
-        query=str,
-        query_meta=dict[str, Any],
+        query=Query,
         candidate_document_ids=list[str],
         candidate_documents=list[Document],
     )
     def run(
         self,
-        query_meta: dict[str, Any] | None = None,
-        query: str = "",
+        query: Query,
         candidate_document_ids: list[str] | None = None,
         candidate_documents: list[Document] | None = None,
-    ) -> dict[str, Any]:
+    ) -> dict[str, Query | list[str] | list[Document]]:
         return {
             "query": query,
-            "query_meta": dict(query_meta or {}),
             "candidate_document_ids": list(candidate_document_ids or []),
             "candidate_documents": list(candidate_documents or []),
         }
@@ -36,13 +42,13 @@ class InferenceInput:
 class InferenceOutput:
     """Collect the fixed inference stage output."""
 
-    @component.output_types(documents=list[Document], query_content=str | None)
+    @component.output_types(documents=list[Document], query=Query)
     def run(
         self,
         documents: list[Document],
-        query_content: str | None = None,
-    ) -> dict[str, list[Document] | str | None]:
-        return {"documents": documents, "query_content": query_content}
+        query: Query,
+    ) -> dict[str, list[Document] | Query]:
+        return {"documents": documents, "query": query}
 
 
 @component

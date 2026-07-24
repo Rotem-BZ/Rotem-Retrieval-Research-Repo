@@ -6,6 +6,8 @@ from typing import Any
 
 from haystack import Document, component
 
+from retrieval_components.dataclasses import Query
+
 
 def _content_from_meta(meta: dict[str, Any], *, content_field: str, record_label: str) -> str:
     if content_field not in meta:
@@ -54,12 +56,14 @@ class QueryContentFieldParser:
             raise ValueError("content_field must be a non-empty field name.")
         self.content_field = content_field
 
-    @component.output_types(text=str)
-    def run(self, meta: dict[str, Any]) -> dict[str, str]:
+    @component.output_types(query=Query)
+    def run(self, query: Query) -> dict[str, Query]:
         return {
-            "text": _content_from_meta(
-                meta,
-                content_field=self.content_field,
-                record_label="Query",
+            "query": query.with_content(
+                _content_from_meta(
+                    query.meta,
+                    content_field=self.content_field,
+                    record_label=f"Query {query.id!r}",
+                )
             )
         }

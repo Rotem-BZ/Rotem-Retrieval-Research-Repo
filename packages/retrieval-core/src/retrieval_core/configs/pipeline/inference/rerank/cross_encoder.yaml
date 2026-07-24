@@ -1,6 +1,7 @@
 defaults:
   - /selections/reranker_model@_global_.selections.reranker_model: ???
   - /component/query_parser@components.query_parser: content_field
+  - /component/query_adapter@components.query_adapter: content
   - /component/document_parser@components.document_parser: content_field
   - /component/ranker@components.ranker: sentence_transformers_similarity
   - _self_
@@ -12,12 +13,14 @@ components:
     type: retrieval_components.interfaces.stage_io.InferenceOutput
 
 connections:
-  - sender: input.query_meta
-    receiver: query_parser.meta
-  - sender: query_parser.text
+  - sender: input.query
+    receiver: query_parser.query
+  - sender: query_parser.query
+    receiver: query_adapter.query
+  - sender: query_adapter.text
     receiver: ranker.query
-  - sender: query_parser.text
-    receiver: output.query_content
+  - sender: query_parser.query
+    receiver: output.query
   - sender: input.candidate_documents
     receiver: document_parser.documents
   - sender: document_parser.documents

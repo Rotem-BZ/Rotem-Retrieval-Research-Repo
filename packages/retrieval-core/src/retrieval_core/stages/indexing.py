@@ -2,13 +2,19 @@
 
 from __future__ import annotations
 
+import json
+
+from haystack import Document
 from omegaconf import DictConfig
 
+from retrieval_core.data_schema import EVALUATION_DATA_SCHEMA
 from retrieval_core.stages.base import StageContext
 from retrieval_core.utils.artifacts import index_artifact_path
+from retrieval_core.utils.hashing import file_sha256
 from retrieval_core.utils.io import project_path
 from retrieval_core.utils.pipelines import load_async_pipeline
 
+INDEXING_INPUT_COMPONENT = "input"
 INDEXING_OUTPUT_COMPONENT = "output"
 
 
@@ -27,11 +33,43 @@ async def run_indexing(cfg: DictConfig) -> dict:
             f"{canonical_index_path}"
         )
 
+    documents_path = project_path(cfg.dataset.documents_path)
+    documents: list[Document] = []
+    document_ids: set[str] = set()
+    reserved_fields = {
+        EVALUATION_DATA_SCHEMA.doc_id,
+        "meta",
+        "score",
+        "embedding",
+    }
+    with documents_path.open("r", encoding="utf-8") as handle:
+        for line in handle:
+            if not line.strip():
+                continue
+            record = json.loads(line)
+            EVALUATION_DATA_SCHEMA.validate_document(record)
+            document_id = str(record[EVALUATION_DATA_SCHEMA.doc_id])
+            if document_id in document_ids:
+                raise ValueError(f"Duplicate document id in dataset: {document_id}")
+            document_ids.add(document_id)
+
+            meta = {key: value for key, value in record.items() if key not in reserved_fields}
+            meta.update(dict(record.get("meta") or {}))
+            documents.append(
+                Document(
+                    id=document_id,
+                    meta=meta,
+                    score=record.get("score"),
+                    embedding=record.get("embedding"),
+                )
+            )
+    documents_sha256 = file_sha256(documents_path)
+
     pipeline = load_async_pipeline(cfg.pipeline)
     context = StageContext.from_config(cfg)
 
     result = await pipeline.run_async(
-        data={},
+        data={INDEXING_INPUT_COMPONENT: {"documents": documents}},
         include_outputs_from={INDEXING_OUTPUT_COMPONENT},
         concurrency_limit=int(cfg.runtime.concurrency_limit),
     )
@@ -47,7 +85,13 @@ async def run_indexing(cfg: DictConfig) -> dict:
             )
         context.write_manifest(
             artifacts={"index": index_path},
-            inputs={"index_id": index_id},
+            inputs={
+                "index_id": index_id,
+                "dataset": str(cfg.dataset.name),
+                "documents_path": str(documents_path),
+                "documents_sha256": documents_sha256,
+                "document_count": len(documents),
+            },
         )
     return result
 

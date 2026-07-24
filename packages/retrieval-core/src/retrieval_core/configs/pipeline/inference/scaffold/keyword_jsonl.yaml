@@ -1,6 +1,7 @@
 defaults:
   - /selections@_global_.selections: index
   - /component/query_parser@components.query_parser: content_field
+  - /component/query_adapter@components.query_adapter: content
   - /component/retriever@components.retriever: jsonl_keyword
   - _self_
 
@@ -10,12 +11,14 @@ components:
   output:
     type: retrieval_components.interfaces.stage_io.InferenceOutput
 connections:
-  - sender: input.query_meta
-    receiver: query_parser.meta
-  - sender: query_parser.text
+  - sender: input.query
+    receiver: query_parser.query
+  - sender: query_parser.query
+    receiver: query_adapter.query
+  - sender: query_adapter.text
     receiver: retriever.query
-  - sender: query_parser.text
-    receiver: output.query_content
+  - sender: query_parser.query
+    receiver: output.query
   - sender: input.candidate_document_ids
     receiver: retriever.candidate_document_ids
   - sender: retriever.documents

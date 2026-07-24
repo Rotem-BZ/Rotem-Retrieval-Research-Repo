@@ -29,11 +29,11 @@ selections:
       model_max_length: 512
 pipeline:
   components:
-    document_source:
-      type: retrieval_components.sources.jsonl_document_source.JsonlDocumentSource
+    input:
+      type: retrieval_components.interfaces.stage_io.IndexingInput
+    document_parser:
+      type: retrieval_components.preprocessing.content_field_parsers.DocumentContentFieldParser
       init_parameters:
-        documents_path: ./data/processed/toy/documents.jsonl
-        id_field: doc_id
         content_field: text
     document_prefixer:
       type: retrieval_components.preprocessing.document_text_prefixer.DocumentTextPrefixer
@@ -60,7 +60,9 @@ pipeline:
     output:
       type: retrieval_components.interfaces.stage_io.IndexingOutput
   connections:
-  - sender: document_source.documents
+  - sender: input.documents
+    receiver: document_parser.documents
+  - sender: document_parser.documents
     receiver: document_prefixer.documents
   - sender: document_prefixer.documents
     receiver: embedder.documents

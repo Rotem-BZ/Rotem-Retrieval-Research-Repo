@@ -2,6 +2,7 @@
 
 from retrieval_components.cascade import ChunkCascade, TopKDocuments, TopPDocuments
 from retrieval_components.chunking import LangChainDocumentSplitter
+from retrieval_components.dataclasses import Query
 from retrieval_components.filtering import DocumentContentFilter
 from retrieval_components.fusion import (
     LinearScoreFusion,
@@ -10,11 +11,18 @@ from retrieval_components.fusion import (
     ZScoreFusion,
 )
 from retrieval_components.indexing import ElasticsearchDocumentIndexer, JsonlDocumentIndexer
-from retrieval_components.interfaces import IndexingOutput, InferenceInput, InferenceOutput
+from retrieval_components.interfaces import (
+    IndexingInput,
+    IndexingOutput,
+    InferenceInput,
+    InferenceOutput,
+)
 from retrieval_components.preprocessing import (
     DocumentContentFieldParser,
     DocumentTextPrefixer,
+    QueryContentAdapter,
     QueryContentFieldParser,
+    QueryTextPreprocessor,
     TextPreprocessor,
 )
 from retrieval_components.ranking import EmbeddingSimilarityRanker
@@ -24,7 +32,6 @@ from retrieval_components.retrieval import (
     JsonlEmbeddingRetriever,
     JsonlKeywordRetriever,
 )
-from retrieval_components.sources import JsonlDocumentSource
 
 __version__ = "0.1.0"
 
@@ -37,17 +44,20 @@ __all__ = [
     "ElasticsearchDocumentIndexer",
     "EmbeddingSimilarityRanker",
     "HttpQueryReformulator",
+    "IndexingInput",
     "IndexingOutput",
     "InferenceInput",
     "InferenceOutput",
     "JsonlDocumentIndexer",
-    "JsonlDocumentSource",
     "JsonlEmbeddingRetriever",
     "JsonlKeywordRetriever",
     "LangChainDocumentSplitter",
     "LinearScoreFusion",
+    "Query",
+    "QueryContentAdapter",
     "ReciprocalRankFusion",
     "QueryContentFieldParser",
+    "QueryTextPreprocessor",
     "ScoreFusion",
     "TextPreprocessor",
     "TopKDocuments",

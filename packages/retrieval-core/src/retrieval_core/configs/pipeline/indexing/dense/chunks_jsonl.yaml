@@ -1,7 +1,6 @@
 defaults:
   - /selections@_global_.selections: index
   - /selections/embedding_model@_global_.selections.embedding_model: ???
-  - /component/document_source@components.document_source: jsonl
   - /component/document_parser@components.document_parser: content_field
   - /component/chunker@components.splitter: recursive_char
   - /component/document_preprocessor@components.document_prefixer: prefix_cleanup
@@ -10,6 +9,8 @@ defaults:
   - _self_
 
 components:
+  input:
+    type: retrieval_components.interfaces.stage_io.IndexingInput
   output:
     type: retrieval_components.interfaces.stage_io.IndexingOutput
   indexer:
@@ -17,7 +18,7 @@ components:
       output_path: ${paths.indexes_dir}/${selections.index_id}/index.jsonl
 
 connections:
-  - sender: document_source.documents
+  - sender: input.documents
     receiver: document_parser.documents
   - sender: document_parser.documents
     receiver: splitter.documents

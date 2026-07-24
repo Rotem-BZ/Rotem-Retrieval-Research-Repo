@@ -2,6 +2,7 @@ import asyncio
 
 from haystack import Document
 
+from retrieval_components import Query
 from retrieval_core.data_schema import EVALUATION_DATA_SCHEMA
 from retrieval_core.input_mapping import InferenceMapping
 from retrieval_core.stages.inference import _run_queries
@@ -13,19 +14,25 @@ def test_run_queries_concurrently_and_preserve_input_order() -> None:
             self.active_runs = 0
             self.max_active_runs = 0
             self.pipeline_limits: list[int] = []
-            self.query_metas: list[dict] = []
+            self.queries: list[Query] = []
 
         async def run_async(self, *, data, include_outputs_from, concurrency_limit):
             query = data["input"]["query"]
-            self.query_metas.append(data["input"]["query_meta"])
+            self.queries.append(query)
+            query_content = query.meta[EVALUATION_DATA_SCHEMA.query_content]
             self.active_runs += 1
             self.max_active_runs = max(self.max_active_runs, self.active_runs)
             self.pipeline_limits.append(concurrency_limit)
-            await asyncio.sleep({"first": 0.03, "second": 0.01, "third": 0}[query])
+            await asyncio.sleep(
+                {"first": 0.03, "second": 0.01, "third": 0}[query_content]
+            )
             self.active_runs -= 1
             return {
                 "output": {
-                    "documents": [Document(id=f"document-{query}", content=query)],
+                    "query": query.with_content(query_content),
+                    "documents": [
+                        Document(id=f"document-{query_content}", content=query_content)
+                    ],
                 }
             }
 
@@ -37,6 +44,7 @@ def test_run_queries_concurrently_and_preserve_input_order() -> None:
                 EVALUATION_DATA_SCHEMA.IN: "q1",
                 EVALUATION_DATA_SCHEMA.query_content: "first",
                 "language": "en",
+                "filters": {"year": {"gte": 2020}},
             },
             {
                 EVALUATION_DATA_SCHEMA.query_id: "external-q2",
@@ -65,12 +73,16 @@ def test_run_queries_concurrently_and_preserve_input_order() -> None:
 
     assert pipeline.max_active_runs == 2
     assert pipeline.pipeline_limits == [7, 7, 7]
-    assert [meta[EVALUATION_DATA_SCHEMA.query_content] for meta in pipeline.query_metas] == [
+    assert [
+        query.meta[EVALUATION_DATA_SCHEMA.query_content] for query in pipeline.queries
+    ] == [
         "first",
         "second",
         "third",
     ]
-    assert pipeline.query_metas[0]["language"] == "en"
+    assert pipeline.queries[0].meta["language"] == "en"
+    assert pipeline.queries[0].meta["filters"] == {"year": {"gte": 2020}}
+    assert pipeline.queries[0].content is None
     assert [prediction[EVALUATION_DATA_SCHEMA.query_id] for prediction in predictions] == [
         "external-q1",
         "external-q2",
@@ -86,10 +98,11 @@ def test_run_queries_concurrently_and_preserve_input_order() -> None:
 def test_run_queries_accepts_parser_rendered_content_when_raw_content_is_missing() -> None:
     class MetadataQueryPipeline:
         async def run_async(self, *, data, include_outputs_from, concurrency_limit):
-            assert data["input"]["query"] == ""
+            query = data["input"]["query"]
+            assert query.content is None
             return {
                 "output": {
-                    "query_content": data["input"]["query_meta"]["question"],
+                    "query": query.with_content(query.meta["question"]),
                     "documents": [],
                 }
             }

@@ -131,7 +131,12 @@ def test_indexing_publishes_an_immutable_selected_index(tmp_path: Path) -> None:
         tmp_path / "artifacts" / "runs" / "indexing" / "indexing-one" / "manifest.json"
     )
     assert index_path.is_file()
-    assert read_json(manifest_path)["inputs"]["index_id"] == "toy-index"
+    manifest_inputs = read_json(manifest_path)["inputs"]
+    assert manifest_inputs["index_id"] == "toy-index"
+    assert manifest_inputs["dataset"] == "toy"
+    assert manifest_inputs["documents_path"] == str(dataset_dir / "documents.jsonl")
+    assert manifest_inputs["document_count"] == 4
+    assert len(manifest_inputs["documents_sha256"]) == 64
 
     with pytest.raises(FileExistsError, match="choose another selections.index_id"):
         main(["indexing", *common_overrides, "stage.run_id=indexing-two"])

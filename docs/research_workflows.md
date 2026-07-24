@@ -112,7 +112,9 @@ the semantic embedding-model selection:
 # configs/pipeline/inference/retrieve/dense_jsonl.yaml
 defaults:
   - /selections/embedding_model@_global_.selections.embedding_model: ???
+  - /component/query_parser@components.query_parser: content_field
   - /component/query_preprocessor@components.query_preprocessor: prefix_cleanup
+  - /component/query_adapter@components.query_adapter: content
   - /component/query_embedder@components.query_embedder: sentence_transformers
   - /component/retriever@components.retriever: jsonl_embeddings
   - _self_
@@ -125,8 +127,14 @@ components:
 
 connections:
   - sender: input.query
-    receiver: query_preprocessor.text
-  - sender: query_preprocessor.text
+    receiver: query_parser.query
+  - sender: query_parser.query
+    receiver: query_preprocessor.query
+  - sender: query_parser.query
+    receiver: output.query
+  - sender: query_preprocessor.query
+    receiver: query_adapter.query
+  - sender: query_adapter.text
     receiver: query_embedder.text
   - sender: query_embedder.embedding
     receiver: retriever.query_embedding
@@ -345,13 +353,7 @@ Select that project-owned topology as:
 - override /pipeline/inference@pipeline: query_repetition_e5/dense_query_repetition
 ```
 
-The same rule applies to project-owned `component` and `selections` choices. For
-example, an experimental-components topology selects its local embedder with:
-
-```yaml
-- /component/query_embedder@components.query_embedder: experimental_components/fastembed_dense
-```
-
+The same rule applies to project-owned `component` and `selections` choices.
 Core-owned choices remain unqualified, such as `retrieve/dense_jsonl`,
 `sentence_transformers`, and `e5/small_v2`. This makes ownership visible at every
 selection site without changing the Hydra group being overridden. Do not wrap the
@@ -396,6 +398,12 @@ The indexing and inference configs each place a Haystack serialized pipeline
 under the `pipeline` field. The Python runner resolves Hydra interpolation,
 serializes that field to YAML, loads it with Haystack, and executes it as an
 `AsyncPipeline`.
+
+The indexing stage reads and validates `dataset.documents_path`, constructs
+Haystack `Document` values whose non-reserved fields remain in metadata, and sends
+the complete list to the pipeline's fixed `input.documents` socket. Content remains
+unset at this boundary so the selected document parser controls which metadata field
+or rendering becomes the text processed by the indexing pipeline.
 
 Index-backed pipeline templates derive their component paths from
 `paths.indexes_dir` and the global `selections.index_id`. Indexing writes
@@ -747,10 +755,14 @@ Query JSONL records should look like:
 {"query_id":"external-q-1","IN":"q-1","query_content":"Search text.","language":"en"}
 ```
 
-Only `query_id` and `IN` are required by the dataset schema. Other fields are exposed
-through `input.query_meta`. Built-in pipelines use
+Only `query_id` and `IN` are required by the dataset schema. The inference stage
+creates a `Query` (importable with `from retrieval_components import Query`) whose
+`id` is `query_id`, whose `content` initially is `None`, and whose `meta` preserves
+the other query fields, including nested dictionaries. Built-in pipelines use
 `QueryContentFieldParser(content_field="query_content")`; alternate pipelines can
-select another field or render several metadata fields before embedding.
+select another field or render several metadata fields. Query parsers and
+preprocessors return replacement `Query` values, and `QueryContentAdapter` unwraps
+the final content only where a native Haystack component requires a text socket.
 
 Qrels JSONL records should look like:
 
@@ -782,6 +794,8 @@ defaults:
   - _self_
 
 components:
+  input:
+    type: retrieval_components.interfaces.stage_io.IndexingInput
   output:
     type: retrieval_components.interfaces.stage_io.IndexingOutput
   converter:
@@ -792,6 +806,8 @@ components:
     init_parameters:
       output_path: ${paths.indexes_dir}/${selections.index_id}/index.jsonl
 connections:
+  - sender: input.documents
+    receiver: converter.documents
   - sender: converter.documents
     receiver: writer.documents
   - sender: writer.index_path

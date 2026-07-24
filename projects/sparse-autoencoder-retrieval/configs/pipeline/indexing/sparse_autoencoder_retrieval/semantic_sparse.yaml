@@ -1,0 +1,38 @@
+# Project-owned choice: sparse_autoencoder_retrieval
+defaults:
+  - /selections@_global_.selections: index
+  - /selections/embedding_model@_global_.selections.embedding_model: ???
+  - /selections/sparse_autoencoder@_global_.selections.sparse_autoencoder: ???
+  - /component/document_parser@components.document_parser: content_field
+  - /component/document_preprocessor@components.document_prefixer: prefix_cleanup
+  - /component/document_embedder@components.embedder: sparse_autoencoder_retrieval/ccsa
+  - /component/indexer@components.indexer: sparse_autoencoder_retrieval/semantic_sparse
+  - _self_
+
+components:
+  input:
+    type: retrieval_components.interfaces.stage_io.IndexingInput
+  output:
+    type: retrieval_components.interfaces.stage_io.IndexingOutput
+
+connections:
+  - sender: input.documents
+    receiver: document_parser.documents
+  - sender: document_parser.documents
+    receiver: document_prefixer.documents
+  - sender: document_prefixer.documents
+    receiver: embedder.documents
+  - sender: embedder.documents
+    receiver: indexer.documents
+  - sender: indexer.index_path
+    receiver: output.index_path
+  - sender: indexer.indexed_count
+    receiver: output.indexed_count
+
+max_runs_per_component: 100
+metadata:
+  description: CCSA semantic sparse document indexing over a frozen bi-encoder.
+  role: indexing
+  maturity: experimental
+  storage_backend: semantic_sparse_json
+  document_granularity: document

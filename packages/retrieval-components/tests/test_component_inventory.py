@@ -15,7 +15,6 @@ CATEGORY_MODULES = {
     "retrieval_components.ranking",
     "retrieval_components.reformulation",
     "retrieval_components.retrieval",
-    "retrieval_components.sources",
 }
 
 

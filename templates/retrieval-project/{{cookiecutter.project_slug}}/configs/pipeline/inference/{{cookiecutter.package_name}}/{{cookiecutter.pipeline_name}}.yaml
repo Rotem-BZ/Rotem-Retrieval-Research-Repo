@@ -4,6 +4,7 @@ defaults:
   - /selections/embedding_model@_global_.selections.embedding_model: ???
   - /component/query_parser@components.query_parser: content_field
   - /component/query_preprocessor@components.query_preprocessor: prefix_cleanup
+  - /component/query_adapter@components.query_adapter: content
   - /component/query_embedder@components.query_embedder: sentence_transformers
   - /component/retriever@components.retriever: jsonl_embeddings
   - _self_
@@ -17,17 +18,19 @@ components:
     type: retrieval_components.interfaces.stage_io.InferenceOutput
 
 connections:
-  - sender: input.query_meta
-    receiver: query_parser.meta
-  - sender: query_parser.text
+  - sender: input.query
+    receiver: query_parser.query
+  - sender: query_parser.query
     receiver: query_transformer.query
-  - sender: query_parser.text
-    receiver: output.query_content
+  - sender: query_parser.query
+    receiver: output.query
   - sender: query_transformer.query
-    receiver: query_preprocessor.text
+    receiver: query_preprocessor.query
   - sender: input.candidate_document_ids
     receiver: retriever.candidate_document_ids
-  - sender: query_preprocessor.text
+  - sender: query_preprocessor.query
+    receiver: query_adapter.query
+  - sender: query_adapter.text
     receiver: query_embedder.text
   - sender: query_embedder.embedding
     receiver: retriever.query_embedding

@@ -1,0 +1,6 @@
+name: e5_small_ccsa
+artifact_name: e5-small-ccsa-c32-l256
+checkpoint_path: ${paths.project_root}/artifacts/models/${selections.sparse_autoencoder.artifact_name}.pt
+num_codebooks: 32
+codebook_size: 256
+sparse_dimension: 8192

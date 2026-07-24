@@ -1,6 +1,7 @@
 """Project-specific Haystack components."""
 
 from haystack import component
+from retrieval_components import Query
 
 
 @component
@@ -10,6 +11,12 @@ class QueryRepeater:
     def __init__(self, separator: str = " ") -> None:
         self.separator = separator
 
-    @component.output_types(query=str)
-    def run(self, query: str) -> dict[str, str]:
-        return {"query": self.separator.join((query, query))}
+    @component.output_types(query=Query)
+    def run(self, query: Query) -> dict[str, Query]:
+        if query.content is None:
+            raise ValueError(f"Query {query.id!r} has no materialized content.")
+        return {
+            "query": query.with_content(
+                self.separator.join((query.content, query.content))
+            )
+        }

@@ -16,16 +16,19 @@ listed classes from its `__init__.py`.
 | `retrieval_components.filtering` | `DocumentContentFilter` | Filter documents by regex and word-count bounds. |
 | `retrieval_components.fusion` | `LinearScoreFusion`, `ReciprocalRankFusion`, `ScoreFusion`, `ZScoreFusion` | Fuse dynamic named document inputs with source weights, with separate min-max and Z-normalized variants. |
 | `retrieval_components.indexing` | `ElasticsearchDocumentIndexer`, `JsonlDocumentIndexer` | Write documents to Elasticsearch or a local JSONL artifact. |
-| `retrieval_components.interfaces` | `IndexingOutput`, `InferenceInput`, `InferenceOutput` | Define fixed stage-boundary sockets for indexing and inference. |
+| `retrieval_components.interfaces` | `IndexingInput`, `IndexingOutput`, `InferenceInput`, `InferenceOutput` | Define fixed stage-boundary sockets for indexing and inference. |
 | `retrieval_components.models` | `SentenceTransformersDocumentEmbedder`, `SentenceTransformersSimilarityRanker`, `SentenceTransformersTextEmbedder`, `TransformersSimilarityRanker` | Re-export native Haystack model components for categorized imports. |
-| `retrieval_components.preprocessing` | `DocumentContentFieldParser`, `DocumentTextPrefixer`, `QueryContentFieldParser`, `TextPreprocessor` | Materialize content from metadata fields and apply prefix, suffix, case, whitespace, and regex text transforms. |
+| `retrieval_components.preprocessing` | `DocumentContentFieldParser`, `DocumentTextPrefixer`, `QueryContentAdapter`, `QueryContentFieldParser`, `QueryTextPreprocessor`, `TextPreprocessor` | Materialize content from metadata fields, transform query values, and adapt them to native text sockets. |
 | `retrieval_components.ranking` | `EmbeddingSimilarityRanker` | Rank already-embedded documents against a query embedding. |
 | `retrieval_components.reformulation` | `HttpQueryReformulator` | Call an injected HTTP reformulation service. |
 | `retrieval_components.retrieval` | `ElasticsearchBM25Retriever`, `JsonlEmbeddingRetriever`, `JsonlKeywordRetriever` | Retrieve from Elasticsearch or local JSONL artifacts. |
-| `retrieval_components.sources` | `JsonlDocumentSource` | Read Haystack documents from a JSONL dataset. |
 
 Most repo-defined classes are also available from `retrieval_components` for
 convenience. Native model aliases remain under `retrieval_components.models`.
+The shared inference value is available directly as
+`from retrieval_components import Query`; it carries `id`, optional `content`, and
+arbitrary nested metadata between query parsers and preprocessors. Treat it as an
+immutable value and use `query.with_content(...)` in transformation components.
 
 ## Haystack overlap
 

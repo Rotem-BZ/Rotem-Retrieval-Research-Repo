@@ -1,0 +1,8 @@
+type: sparse_autoencoder_retrieval.components.SparseAutoencoderDocumentEmbedder
+init_parameters:
+  model: ${selections.embedding_model.checkpoint}
+  autoencoder_path: ${selections.sparse_autoencoder.checkpoint_path}
+  device: ${runtime.device.device}
+  batch_size: 32
+  normalize_embeddings: ${selections.embedding_model.normalize_embeddings}
+  progress_bar: ${runtime.progress_bar}

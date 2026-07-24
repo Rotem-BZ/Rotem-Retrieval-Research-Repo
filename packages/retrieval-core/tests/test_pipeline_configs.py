@@ -58,13 +58,16 @@ def test_abstract_dense_e5_indexing_config_keeps_pipeline_haystack_shaped() -> N
         "metadata",
     }
     assert cfg.selections.embedding_model.checkpoint == "intfloat/e5-small-v2"
-    document_source_parameters = pipeline_config["components"]["document_source"]["init_parameters"]
-    assert document_source_parameters["id_field"] == EVALUATION_DATA_SCHEMA.doc_id
-    assert document_source_parameters["content_field"] is None
+    assert "document_source" not in pipeline_config["components"]
+    assert pipeline_config["components"]["input"]["type"].endswith("IndexingInput")
     assert (
         pipeline_config["components"]["document_parser"]["init_parameters"]["content_field"]
         == EVALUATION_DATA_SCHEMA.text
     )
+    assert {
+        "sender": "input.documents",
+        "receiver": "document_parser.documents",
+    } in pipeline_config["connections"]
     assert (
         pipeline_config["components"]["document_prefixer"]["init_parameters"]["prefix"]
         == "passage: "
@@ -78,7 +81,7 @@ def test_abstract_dense_e5_indexing_config_keeps_pipeline_haystack_shaped() -> N
         "device": "cuda",
     }
     assert pipeline_config["components"]["embedder"]["init_parameters"]["progress_bar"] is True
-    assert "embedder" in pipeline.graph.nodes
+    assert {"input", "embedder", "output"} <= set(pipeline.graph.nodes)
 
 
 def test_chunked_indexing_and_dense_retrieval_share_index_artifact() -> None:
@@ -150,13 +153,19 @@ def test_abstract_dense_e5_inference_config_prefixes_queries() -> None:
         pipeline_config["components"]["query_embedder"]["init_parameters"]["progress_bar"] is True
     )
     assert pipeline_config["components"]["retriever"]["init_parameters"]["similarity"] == "cosine"
-    assert {"sender": "input.query_meta", "receiver": "query_parser.meta"} in pipeline_config[
+    assert {"sender": "input.query", "receiver": "query_parser.query"} in pipeline_config[
         "connections"
     ]
-    assert {"sender": "query_parser.text", "receiver": "query_preprocessor.text"} in (
+    assert {"sender": "query_parser.query", "receiver": "query_preprocessor.query"} in (
         pipeline_config["connections"]
     )
-    assert {"sender": "query_parser.text", "receiver": "output.query_content"} in (
+    assert {"sender": "query_parser.query", "receiver": "output.query"} in (
+        pipeline_config["connections"]
+    )
+    assert {"sender": "query_preprocessor.query", "receiver": "query_adapter.query"} in (
+        pipeline_config["connections"]
+    )
+    assert {"sender": "query_adapter.text", "receiver": "query_embedder.text"} in (
         pipeline_config["connections"]
     )
     assert {
@@ -251,10 +260,10 @@ def test_scaffold_keyword_inference_parses_retriever_query_input() -> None:
     )
     pipeline_config = to_container(cfg.pipeline)
 
-    assert {"sender": "input.query_meta", "receiver": "query_parser.meta"} in pipeline_config[
+    assert {"sender": "input.query", "receiver": "query_parser.query"} in pipeline_config[
         "connections"
     ]
-    assert {"sender": "query_parser.text", "receiver": "retriever.query"} in pipeline_config[
+    assert {"sender": "query_adapter.text", "receiver": "retriever.query"} in pipeline_config[
         "connections"
     ]
     assert {

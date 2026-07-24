@@ -1,11 +1,14 @@
 import pytest
 from haystack import Document
 
+from retrieval_components import Query
 from retrieval_components.filtering import DocumentContentFilter
 from retrieval_components.preprocessing import (
     DocumentContentFieldParser,
     DocumentTextPrefixer,
+    QueryContentAdapter,
     QueryContentFieldParser,
+    QueryTextPreprocessor,
     TextPreprocessor,
 )
 
@@ -51,15 +54,40 @@ def test_content_field_parsers_report_missing_configured_fields() -> None:
         DocumentContentFieldParser(content_field="body").run([Document(id="d1")])
 
     with pytest.raises(ValueError, match="Query.*'question'"):
-        QueryContentFieldParser(content_field="question").run({"language": "en"})
+        QueryContentFieldParser(content_field="question").run(
+            Query(id="q1", meta={"language": "en"})
+        )
 
 
 def test_query_content_field_parser_uses_nested_json_value() -> None:
     parser = QueryContentFieldParser(content_field="question")
+    source = Query(id="q1", meta={"question": {"text": "nested"}})
 
-    assert parser.run({"question": {"text": "nested"}}) == {
-        "text": "{'text': 'nested'}"
-    }
+    parsed = parser.run(source)["query"]
+
+    assert parsed.content == "{'text': 'nested'}"
+    assert parsed.meta == source.meta
+    assert source.content is None
+
+
+def test_query_preprocessor_and_adapter_preserve_query_fields() -> None:
+    source = Query(
+        id="q1",
+        content="  HYDRA\nCONFIG  ",
+        meta={"nested": {"language": "en"}},
+    )
+    preprocessor = QueryTextPreprocessor(
+        prefix="query: ",
+        lowercase=True,
+        replace_regexes={r"\s+": " "},
+    )
+
+    transformed = preprocessor.run(source)["query"]
+
+    assert transformed.content == "query: hydra config"
+    assert transformed.id == "q1"
+    assert transformed.meta == source.meta
+    assert QueryContentAdapter().run(transformed) == {"text": "query: hydra config"}
 
 
 def test_document_content_filter_uses_regex_and_word_bounds() -> None:

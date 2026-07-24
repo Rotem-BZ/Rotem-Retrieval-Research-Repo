@@ -1,6 +1,7 @@
 """Project-specific Haystack components."""
 
 from haystack import component
+from retrieval_components import Query
 
 
 @component
@@ -11,6 +12,6 @@ class {{ cookiecutter.component_class_name }}:
     the body of ``run`` and update its focused unit test for the actual experiment.
     """
 
-    @component.output_types(query=str)
-    def run(self, query: str) -> dict[str, str]:
+    @component.output_types(query=Query)
+    def run(self, query: Query) -> dict[str, Query]:
         return {"query": query}

@@ -1,7 +1,6 @@
 defaults:
   - /selections@_global_.selections: index
   - /selections/embedding_model@_global_.selections.embedding_model: ???
-  - /component/document_source@components.document_source: jsonl
   - /component/document_parser@components.document_parser: content_field
   - /component/document_preprocessor@components.document_prefixer: prefix_cleanup
   - /component/document_embedder@components.embedder: sentence_transformers
@@ -9,11 +8,13 @@ defaults:
   - _self_
 
 components:
+  input:
+    type: retrieval_components.interfaces.stage_io.IndexingInput
   output:
     type: retrieval_components.interfaces.stage_io.IndexingOutput
 
 connections:
-  - sender: document_source.documents
+  - sender: input.documents
     receiver: document_parser.documents
   - sender: document_parser.documents
     receiver: document_prefixer.documents

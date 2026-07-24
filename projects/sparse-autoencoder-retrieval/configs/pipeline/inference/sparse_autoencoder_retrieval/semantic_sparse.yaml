@@ -1,0 +1,43 @@
+# Project-owned choice: sparse_autoencoder_retrieval
+defaults:
+  - /selections@_global_.selections: index
+  - /selections/embedding_model@_global_.selections.embedding_model: ???
+  - /selections/sparse_autoencoder@_global_.selections.sparse_autoencoder: ???
+  - /component/query_parser@components.query_parser: content_field
+  - /component/query_preprocessor@components.query_preprocessor: prefix_cleanup
+  - /component/query_adapter@components.query_adapter: content
+  - /component/query_embedder@components.query_embedder: sparse_autoencoder_retrieval/ccsa
+  - /component/retriever@components.retriever: sparse_autoencoder_retrieval/semantic_sparse
+  - _self_
+
+components:
+  input:
+    type: retrieval_components.interfaces.stage_io.InferenceInput
+  output:
+    type: retrieval_components.interfaces.stage_io.InferenceOutput
+
+connections:
+  - sender: input.query
+    receiver: query_parser.query
+  - sender: query_parser.query
+    receiver: query_preprocessor.query
+  - sender: query_parser.query
+    receiver: output.query
+  - sender: input.candidate_document_ids
+    receiver: retriever.candidate_document_ids
+  - sender: query_preprocessor.query
+    receiver: query_adapter.query
+  - sender: query_adapter.text
+    receiver: query_embedder.text
+  - sender: query_embedder.sparse_embedding
+    receiver: retriever.sparse_embedding
+  - sender: retriever.documents
+    receiver: output.documents
+
+max_runs_per_component: 100
+metadata:
+  description: CCSA semantic sparse retrieval over a lexical-style inverted index.
+  role: retrieve
+  maturity: experimental
+  input_mode: index
+  storage_backend: semantic_sparse_json

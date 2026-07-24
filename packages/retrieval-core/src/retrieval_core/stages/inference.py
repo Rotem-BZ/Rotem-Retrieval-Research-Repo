@@ -9,6 +9,7 @@ from haystack import AsyncPipeline
 from omegaconf import DictConfig, OmegaConf
 from tqdm import tqdm
 
+from retrieval_components import Query
 from retrieval_core.data_schema import EVALUATION_DATA_SCHEMA
 from retrieval_core.input_mapping import (
     InferenceMapping,
@@ -127,15 +128,12 @@ async def _run_query(
     EVALUATION_DATA_SCHEMA.validate_query(query)
     query_id = str(query[EVALUATION_DATA_SCHEMA.query_id])
     query_input = str(query[EVALUATION_DATA_SCHEMA.IN])
-    raw_query_content = query.get(EVALUATION_DATA_SCHEMA.query_content)
-    query_content = None if raw_query_content is None else str(raw_query_content)
-    query_meta = _query_meta(query)
+    pipeline_query = Query(id=query_id, meta=_query_meta(query))
     candidate_document_ids = list(inference_mapping.candidate_ids(query_input))
     result = await pipeline.run_async(
         data={
             INFERENCE_INPUT_COMPONENT: {
-                "query": query_content or "",
-                "query_meta": query_meta,
+                "query": pipeline_query,
                 "candidate_document_ids": candidate_document_ids,
                 "candidate_documents": [
                     inference_mapping.documents_by_id[document_id]
@@ -148,18 +146,22 @@ async def _run_query(
     )
     output = result[INFERENCE_OUTPUT_COMPONENT]
     documents = list(output[INFERENCE_DOCUMENTS_FIELD])
-    parsed_query_content = output.get(EVALUATION_DATA_SCHEMA.query_content)
-    if parsed_query_content is None:
-        parsed_query_content = query_content
-    if parsed_query_content is None:
+    parsed_query = output.get("query")
+    if not isinstance(parsed_query, Query):
+        raise TypeError("The inference pipeline must return a Query from output.query.")
+    if parsed_query.id != query_id:
         raise ValueError(
-            "The inference pipeline did not return query_content and the query record "
-            f"{query_id!r} has no {EVALUATION_DATA_SCHEMA.query_content!r} field."
+            "The inference pipeline changed the query id from "
+            f"{query_id!r} to {parsed_query.id!r}."
+        )
+    if parsed_query.content is None:
+        raise ValueError(
+            f"The inference pipeline returned Query {query_id!r} without content."
         )
     prediction = {
         EVALUATION_DATA_SCHEMA.query_id: query_id,
         EVALUATION_DATA_SCHEMA.IN: query_input,
-        EVALUATION_DATA_SCHEMA.query_content: str(parsed_query_content),
+        EVALUATION_DATA_SCHEMA.query_content: parsed_query.content,
         "documents": [
             {
                 "id": document.id,

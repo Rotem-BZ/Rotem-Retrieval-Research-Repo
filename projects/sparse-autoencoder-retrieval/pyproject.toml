@@ -1,0 +1,44 @@
+[build-system]
+requires = ["hatchling>=1.26"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sparse-autoencoder-retrieval"
+version = "0.1.0"
+description = "Research components for CCSA-compressed bi-encoder retrieval."
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+license = { text = "MIT" }
+dependencies = [
+  "retrieval-core",
+  "retrieval-components==0.1.0",
+  "sentence-transformers>=4.1,<5",
+  "torch>=2.5,<3",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8,<9",
+  "ruff>=0.8,<1",
+]
+
+[project.scripts]
+train-ccsa = "sparse_autoencoder_retrieval.training:main"
+
+[tool.uv]
+package = true
+
+[tool.uv.sources]
+retrieval-core = { path = "../../packages/retrieval-core", editable = true }
+retrieval-components = { path = "../../packages/retrieval-components", editable = true }
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sparse_autoencoder_retrieval"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

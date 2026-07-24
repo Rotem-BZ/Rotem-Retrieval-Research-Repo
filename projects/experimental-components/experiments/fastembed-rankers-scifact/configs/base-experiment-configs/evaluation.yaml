@@ -1,6 +1,0 @@
-# @package _global_
-defaults:
-  - /stages/evaluation
-  - override /dataset: beir_scifact
-  - _self_
-
