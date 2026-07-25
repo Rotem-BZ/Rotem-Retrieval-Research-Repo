@@ -4,3 +4,4 @@ device:
   device: cpu
 query_concurrency_limit: 4
 concurrency_limit: 4
+indexing_batch_size: 1024

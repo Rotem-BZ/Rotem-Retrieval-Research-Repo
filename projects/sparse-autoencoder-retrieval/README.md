@@ -119,6 +119,10 @@ precision.
 - `postings`: sparse dimension to `[document_ordinal, weight]` pairs; and
 - `statistics`: document, declared/active-dimension, and posting counts.
 
+The indexer accepts repeated batches in one indexing-stage write session. It
+preserves global document ordinals and duplicate-ID validation across batches while
+the stage owns temporary-artifact cleanup and atomic publication.
+
 The default omits dense embeddings. Sparse vectors are reconstructed from the
 posting lists when results are returned. The format favors inspectability and
 deterministic experiments; a production follow-up should use compressed integer

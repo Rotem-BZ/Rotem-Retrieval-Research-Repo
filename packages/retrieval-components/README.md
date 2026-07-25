@@ -47,5 +47,9 @@ required contract:
   Elasticsearch components provide small injectable-client boundaries used by its
   pipelines.
 
+`JsonlDocumentIndexer` also supports the indexing stage's incremental write session.
+During that session, repeated `documents` inputs append to a stage-owned temporary
+JSONL artifact; ordinary direct `run()` calls retain their one-shot behavior.
+
 Optional runtime packages are imported only when the relevant component is used.
 Tests mock HTTP, Elasticsearch, and LangChain integration points.

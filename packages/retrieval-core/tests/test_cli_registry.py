@@ -121,6 +121,7 @@ def test_indexing_publishes_an_immutable_selected_index(tmp_path: Path) -> None:
         "pipeline/indexing@pipeline=scaffold/documents_jsonl",
         "runtime=cpu",
         "runtime.progress_bar=false",
+        "runtime.indexing_batch_size=2",
         "selections.index_id=toy-index",
     ]
 
@@ -136,6 +137,7 @@ def test_indexing_publishes_an_immutable_selected_index(tmp_path: Path) -> None:
     assert manifest_inputs["dataset"] == "toy"
     assert manifest_inputs["documents_path"] == str(dataset_dir / "documents.jsonl")
     assert manifest_inputs["document_count"] == 4
+    assert manifest_inputs["batch_count"] == 2
     assert len(manifest_inputs["documents_sha256"]) == 64
 
     with pytest.raises(FileExistsError, match="choose another selections.index_id"):

@@ -86,3 +86,4 @@ runtime:
     type: single
     device: cuda
   concurrency_limit: 4
+  indexing_batch_size: 1024

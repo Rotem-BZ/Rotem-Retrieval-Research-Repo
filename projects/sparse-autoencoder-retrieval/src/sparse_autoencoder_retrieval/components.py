@@ -270,6 +270,34 @@ def _document_record(document: Document, *, store_dense_embeddings: bool) -> dic
     return record
 
 
+def _write_semantic_sparse_index(
+    path: Path,
+    *,
+    records: list[dict[str, Any]],
+    postings: dict[int, list[list[int | float]]],
+    sparse_dimension: int | None,
+) -> None:
+    payload = {
+        "format": INDEX_FORMAT,
+        "documents": records,
+        "postings": {
+            str(dimension): values for dimension, values in sorted(postings.items())
+        },
+        "statistics": {
+            "document_count": len(records),
+            "sparse_dimension": sparse_dimension
+            if sparse_dimension is not None
+            else (max(postings, default=-1) + 1),
+            "active_dimension_count": len(postings),
+            "posting_count": sum(len(values) for values in postings.values()),
+        },
+    }
+    path.write_text(
+        json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
+        encoding="utf-8",
+    )
+
+
 @component
 class SemanticSparseIndexer:
     """Create a lexical-style postings index from semantic sparse vectors."""
@@ -289,17 +317,60 @@ class SemanticSparseIndexer:
         self.overwrite = overwrite
         self.store_dense_embeddings = store_dense_embeddings
         self.sparse_dimension = sparse_dimension
+        self._batch_path: Path | None = None
+        self._batch_postings: dict[int, list[list[int | float]]] | None = None
+        self._batch_records: list[dict[str, Any]] | None = None
+        self._batch_seen_ids: set[str] | None = None
+
+    def begin_batch_write(self, output_path: str) -> None:
+        """Start accumulating batches in a stage-owned temporary artifact."""
+
+        if self._batch_path is not None:
+            raise RuntimeError("A semantic sparse batch write session is already active.")
+        path = Path(output_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if path.exists():
+            raise FileExistsError(f"Temporary index path already exists: {path}")
+        self._batch_path = path
+        self._batch_postings = {}
+        self._batch_records = []
+        self._batch_seen_ids = set()
+        _write_semantic_sparse_index(
+            path,
+            records=self._batch_records,
+            postings=self._batch_postings,
+            sparse_dimension=self.sparse_dimension,
+        )
+
+    def finish_batch_write(self) -> None:
+        """Finish the active session without publishing its temporary artifact."""
+
+        if self._batch_path is None:
+            raise RuntimeError("No semantic sparse batch write session is active.")
+        self._clear_batch_state()
+
+    def abort_batch_write(self) -> None:
+        """Discard batch state; the stage owns temporary-file cleanup."""
+
+        self._clear_batch_state()
+
+    def _clear_batch_state(self) -> None:
+        self._batch_path = None
+        self._batch_postings = None
+        self._batch_records = None
+        self._batch_seen_ids = None
 
     @component.output_types(index_path=str, indexed_count=int)
     def run(self, documents: list[Document]) -> dict[str, str | int]:
-        path = Path(self.output_path)
-        if path.exists() and not self.overwrite:
+        path = self._batch_path or Path(self.output_path)
+        if self._batch_path is None and path.exists() and not self.overwrite:
             raise FileExistsError(f"Index already exists and overwrite=false: {path}")
 
-        postings: dict[int, list[list[int | float]]] = {}
-        records: list[dict[str, Any]] = []
-        seen_ids: set[str] = set()
-        for ordinal, document in enumerate(documents):
+        postings = self._batch_postings if self._batch_postings is not None else {}
+        records = self._batch_records if self._batch_records is not None else []
+        seen_ids = self._batch_seen_ids if self._batch_seen_ids is not None else set()
+        first_ordinal = len(records)
+        for ordinal, document in enumerate(documents, start=first_ordinal):
             if document.id in seen_ids:
                 raise ValueError(f"Duplicate document id in sparse index: {document.id!r}.")
             seen_ids.add(document.id)
@@ -321,22 +392,11 @@ class SemanticSparseIndexer:
             )
 
         path.parent.mkdir(parents=True, exist_ok=True)
-        payload = {
-            "format": INDEX_FORMAT,
-            "documents": records,
-            "postings": {str(dimension): values for dimension, values in sorted(postings.items())},
-            "statistics": {
-                "document_count": len(records),
-                "sparse_dimension": self.sparse_dimension
-                if self.sparse_dimension is not None
-                else (max(postings, default=-1) + 1),
-                "active_dimension_count": len(postings),
-                "posting_count": sum(len(values) for values in postings.values()),
-            },
-        }
-        path.write_text(
-            json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
-            encoding="utf-8",
+        _write_semantic_sparse_index(
+            path,
+            records=records,
+            postings=postings,
+            sparse_dimension=self.sparse_dimension,
         )
         return {"index_path": str(path), "indexed_count": len(documents)}
 

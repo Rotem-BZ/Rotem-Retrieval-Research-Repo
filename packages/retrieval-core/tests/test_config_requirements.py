@@ -109,6 +109,7 @@ def test_runtime_profiles_select_gpu_or_cpu_device() -> None:
     assert cpu_cfg.runtime.device == {"type": "single", "device": "cpu"}
     assert gpu_cfg.runtime.concurrency_limit == cpu_cfg.runtime.concurrency_limit == 4
     assert gpu_cfg.runtime.query_concurrency_limit == 4
+    assert gpu_cfg.runtime.indexing_batch_size == cpu_cfg.runtime.indexing_batch_size == 1024
 
 
 def test_inference_accepts_prepared_input_mapping_name() -> None:

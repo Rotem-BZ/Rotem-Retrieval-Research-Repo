@@ -29,3 +29,9 @@ Import shared helpers through their focused package, for example
 Developer-only command building and GNU Screen experiment orchestration live in the
 repository-level `awesome-dev-tools/` directory instead of this runtime package. Stage
 outputs use `artifacts/runs/` and carry experiment linkage in their manifests.
+
+The indexing stage reads dataset JSONL incrementally in
+`runtime.indexing_batch_size` groups and awaits one pipeline execution per group.
+It writes through a stage-owned sibling temporary artifact and publishes the
+selected index atomically only after every batch succeeds. The result and manifest
+record aggregate document and batch counts.

@@ -183,6 +183,36 @@ def test_jsonl_embedding_retriever_filters_chunks_by_source_document_id(tmp_path
     assert [document.id for document in result["documents"]] == ["d2::chunk-0"]
 
 
+def test_jsonl_indexer_appends_batches_to_stage_owned_temporary_path(
+    tmp_path: Path,
+) -> None:
+    configured_path = tmp_path / "configured.jsonl"
+    temporary_path = tmp_path / ".configured.jsonl.batch.tmp"
+    indexer = JsonlDocumentIndexer(
+        output_path=str(configured_path),
+        overwrite=False,
+    )
+
+    indexer.begin_batch_write(str(temporary_path))
+    first_result = indexer.run([Document(id="d1", content="one")])
+    second_result = indexer.run([Document(id="d2", content="two")])
+    indexer.finish_batch_write()
+
+    assert first_result == {
+        "index_path": str(temporary_path),
+        "indexed_count": 1,
+    }
+    assert second_result == {
+        "index_path": str(temporary_path),
+        "indexed_count": 1,
+    }
+    assert [
+        json.loads(line)["id"]
+        for line in temporary_path.read_text(encoding="utf-8").splitlines()
+    ] == ["d1", "d2"]
+    assert not configured_path.exists()
+
+
 def test_embedding_similarity_ranker_scores_embedded_documents() -> None:
     ranker = EmbeddingSimilarityRanker(top_k=1, similarity="cosine")
 
