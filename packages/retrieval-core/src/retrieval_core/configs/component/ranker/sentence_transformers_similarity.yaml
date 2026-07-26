@@ -1,4 +1,4 @@
-type: haystack.components.rankers.sentence_transformers_similarity.SentenceTransformersSimilarityRanker
+type: retrieval_components.models.sentence_transformers_similarity_ranker.SentenceTransformersSimilarityRanker
 init_parameters:
   model: ${selections.reranker_model.checkpoint}
   device: ${runtime.device}

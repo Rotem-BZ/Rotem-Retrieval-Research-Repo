@@ -3,6 +3,7 @@ from types import ModuleType
 
 from haystack import Document
 
+from retrieval_components import Query
 from retrieval_components.chunking import LangChainDocumentSplitter
 from retrieval_components.reformulation import HttpQueryReformulator
 
@@ -60,11 +61,15 @@ def test_http_query_reformulator_posts_query_and_extracts_response(monkeypatch) 
         extra_payload={"mode": "rewrite"},
         timeout=3.0,
     )
-    result = reformulator.run("original query")
+    source = Query(id="q1", content="original query", meta={"language": "en"})
+    result = reformulator.run(source)
 
     assert result == {
-        "query": "expanded query",
-        "queries": ["expanded query", "alternate query"],
+        "query": source.with_content("expanded query"),
+        "queries": [
+            source.with_content("expanded query"),
+            source.with_content("alternate query"),
+        ],
     }
     assert calls == [
         {

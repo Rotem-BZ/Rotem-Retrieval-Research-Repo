@@ -6,9 +6,9 @@ This repo is organized around three ideas:
 2. Experiment selection and parameterization lives in Hydra configs.
 3. Long-running experiment workflows are split into explicit stages.
 
-The scaffold includes both minimal scaffold components and real retrieval components. The
-scaffold pieces are still useful because they exercise the intended contracts
-without requiring a model, document store, or external service.
+The repository includes reusable retrieval components and complete pipeline
+configurations. Project packages can replace or extend individual pieces without
+changing the stage contracts.
 
 ## Research Lifecycle
 
@@ -114,7 +114,6 @@ defaults:
   - /selections/embedding_model@_global_.selections.embedding_model: ???
   - /component/query_parser@components.query_parser: content_field
   - /component/query_preprocessor@components.query_preprocessor: prefix_cleanup
-  - /component/query_adapter@components.query_adapter: content
   - /component/query_embedder@components.query_embedder: sentence_transformers
   - /component/retriever@components.retriever: jsonl_embeddings
   - _self_
@@ -133,9 +132,7 @@ connections:
   - sender: query_parser.query
     receiver: output.query
   - sender: query_preprocessor.query
-    receiver: query_adapter.query
-  - sender: query_adapter.text
-    receiver: query_embedder.text
+    receiver: query_embedder.query
   - sender: query_embedder.embedding
     receiver: retriever.query_embedding
   - sender: retriever.documents
@@ -544,25 +541,6 @@ uv run stage inference `
   pipeline.components.retriever.init_parameters.top_k=100
 ```
 
-### Hybrid RRF Retrieval
-
-Use `retrieve/hybrid_rrf_jsonl` to combine keyword and dense retrieval from the
-same JSONL index. The shared RRF component fragment defines `lexical` and
-`dense` inputs with equal weights, producing classic reciprocal rank fusion:
-
-```powershell
-uv run stage inference `
-  dataset=beir_scifact `
-  runtime=gpu `
-  pipeline/inference@pipeline=retrieve/hybrid_rrf_jsonl `
-  selections.index_id=YOUR_INDEX_ID `
-  selections/embedding_model=e5/small_v2
-```
-
-Complete project topologies can select `/component/fusion@components.fusion:
-rrf` and override its source-weight mapping when they use different producer
-names or weighted RRF.
-
 ### Reranking Pipelines
 
 The inference stage always sends legacy query text, complete query metadata,
@@ -665,7 +643,7 @@ uv run stage inference \
   pipeline/inference@pipeline=retrieve/dense_jsonl \
   selections/embedding_model=e5/small_v2 \
   selections.index_id=YOUR_INDEX_ID \
-  stage.run_id=keyword_smoke
+  stage.run_id=dense_smoke
 ```
 
 Artifact paths and downstream dependency references use this exact id. Run ids
@@ -760,9 +738,10 @@ creates a `Query` (importable with `from retrieval_components import Query`) who
 `id` is `query_id`, whose `content` initially is `None`, and whose `meta` preserves
 the other query fields, including nested dictionaries. Built-in pipelines use
 `QueryContentFieldParser(content_field="query_content")`; alternate pipelines can
-select another field or render several metadata fields. Query parsers and
-preprocessors return replacement `Query` values, and `QueryContentAdapter` unwraps
-the final content only where a native Haystack component requires a text socket.
+select another field or render several metadata fields. Query parsers,
+preprocessors, retrievers, and query-aware model subclasses consume or return
+`Query` values. `QueryToString` unwraps the final content only where a regular
+Haystack or project-owned component still requires a text socket.
 
 Qrels JSONL records should look like:
 
@@ -771,12 +750,11 @@ Qrels JSONL records should look like:
 ```
 
 Then select those paths from a project-local dataset config and run the relevant
-pipeline. The following scaffold pipelines are useful for contract tests and do not
-require a model:
+dense pipelines:
 
 ```bash
-uv run stage indexing dataset=my_dataset runtime=cpu pipeline/indexing@pipeline=scaffold/documents_jsonl selections.index_id=YOUR_NEW_INDEX_ID
-uv run stage inference dataset=my_dataset runtime=cpu pipeline/inference@pipeline=scaffold/keyword_jsonl selections.index_id=YOUR_INDEX_ID
+uv run stage indexing dataset=my_dataset runtime=cpu pipeline/indexing@pipeline=dense/documents_jsonl selections/embedding_model=e5/small_v2 selections.index_id=YOUR_NEW_INDEX_ID
+uv run stage inference dataset=my_dataset runtime=cpu pipeline/inference@pipeline=retrieve/dense_jsonl selections/embedding_model=e5/small_v2 selections.index_id=YOUR_INDEX_ID
 uv run stage evaluation dataset=my_dataset stage.inference_run_id=YOUR_EXACT_INFERENCE_RUN_ID
 ```
 

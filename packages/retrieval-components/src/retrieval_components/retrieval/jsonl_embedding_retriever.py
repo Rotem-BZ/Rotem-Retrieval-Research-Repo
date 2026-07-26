@@ -5,35 +5,9 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
-from haystack import Document, component
 import numpy as np
-
-
-def _document_from_record(record: dict[str, Any]) -> Document:
-    return Document(
-        id=record.get("id"),
-        content=record.get("content", ""),
-        meta=dict(record.get("meta") or {}),
-        score=record.get("score"),
-        embedding=record.get("embedding"),
-    )
-
-
-def _candidate_document_id(document: Document) -> str | None:
-    meta = document.meta or {}
-    return meta.get("source_document_id") or document.id
-
-
-def _copy_document_with_score(document: Document, score: float) -> Document:
-    return Document(
-        id=document.id,
-        content=document.content,
-        meta=dict(document.meta or {}),
-        score=score,
-        embedding=getattr(document, "embedding", None),
-    )
+from haystack import Document, component
 
 
 def _similarity_scores(
@@ -113,7 +87,7 @@ class JsonlEmbeddingRetriever:
             candidate_indices = [
                 index
                 for index, document in enumerate(index.documents)
-                if _candidate_document_id(document) in allowed_ids
+                if (document.meta.get("source_document_id") or document.id) in allowed_ids
             ]
         if not candidate_indices:
             return {"documents": []}
@@ -127,15 +101,18 @@ class JsonlEmbeddingRetriever:
         top_indices = _top_score_indices(scores, limit)
         return {
             "documents": [
-                _copy_document_with_score(
-                    index.documents[candidate_indices[index_value]],
-                    float(scores[index_value]),
+                Document(
+                    id=index.documents[candidate_indices[index_value]].id,
+                    content=index.documents[candidate_indices[index_value]].content,
+                    meta=dict(index.documents[candidate_indices[index_value]].meta),
+                    score=float(scores[index_value]),
+                    embedding=index.documents[candidate_indices[index_value]].embedding,
                 )
                 for index_value in top_indices
             ]
         }
 
-    def _load_index(self) -> "_EmbeddingIndex":
+    def _load_index(self) -> _EmbeddingIndex:
         if self._index is not None:
             return self._index
 
@@ -150,11 +127,20 @@ class JsonlEmbeddingRetriever:
         with path.open("r", encoding="utf-8") as handle:
             for line in handle:
                 if line.strip():
-                    document = _document_from_record(json.loads(line))
-                    embedding = getattr(document, "embedding", None)
-                    if embedding is not None:
-                        documents.append(document)
-                        embeddings.append(list(embedding))
+                    record = json.loads(line)
+                    if "embedding" not in record or record["embedding"] is None:
+                        raise ValueError(
+                            f"JsonlEmbeddingRetriever requires record {record['id']!r} "
+                            "to have an embedding."
+                        )
+                    document = Document(
+                        id=record["id"],
+                        content=record["content"],
+                        meta=dict(record["meta"]),
+                        embedding=record["embedding"],
+                    )
+                    documents.append(document)
+                    embeddings.append(list(document.embedding))
 
         matrix = (
             np.asarray(embeddings, dtype=np.float32)

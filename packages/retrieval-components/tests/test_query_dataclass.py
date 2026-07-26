@@ -19,6 +19,11 @@ def test_query_is_available_from_the_package_root_and_preserves_nested_meta() ->
     assert Query.from_dict(query.to_dict()) == query
 
 
+def test_query_deserialization_requires_all_serialized_fields() -> None:
+    with pytest.raises(KeyError, match="content"):
+        Query.from_dict({"id": "q1"})
+
+
 def test_with_content_returns_a_new_query_without_changing_the_source() -> None:
     source = Query(id="q1", meta={"question": "Where?"})
 

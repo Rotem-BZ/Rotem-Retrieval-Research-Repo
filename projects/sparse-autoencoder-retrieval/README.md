@@ -51,7 +51,7 @@ The project owns four Haystack components:
 | --- | --- | --- | --- |
 | `SparseAutoencoderDocumentEmbedder` | `documents` | `documents` | Copies documents and attaches native Haystack `SparseEmbedding` values. |
 | `SparseAutoencoderTextEmbedder` | `text` | `sparse_embedding` | Uses query-mode bi-encoder encoding followed by the same CCSA checkpoint. |
-| `SemanticSparseIndexer` | `documents` | `index_path`, `indexed_count` | Writes document records and dimension-keyed posting lists. |
+| `SemanticSparseIndexer` | `documents`, optional `append` | `index_path`, `indexed_count` | Writes document records and dimension-keyed posting lists. |
 | `SemanticSparseRetriever` | `sparse_embedding`, optional candidates/top-k | `documents` | Accumulates sparse dot products over only the query's posting lists. |
 
 Model and checkpoint loading are lazy and idempotent. The embedders do not mutate
@@ -119,9 +119,9 @@ precision.
 - `postings`: sparse dimension to `[document_ordinal, weight]` pairs; and
 - `statistics`: document, declared/active-dimension, and posting counts.
 
-The indexer accepts repeated batches in one indexing-stage write session. It
-preserves global document ordinals and duplicate-ID validation across batches while
-the stage owns temporary-artifact cleanup and atomic publication.
+The indexer accepts later batches with `append: true`. It preserves global document
+ordinals and duplicate-ID validation across those calls while the stage owns
+temporary-artifact cleanup and atomic publication.
 
 The default omits dense embeddings. Sparse vectors are reconstructed from the
 posting lists when results are returned. The format favors inspectability and

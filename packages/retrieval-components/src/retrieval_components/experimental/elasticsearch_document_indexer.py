@@ -5,18 +5,12 @@ from __future__ import annotations
 from typing import Any
 
 from haystack import Document, component
+from haystack.lazy_imports import LazyImport
 
-
-def _create_client(hosts: str | list[str] | None) -> Any:
-    try:
-        from elasticsearch import Elasticsearch
-    except ImportError as exc:
-        raise ImportError(
-            "Elasticsearch components require the optional `elasticsearch` package "
-            "or an injected client."
-        ) from exc
-
-    return Elasticsearch(hosts or "http://localhost:9200")
+with LazyImport(
+    "Run 'pip install \"retrieval-components[elasticsearch]\"' to use Elasticsearch components"
+) as elasticsearch_import:
+    from elasticsearch import Elasticsearch
 
 
 @component
@@ -27,31 +21,37 @@ class ElasticsearchDocumentIndexer:
         self,
         index_name: str,
         hosts: str | list[str] | None = None,
-        content_field: str = "content",
+        content_field_name: str = "content",
         meta_field: str = "meta",
         refresh: bool = False,
         client: Any | None = None,
     ) -> None:
         self.index_name = index_name
         self.hosts = hosts
-        self.content_field = content_field
+        self.content_field_name = content_field_name
         self.meta_field = meta_field
         self.refresh = refresh
         self._client = client
 
+    def warm_up(self) -> None:
+        """Initialize the Elasticsearch client once."""
+        if self._client is not None:
+            return
+        elasticsearch_import.check()
+        self._client = Elasticsearch(self.hosts or "http://localhost:9200")
+
     @component.output_types(indexed_count=int)
     def run(self, documents: list[Document]) -> dict[str, int]:
         if self._client is None:
-            self._client = _create_client(self.hosts)
+            raise RuntimeError("ElasticsearchDocumentIndexer must be warmed up before run().")
 
         for document in documents:
             source = {
-                self.content_field: document.content,
-                self.meta_field: dict(document.meta or {}),
+                self.content_field_name: document.content,
+                self.meta_field: dict(document.meta),
             }
-            embedding = getattr(document, "embedding", None)
-            if embedding is not None:
-                source["embedding"] = embedding
+            if document.embedding is not None:
+                source["embedding"] = document.embedding
             self._client.index(
                 index=self.index_name,
                 id=document.id,

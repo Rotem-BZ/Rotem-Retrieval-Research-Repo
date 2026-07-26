@@ -1,4 +1,4 @@
-"""Adapter from the shared Query value to native Haystack text inputs."""
+"""Convert the shared Query value to a plain string."""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ from retrieval_components.dataclasses import Query
 
 
 @component
-class QueryContentAdapter:
-    """Expose materialized query content as text."""
+class QueryToString:
+    """Expose materialized query content as a plain text string."""
 
     @component.output_types(text=str)
     def run(self, query: Query) -> dict[str, str]:

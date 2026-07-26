@@ -274,8 +274,8 @@ def test_effective_editable_fields_convert_composed_list_values() -> None:
     )
     assert isinstance(connections.value, list)
     assert connections.value[0] == {
-        "sender": "input.query_meta",
-        "receiver": "query_parser.meta",
+        "sender": "input.query",
+        "receiver": "query_parser.query",
     }
 
 
@@ -294,21 +294,6 @@ def test_render_command_preserves_hydra_override_syntax() -> None:
         command == "uv run stage inference dataset=toy "
         "pipeline/inference@pipeline=retrieve/dense_jsonl selections/embedding_model=e5/small_v2 "
         "runtime=gpu"
-    )
-
-
-def test_configure_flow_builds_indexing_dummy_command() -> None:
-    result = _run_with_answers(["2", "3", "3", "2", "n", "toy-index"])
-
-    assert result.command == (
-        "uv run stage indexing dataset=toy pipeline/indexing@pipeline=scaffold/documents_jsonl "
-        "runtime=gpu selections.index_id=toy-index"
-    )
-    assert result.overrides == (
-        "dataset=toy",
-        "pipeline/indexing@pipeline=scaffold/documents_jsonl",
-        "runtime=gpu",
-        "selections.index_id=toy-index",
     )
 
 
@@ -438,7 +423,8 @@ def test_render_inference_command_accepts_prepared_input_mapping_name() -> None:
         "inference",
         [
             HydraOverride("dataset=toy"),
-            HydraOverride("pipeline/inference@pipeline=scaffold/keyword_jsonl"),
+            HydraOverride("pipeline/inference@pipeline=retrieve/dense_jsonl"),
+            HydraOverride("selections/embedding_model=e5/small_v2"),
             HydraOverride("runtime=cpu"),
             HydraOverride("selections.input_mapping=toy_dev"),
         ],

@@ -1,16 +1,18 @@
-"""Model component aliases that are already provided by Haystack.
+"""Query-aware model components and native document embedders.
 
-These imports intentionally keep model-heavy implementations in Haystack. The
-project can reference these classes directly in Hydra configs when the optional
-runtime dependencies are installed.
+Query-facing classes subclass their native Haystack implementations so the
+repository Query value remains intact until the model boundary.
 """
 
-from haystack.components.embedders import (
-    SentenceTransformersDocumentEmbedder,
+from haystack.components.embedders import SentenceTransformersDocumentEmbedder
+
+from retrieval_components.models.sentence_transformers_similarity_ranker import (
+    SentenceTransformersSimilarityRanker,
+)
+from retrieval_components.models.sentence_transformers_text_embedder import (
     SentenceTransformersTextEmbedder,
 )
-from haystack.components.rankers import (
-    SentenceTransformersSimilarityRanker,
+from retrieval_components.models.transformers_similarity_ranker import (
     TransformersSimilarityRanker,
 )
 

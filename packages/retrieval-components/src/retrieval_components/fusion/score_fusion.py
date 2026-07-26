@@ -5,24 +5,6 @@ from __future__ import annotations
 from haystack import Document, component
 
 
-def _copy_document_with_score(document: Document, score: float) -> Document:
-    return Document(
-        id=document.id,
-        content=document.content,
-        meta=dict(document.meta or {}),
-        score=score,
-        embedding=getattr(document, "embedding", None),
-    )
-
-
-def _sort_documents_by_score(documents: list[Document]) -> list[Document]:
-    return sorted(
-        documents,
-        key=lambda document: (float(document.score or 0.0), document.id or ""),
-        reverse=True,
-    )
-
-
 @component
 class ScoreFusion:
     """Fuse ranked lists by summing weighted document scores."""
@@ -30,12 +12,10 @@ class ScoreFusion:
     def __init__(
         self,
         weights: dict[str, float],
-        top_k: int | None = None,
         missing_score: float = 0.0,
         normalize_by_source: bool = False,
     ) -> None:
         self.weights = weights
-        self.top_k = top_k
         self.missing_score = missing_score
         self.normalize_by_source = normalize_by_source
         component.set_input_types(self, **{source_name: list[Document] for source_name in weights})
@@ -70,10 +50,19 @@ class ScoreFusion:
                 )
 
         fused = [
-            _copy_document_with_score(document, fused_scores[document_id])
+            Document(
+                id=document.id,
+                content=document.content,
+                meta=dict(document.meta),
+                score=fused_scores[document_id],
+                embedding=document.embedding,
+            )
             for document_id, document in documents_by_id.items()
         ]
-        ranked = _sort_documents_by_score(fused)
-        if self.top_k is not None:
-            ranked = ranked[: self.top_k]
-        return {"documents": ranked}
+        return {
+            "documents": sorted(
+                fused,
+                key=lambda document: (float(document.score), document.id),
+                reverse=True,
+            )
+        }

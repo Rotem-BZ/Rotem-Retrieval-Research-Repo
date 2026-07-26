@@ -1,39 +1,10 @@
+from pathlib import Path
+
 from omegaconf import OmegaConf
 
 from retrieval_core.data_schema import EVALUATION_DATA_SCHEMA
 from retrieval_core.utils.config import compose_stage_config
 from retrieval_core.utils.pipelines import load_async_pipeline, to_container
-
-
-def test_hybrid_rrf_pipeline_loads_with_uniform_dynamic_weight_sockets() -> None:
-    cfg = compose_stage_config(
-        "inference",
-        [
-            "dataset=toy",
-            "runtime=gpu",
-            "pipeline/inference@pipeline=retrieve/hybrid_rrf_jsonl",
-            "selections.index_id=toy-hybrid",
-            "selections/embedding_model=e5/small_v2",
-        ],
-    )
-
-    pipeline = load_async_pipeline(cfg.pipeline)
-    pipeline_config = to_container(cfg.pipeline)
-
-    assert {"lexical_retriever", "dense_retriever", "fusion"} <= set(pipeline.graph.nodes)
-    assert pipeline_config["components"]["fusion"]["init_parameters"]["weights"] == {
-        "lexical": 1.0,
-        "dense": 1.0,
-    }
-    assert pipeline_config["components"]["fusion"]["init_parameters"]["rrf_k"] == 60
-    assert {
-        "sender": "lexical_retriever.documents",
-        "receiver": "fusion.lexical",
-    } in pipeline_config["connections"]
-    assert {
-        "sender": "dense_retriever.documents",
-        "receiver": "fusion.dense",
-    } in pipeline_config["connections"]
 
 
 def test_abstract_dense_e5_indexing_config_keeps_pipeline_haystack_shaped() -> None:
@@ -145,6 +116,10 @@ def test_abstract_dense_e5_inference_config_prefixes_queries() -> None:
         pipeline_config["components"]["query_embedder"]["init_parameters"]["model"]
         == "intfloat/e5-small-v2"
     )
+    assert pipeline_config["components"]["query_embedder"]["type"].endswith(
+        "retrieval_components.models.sentence_transformers_text_embedder."
+        "SentenceTransformersTextEmbedder"
+    )
     assert pipeline_config["components"]["query_embedder"]["init_parameters"]["device"] == {
         "type": "single",
         "device": "cuda",
@@ -162,12 +137,10 @@ def test_abstract_dense_e5_inference_config_prefixes_queries() -> None:
     assert {"sender": "query_parser.query", "receiver": "output.query"} in (
         pipeline_config["connections"]
     )
-    assert {"sender": "query_preprocessor.query", "receiver": "query_adapter.query"} in (
+    assert {"sender": "query_preprocessor.query", "receiver": "query_embedder.query"} in (
         pipeline_config["connections"]
     )
-    assert {"sender": "query_adapter.text", "receiver": "query_embedder.text"} in (
-        pipeline_config["connections"]
-    )
+    assert "query_adapter" not in pipeline_config["components"]
     assert {
         "sender": "input.candidate_document_ids",
         "receiver": "retriever.candidate_document_ids",
@@ -234,6 +207,10 @@ def test_cross_encoder_reranker_uses_bge_selection() -> None:
         pipeline_config["components"]["ranker"]["init_parameters"]["model"]
         == "BAAI/bge-reranker-v2-m3"
     )
+    assert pipeline_config["components"]["ranker"]["type"].endswith(
+        "retrieval_components.models.sentence_transformers_similarity_ranker."
+        "SentenceTransformersSimilarityRanker"
+    )
     assert pipeline_config["components"]["ranker"]["init_parameters"]["scale_score"] is True
     assert {
         "sender": "input.candidate_documents",
@@ -243,33 +220,41 @@ def test_cross_encoder_reranker_uses_bge_selection() -> None:
         "sender": "document_parser.documents",
         "receiver": "ranker.documents",
     } in pipeline_config["connections"]
+    assert {
+        "sender": "query_parser.query",
+        "receiver": "ranker.query",
+    } in pipeline_config["connections"]
     assert {"sender": "ranker.documents", "receiver": "output.documents"} in pipeline_config[
         "connections"
     ]
 
 
-def test_scaffold_keyword_inference_parses_retriever_query_input() -> None:
-    cfg = compose_stage_config(
-        "inference",
-        [
-            "dataset=toy",
-            "runtime=gpu",
-            "pipeline/inference@pipeline=scaffold/keyword_jsonl",
-            "selections.index_id=toy-keyword",
-        ],
+def test_materialized_native_haystack_pipeline_keeps_query_to_string_adapter() -> None:
+    config_path = (
+        Path(__file__).parents[1]
+        / "src"
+        / "retrieval_core"
+        / "configs"
+        / "materialized"
+        / "production"
+        / "toy_dense_inference_native_adapter_reference.yaml"
     )
+    cfg = OmegaConf.load(config_path)
     pipeline_config = to_container(cfg.pipeline)
+    pipeline = load_async_pipeline(cfg.pipeline)
 
-    assert {"sender": "input.query", "receiver": "query_parser.query"} in pipeline_config[
-        "connections"
-    ]
-    assert {"sender": "query_adapter.text", "receiver": "retriever.query"} in pipeline_config[
-        "connections"
-    ]
+    assert {"query_to_string", "query_embedder"} <= set(pipeline.graph.nodes)
+    assert pipeline_config["components"]["query_to_string"]["type"].endswith(
+        "query_to_string.QueryToString"
+    )
+    assert pipeline_config["components"]["query_embedder"]["type"].startswith(
+        "haystack.components.embedders."
+    )
     assert {
-        "sender": "input.candidate_document_ids",
-        "receiver": "retriever.candidate_document_ids",
+        "sender": "query_preprocessor.query",
+        "receiver": "query_to_string.query",
     } in pipeline_config["connections"]
-    assert {"sender": "retriever.documents", "receiver": "output.documents"} in pipeline_config[
-        "connections"
-    ]
+    assert {
+        "sender": "query_to_string.text",
+        "receiver": "query_embedder.text",
+    } in pipeline_config["connections"]

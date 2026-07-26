@@ -6,21 +6,10 @@ from retrieval_components.filtering import DocumentContentFilter
 from retrieval_components.preprocessing import (
     DocumentContentFieldParser,
     DocumentTextPrefixer,
-    QueryContentAdapter,
     QueryContentFieldParser,
     QueryTextPreprocessor,
-    TextPreprocessor,
+    QueryToString,
 )
-
-
-def test_text_preprocessor_cleans_and_prefixes_query() -> None:
-    preprocessor = TextPreprocessor(
-        prefix="query: ",
-        lowercase=True,
-        replace_regexes={r"\s+": " "},
-    )
-
-    assert preprocessor.run("  HYDRA\nCONFIG  ") == {"text": "query: hydra config"}
 
 
 def test_document_text_prefixer_preserves_metadata() -> None:
@@ -29,6 +18,12 @@ def test_document_text_prefixer_preserves_metadata() -> None:
 
     assert result["documents"][0].content == "passage: good text"
     assert result["documents"][0].meta == {"source": "toy"}
+
+
+@pytest.mark.parametrize("component", [DocumentTextPrefixer(), DocumentContentFilter()])
+def test_document_text_components_reject_missing_content(component) -> None:
+    with pytest.raises(ValueError, match="content"):
+        component.run([Document(id="d1")])
 
 
 def test_document_content_field_parser_sets_content_and_preserves_document_fields() -> None:
@@ -70,7 +65,7 @@ def test_query_content_field_parser_uses_nested_json_value() -> None:
     assert source.content is None
 
 
-def test_query_preprocessor_and_adapter_preserve_query_fields() -> None:
+def test_query_preprocessor_and_to_string_preserve_query_fields() -> None:
     source = Query(
         id="q1",
         content="  HYDRA\nCONFIG  ",
@@ -87,7 +82,7 @@ def test_query_preprocessor_and_adapter_preserve_query_fields() -> None:
     assert transformed.content == "query: hydra config"
     assert transformed.id == "q1"
     assert transformed.meta == source.meta
-    assert QueryContentAdapter().run(transformed) == {"text": "query: hydra config"}
+    assert QueryToString().run(transformed) == {"text": "query: hydra config"}
 
 
 def test_document_content_filter_uses_regex_and_word_bounds() -> None:

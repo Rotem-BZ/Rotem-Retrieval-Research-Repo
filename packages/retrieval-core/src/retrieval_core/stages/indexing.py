@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-from pathlib import Path
-from typing import Any
 from uuid import uuid4
 
 from haystack import Document
@@ -15,7 +13,7 @@ from retrieval_core.data_schema import EVALUATION_DATA_SCHEMA
 from retrieval_core.stages.base import StageContext
 from retrieval_core.utils.artifacts import index_artifact_path
 from retrieval_core.utils.io import project_path
-from retrieval_core.utils.pipelines import load_async_pipeline
+from retrieval_core.utils.pipelines import load_async_pipeline, to_container
 
 INDEXING_INPUT_COMPONENT = "input"
 INDEXING_OUTPUT_COMPONENT = "output"
@@ -42,25 +40,16 @@ async def run_indexing(cfg: DictConfig) -> dict:
         raise ValueError("runtime.indexing_batch_size must be greater than zero.")
 
     documents_path = project_path(cfg.dataset.documents_path)
-    pipeline = load_async_pipeline(cfg.pipeline)
-    indexer = pipeline.get_component(indexer_name)
-    begin_batch_write = getattr(indexer, "begin_batch_write", None)
-    finish_batch_write = getattr(indexer, "finish_batch_write", None)
-    abort_batch_write = getattr(indexer, "abort_batch_write", None)
-    if not all(
-        callable(method)
-        for method in (begin_batch_write, finish_batch_write, abort_batch_write)
-    ):
-        raise TypeError(
-            f"Indexing component {indexer_name!r} must implement begin_batch_write(), "
-            "finish_batch_write(), and abort_batch_write() for staged batch indexing."
-        )
-
-    context = StageContext.from_config(cfg)
-    canonical_index_path.parent.mkdir(parents=True, exist_ok=True)
     temporary_index_path = canonical_index_path.with_name(
         f".{canonical_index_path.name}.{uuid4().hex}.tmp"
     )
+    pipeline_config = to_container(cfg.pipeline)
+    pipeline_config["components"][indexer_name]["init_parameters"]["output_path"] = str(
+        temporary_index_path
+    )
+    pipeline = load_async_pipeline(pipeline_config)
+    context = StageContext.from_config(cfg)
+    canonical_index_path.parent.mkdir(parents=True, exist_ok=True)
 
     documents_sha256 = hashlib.sha256()
     document_ids: set[str] = set()
@@ -74,8 +63,25 @@ async def run_indexing(cfg: DictConfig) -> dict:
         "score",
         "embedding",
     }
+
+    async def index_batch(documents: list[Document], *, append: bool) -> int:
+        result = await pipeline.run_async(
+            data={
+                INDEXING_INPUT_COMPONENT: {"documents": documents},
+                indexer_name: {"append": append},
+            },
+            include_outputs_from={INDEXING_OUTPUT_COMPONENT},
+            concurrency_limit=int(cfg.runtime.concurrency_limit),
+        )
+        output = result[INDEXING_OUTPUT_COMPONENT]
+        if project_path(output["index_path"]) != temporary_index_path:
+            raise RuntimeError("Indexing pipeline returned an unexpected index path.")
+        count = output["indexed_count"]
+        if not isinstance(count, int) or isinstance(count, bool) or count < 0:
+            raise RuntimeError(f"Indexing pipeline returned invalid indexed_count: {count!r}")
+        return count
+
     try:
-        begin_batch_write(str(temporary_index_path))
         with documents_path.open("rb") as handle:
             for line_number, raw_line in enumerate(handle, start=1):
                 documents_sha256.update(raw_line)
@@ -112,34 +118,18 @@ async def run_indexing(cfg: DictConfig) -> dict:
 
                 if len(batch) < batch_size:
                     continue
-                batch_result = await pipeline.run_async(
-                    data={INDEXING_INPUT_COMPONENT: {"documents": batch}},
-                    include_outputs_from={INDEXING_OUTPUT_COMPONENT},
-                    concurrency_limit=int(cfg.runtime.concurrency_limit),
-                )
-                indexed_count += _validate_batch_result(
-                    batch_result,
-                    temporary_index_path=temporary_index_path,
-                )
+                indexed_count += await index_batch(batch, append=batch_count > 0)
                 batch_count += 1
                 batch = []
 
         if batch:
-            batch_result = await pipeline.run_async(
-                data={INDEXING_INPUT_COMPONENT: {"documents": batch}},
-                include_outputs_from={INDEXING_OUTPUT_COMPONENT},
-                concurrency_limit=int(cfg.runtime.concurrency_limit),
-            )
-            indexed_count += _validate_batch_result(
-                batch_result,
-                temporary_index_path=temporary_index_path,
-            )
+            indexed_count += await index_batch(batch, append=batch_count > 0)
             batch_count += 1
+        elif batch_count == 0:
+            indexed_count += await index_batch([], append=False)
 
-        finish_batch_write()
         temporary_index_path.replace(canonical_index_path)
     except BaseException:
-        abort_batch_write()
         temporary_index_path.unlink(missing_ok=True)
         raise
 
@@ -187,32 +177,3 @@ def _configured_indexer(cfg: DictConfig) -> tuple[str, str]:
             "The component connected to output.index_path must declare output_path."
         )
     return component_name, str(init_parameters.output_path)
-
-
-def _validate_batch_result(
-    result: dict[str, Any],
-    *,
-    temporary_index_path: Path,
-) -> int:
-    """Validate one pipeline batch result and return its indexed count."""
-
-    output = result.get(INDEXING_OUTPUT_COMPONENT)
-    if not isinstance(output, dict):
-        raise RuntimeError("Indexing pipeline batch did not return output.")
-    index_path = output.get("index_path")
-    if not index_path or project_path(index_path) != temporary_index_path:
-        raise RuntimeError(
-            "Indexing pipeline batch returned an unexpected temporary index path: "
-            f"{index_path!r}"
-        )
-    indexed_count = output.get("indexed_count")
-    if (
-        not isinstance(indexed_count, int)
-        or isinstance(indexed_count, bool)
-        or indexed_count < 0
-    ):
-        raise RuntimeError(
-            "Indexing pipeline batch returned an invalid indexed_count: "
-            f"{indexed_count!r}"
-        )
-    return indexed_count

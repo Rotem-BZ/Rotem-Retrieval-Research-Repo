@@ -4,7 +4,6 @@ defaults:
   - /selections/embedding_model@_global_.selections.embedding_model: ???
   - /component/query_parser@components.query_parser: content_field
   - /component/query_preprocessor@components.query_preprocessor: prefix_cleanup
-  - /component/query_adapter@components.query_adapter: content
   - /component/query_embedder@components.query_embedder: sentence_transformers
   - /component/retriever@components.retriever: jsonl_embeddings
   - _self_
@@ -29,9 +28,7 @@ connections:
   - sender: input.candidate_document_ids
     receiver: retriever.candidate_document_ids
   - sender: query_preprocessor.query
-    receiver: query_adapter.query
-  - sender: query_adapter.text
-    receiver: query_embedder.text
+    receiver: query_embedder.query
   - sender: query_embedder.embedding
     receiver: retriever.query_embedding
   - sender: retriever.documents

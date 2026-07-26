@@ -7,6 +7,8 @@ from typing import Any
 import requests
 from haystack import component
 
+from retrieval_components.dataclasses import Query
+
 
 @component
 class HttpQueryReformulator:
@@ -28,10 +30,12 @@ class HttpQueryReformulator:
         self.extra_payload = extra_payload or {}
         self.timeout = timeout
 
-    @component.output_types(query=str, queries=list[str])
-    def run(self, query: str) -> dict[str, str | list[str]]:
+    @component.output_types(query=Query, queries=list[Query])
+    def run(self, query: Query) -> dict[str, Query | list[Query]]:
+        if query.content is None:
+            raise ValueError(f"Query {query.id!r} has no materialized content.")
         payload = dict(self.extra_payload)
-        payload[self.request_field] = query
+        payload[self.request_field] = query.content
 
         response = requests.post(
             self.url,
@@ -54,8 +58,8 @@ class HttpQueryReformulator:
                 )
 
         if isinstance(extracted, list):
-            queries = [str(item) for item in extracted]
+            queries = [query.with_content(str(item)) for item in extracted]
         else:
-            queries = [str(extracted)]
+            queries = [query.with_content(str(extracted))]
 
         return {"query": queries[0] if queries else query, "queries": queries}

@@ -5,7 +5,7 @@ from __future__ import annotations
 from haystack import component
 
 from retrieval_components.dataclasses import Query
-from retrieval_components.preprocessing.text_preprocessor import _apply_text_transforms
+from retrieval_components.preprocessing._text_transforms import apply_text_transforms
 
 
 @component
@@ -32,7 +32,7 @@ class QueryTextPreprocessor:
             raise ValueError(f"Query {query.id!r} has no materialized content.")
         return {
             "query": query.with_content(
-                _apply_text_transforms(
+                apply_text_transforms(
                     query.content,
                     prefix=self.prefix,
                     suffix=self.suffix,

@@ -64,7 +64,7 @@ def test_semantic_sparse_inference_pipeline_loads() -> None:
         "input",
         "query_parser",
         "query_preprocessor",
-        "query_adapter",
+        "query_to_string",
         "query_embedder",
         "retriever",
         "output",

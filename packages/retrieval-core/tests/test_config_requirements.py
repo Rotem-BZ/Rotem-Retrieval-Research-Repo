@@ -15,7 +15,11 @@ def test_indexing_requires_dataset_and_pipeline_selection() -> None:
     with pytest.raises(ConfigCompositionException, match="dataset"):
         compose_stage_config(
             "indexing",
-            ["pipeline/indexing@pipeline=scaffold/documents_jsonl", "runtime=gpu"],
+            [
+                "pipeline/indexing@pipeline=dense/documents_jsonl",
+                "selections/embedding_model=e5/small_v2",
+                "runtime=gpu",
+            ],
         )
 
 
@@ -26,7 +30,11 @@ def test_inference_requires_dataset_and_pipeline_selection() -> None:
     with pytest.raises(ConfigCompositionException, match="dataset"):
         compose_stage_config(
             "inference",
-            ["pipeline/inference@pipeline=scaffold/keyword_jsonl", "runtime=gpu"],
+            [
+                "pipeline/inference@pipeline=retrieve/dense_jsonl",
+                "selections/embedding_model=e5/small_v2",
+                "runtime=gpu",
+            ],
         )
 
 
@@ -34,13 +42,21 @@ def test_indexing_and_inference_require_runtime_selection() -> None:
     with pytest.raises(ConfigCompositionException, match="runtime"):
         compose_stage_config(
             "indexing",
-            ["dataset=toy", "pipeline/indexing@pipeline=scaffold/documents_jsonl"],
+            [
+                "dataset=toy",
+                "pipeline/indexing@pipeline=dense/documents_jsonl",
+                "selections/embedding_model=e5/small_v2",
+            ],
         )
 
     with pytest.raises(ConfigCompositionException, match="runtime"):
         compose_stage_config(
             "inference",
-            ["dataset=toy", "pipeline/inference@pipeline=scaffold/keyword_jsonl"],
+            [
+                "dataset=toy",
+                "pipeline/inference@pipeline=retrieve/dense_jsonl",
+                "selections/embedding_model=e5/small_v2",
+            ],
         )
 
 
@@ -63,7 +79,8 @@ def test_explicit_stage_selections_compose() -> None:
         "indexing",
         [
             "dataset=toy",
-            "pipeline/indexing@pipeline=scaffold/documents_jsonl",
+            "pipeline/indexing@pipeline=dense/documents_jsonl",
+            "selections/embedding_model=e5/small_v2",
             "runtime=gpu",
             "selections.index_id=toy-index",
         ],
@@ -72,7 +89,9 @@ def test_explicit_stage_selections_compose() -> None:
         "inference",
         [
             "dataset=toy",
-            "pipeline/inference@pipeline=scaffold/keyword_jsonl",
+            "pipeline/inference@pipeline=retrieve/dense_jsonl",
+            "selections/embedding_model=e5/small_v2",
+            "selections.index_id=toy-index",
             "runtime=gpu",
         ],
     )
@@ -100,7 +119,11 @@ def test_explicit_stage_selections_compose() -> None:
 
 
 def test_runtime_profiles_select_gpu_or_cpu_device() -> None:
-    common = ["dataset=toy", "pipeline/inference@pipeline=scaffold/keyword_jsonl"]
+    common = [
+        "dataset=toy",
+        "pipeline/inference@pipeline=retrieve/dense_jsonl",
+        "selections/embedding_model=e5/small_v2",
+    ]
 
     gpu_cfg = compose_stage_config("inference", [*common, "runtime=gpu"])
     cpu_cfg = compose_stage_config("inference", [*common, "runtime=cpu"])
@@ -132,7 +155,8 @@ def test_explicit_inference_run_id_updates_derived_paths_and_prediction_artifact
         "inference",
         [
             "dataset=toy",
-            "pipeline/inference@pipeline=scaffold/keyword_jsonl",
+            "pipeline/inference@pipeline=retrieve/dense_jsonl",
+            "selections/embedding_model=e5/small_v2",
             "runtime=gpu",
             "stage.run_id=bge",
         ],

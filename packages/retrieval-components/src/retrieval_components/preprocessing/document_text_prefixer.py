@@ -2,28 +2,9 @@
 
 from __future__ import annotations
 
-import re
-
 from haystack import Document, component
 
-
-def _apply_text_transforms(
-    text: str,
-    *,
-    prefix: str,
-    suffix: str,
-    strip: bool,
-    lowercase: bool,
-    replace_regexes: dict[str, str],
-) -> str:
-    transformed = text
-    for pattern, replacement in replace_regexes.items():
-        transformed = re.sub(pattern, replacement, transformed)
-    if strip:
-        transformed = transformed.strip()
-    if lowercase:
-        transformed = transformed.lower()
-    return f"{prefix}{transformed}{suffix}"
+from retrieval_components.preprocessing._text_transforms import apply_text_transforms
 
 
 @component
@@ -49,20 +30,24 @@ class DocumentTextPrefixer:
         processed: list[Document] = []
 
         for document in documents:
+            if document.content is None:
+                raise ValueError(
+                    f"DocumentTextPrefixer requires document {document.id!r} to have content."
+                )
             processed.append(
                 Document(
                     id=document.id,
-                    content=_apply_text_transforms(
-                        document.content or "",
+                    content=apply_text_transforms(
+                        document.content,
                         prefix=self.prefix,
                         suffix=self.suffix,
                         strip=self.strip,
                         lowercase=self.lowercase,
                         replace_regexes=self.replace_regexes,
                     ),
-                    meta=dict(document.meta or {}),
-                    score=getattr(document, "score", None),
-                    embedding=getattr(document, "embedding", None),
+                    meta=dict(document.meta),
+                    score=document.score,
+                    embedding=document.embedding,
                 )
             )
 

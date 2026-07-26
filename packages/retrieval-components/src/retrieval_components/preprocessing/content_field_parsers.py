@@ -2,17 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 from haystack import Document, component
 
 from retrieval_components.dataclasses import Query
-
-
-def _content_from_meta(meta: dict[str, Any], *, content_field: str, record_label: str) -> str:
-    if content_field not in meta:
-        raise ValueError(f"{record_label} is missing configured content field {content_field!r}.")
-    return str(meta[content_field])
 
 
 @component
@@ -28,15 +20,16 @@ class DocumentContentFieldParser:
     def run(self, documents: list[Document]) -> dict[str, list[Document]]:
         parsed_documents: list[Document] = []
         for document in documents:
-            meta = dict(document.meta or {})
+            meta = dict(document.meta)
+            if self.content_field not in meta:
+                raise ValueError(
+                    f"Document {document.id!r} is missing configured content field "
+                    f"{self.content_field!r}."
+                )
             parsed_documents.append(
                 Document(
                     id=document.id,
-                    content=_content_from_meta(
-                        meta,
-                        content_field=self.content_field,
-                        record_label=f"Document {document.id!r}",
-                    ),
+                    content=str(meta[self.content_field]),
                     blob=document.blob,
                     meta=meta,
                     score=document.score,
@@ -58,12 +51,8 @@ class QueryContentFieldParser:
 
     @component.output_types(query=Query)
     def run(self, query: Query) -> dict[str, Query]:
-        return {
-            "query": query.with_content(
-                _content_from_meta(
-                    query.meta,
-                    content_field=self.content_field,
-                    record_label=f"Query {query.id!r}",
-                )
+        if self.content_field not in query.meta:
+            raise ValueError(
+                f"Query {query.id!r} is missing configured content field {self.content_field!r}."
             )
-        }
+        return {"query": query.with_content(str(query.meta[self.content_field]))}

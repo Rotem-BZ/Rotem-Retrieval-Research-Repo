@@ -44,6 +44,6 @@ class Query:
 
         return cls(
             id=data["id"],
-            content=data.get("content"),
-            meta=data.get("meta") or {},
+            content=data["content"],
+            meta=data["meta"],
         )

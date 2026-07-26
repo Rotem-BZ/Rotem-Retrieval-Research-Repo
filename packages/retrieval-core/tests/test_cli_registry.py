@@ -1,11 +1,22 @@
 from pathlib import Path
 
 import pytest
+from haystack import Document, component
 
 from retrieval_core.cli import main, run_stage
 from retrieval_core.stages import STAGE_RUNNERS
 from retrieval_core.utils.config import core_config_dir
 from retrieval_core.utils.io import read_json
+
+
+@component
+class _DocumentPassThrough:
+    def __init__(self, **_: object) -> None:
+        pass
+
+    @component.output_types(documents=list[Document])
+    def run(self, documents: list[Document]) -> dict[str, list[Document]]:
+        return {"documents": documents}
 
 
 def test_stage_registry_contains_default_stages() -> None:
@@ -39,7 +50,8 @@ def test_console_main_does_not_return_or_print_full_stage_result(
         [
             "indexing",
             "dataset=toy",
-            "pipeline/indexing@pipeline=scaffold/documents_jsonl",
+            "pipeline/indexing@pipeline=dense/documents_jsonl",
+            "selections/embedding_model=e5/small_v2",
             "runtime=cpu",
             "selections.index_id=test-index",
         ]
@@ -118,7 +130,10 @@ def test_indexing_publishes_an_immutable_selected_index(tmp_path: Path) -> None:
         f'dataset.documents_path="{(dataset_dir / "documents.jsonl").as_posix()}"',
         f'dataset.queries_path="{(dataset_dir / "queries.jsonl").as_posix()}"',
         f'dataset.qrels_path="{(dataset_dir / "qrels.jsonl").as_posix()}"',
-        "pipeline/indexing@pipeline=scaffold/documents_jsonl",
+        "pipeline/indexing@pipeline=dense/documents_jsonl",
+        "selections/embedding_model=e5/small_v2",
+        "pipeline.components.embedder.type=test_cli_registry._DocumentPassThrough",
+        "pipeline.components.embedder.init_parameters={}",
         "runtime=cpu",
         "runtime.progress_bar=false",
         "runtime.indexing_batch_size=2",

@@ -39,7 +39,13 @@ class LangChainDocumentSplitter:
         chunks: list[Document] = []
 
         for document in documents:
-            text = document.content or ""
+            if document.content is None:
+                raise ValueError(
+                    f"LangChainDocumentSplitter requires document {document.id!r} to have content."
+                )
+            if document.id is None:
+                raise ValueError("LangChainDocumentSplitter requires every document to have an id.")
+            text = document.content
             if hasattr(splitter, "split_text"):
                 split_texts = list(splitter.split_text(text))
             elif hasattr(splitter, "create_documents"):
@@ -53,7 +59,7 @@ class LangChainDocumentSplitter:
 
             chunk_count = len(split_texts)
             for chunk_index, text in enumerate(split_texts):
-                meta = dict(document.meta or {})
+                meta = dict(document.meta)
                 meta.update(
                     {
                         "source_document_id": document.id,
@@ -63,10 +69,10 @@ class LangChainDocumentSplitter:
                 )
                 chunks.append(
                     Document(
-                        id=(None if document.id is None else f"{document.id}::chunk-{chunk_index}"),
+                        id=f"{document.id}::chunk-{chunk_index}",
                         content=text,
                         meta=meta,
-                        score=getattr(document, "score", None),
+                        score=document.score,
                     )
                 )
 

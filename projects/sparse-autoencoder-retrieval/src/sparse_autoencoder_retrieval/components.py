@@ -317,58 +317,30 @@ class SemanticSparseIndexer:
         self.overwrite = overwrite
         self.store_dense_embeddings = store_dense_embeddings
         self.sparse_dimension = sparse_dimension
-        self._batch_path: Path | None = None
-        self._batch_postings: dict[int, list[list[int | float]]] | None = None
-        self._batch_records: list[dict[str, Any]] | None = None
-        self._batch_seen_ids: set[str] | None = None
-
-    def begin_batch_write(self, output_path: str) -> None:
-        """Start accumulating batches in a stage-owned temporary artifact."""
-
-        if self._batch_path is not None:
-            raise RuntimeError("A semantic sparse batch write session is already active.")
-        path = Path(output_path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        if path.exists():
-            raise FileExistsError(f"Temporary index path already exists: {path}")
-        self._batch_path = path
-        self._batch_postings = {}
-        self._batch_records = []
-        self._batch_seen_ids = set()
-        _write_semantic_sparse_index(
-            path,
-            records=self._batch_records,
-            postings=self._batch_postings,
-            sparse_dimension=self.sparse_dimension,
-        )
-
-    def finish_batch_write(self) -> None:
-        """Finish the active session without publishing its temporary artifact."""
-
-        if self._batch_path is None:
-            raise RuntimeError("No semantic sparse batch write session is active.")
-        self._clear_batch_state()
-
-    def abort_batch_write(self) -> None:
-        """Discard batch state; the stage owns temporary-file cleanup."""
-
-        self._clear_batch_state()
-
-    def _clear_batch_state(self) -> None:
-        self._batch_path = None
-        self._batch_postings = None
-        self._batch_records = None
-        self._batch_seen_ids = None
+        self._postings: dict[int, list[list[int | float]]] | None = None
+        self._records: list[dict[str, Any]] | None = None
+        self._seen_ids: set[str] | None = None
 
     @component.output_types(index_path=str, indexed_count=int)
-    def run(self, documents: list[Document]) -> dict[str, str | int]:
-        path = self._batch_path or Path(self.output_path)
-        if self._batch_path is None and path.exists() and not self.overwrite:
+    def run(
+        self,
+        documents: list[Document],
+        append: bool = False,
+    ) -> dict[str, str | int]:
+        path = Path(self.output_path)
+        if not append and path.exists() and not self.overwrite:
             raise FileExistsError(f"Index already exists and overwrite=false: {path}")
 
-        postings = self._batch_postings if self._batch_postings is not None else {}
-        records = self._batch_records if self._batch_records is not None else []
-        seen_ids = self._batch_seen_ids if self._batch_seen_ids is not None else set()
+        if not append:
+            self._postings = {}
+            self._records = []
+            self._seen_ids = set()
+        if self._postings is None or self._records is None or self._seen_ids is None:
+            raise RuntimeError("append=True requires an earlier non-appending write.")
+
+        postings = self._postings
+        records = self._records
+        seen_ids = self._seen_ids
         first_ordinal = len(records)
         for ordinal, document in enumerate(documents, start=first_ordinal):
             if document.id in seen_ids:

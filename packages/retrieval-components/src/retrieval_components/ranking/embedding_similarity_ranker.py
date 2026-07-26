@@ -2,25 +2,15 @@
 
 from __future__ import annotations
 
-from haystack import Document, component
 import numpy as np
-
-
-def _copy_document_with_score(document: Document, score: float) -> Document:
-    return Document(
-        id=document.id,
-        content=document.content,
-        meta=dict(document.meta or {}),
-        score=score,
-        embedding=getattr(document, "embedding", None),
-    )
+from haystack import Document, component
 
 
 def _document_embedding_matrix(documents: list[Document]) -> np.ndarray:
     embeddings: list[list[float]] = []
     missing_ids: list[str | None] = []
     for document in documents:
-        embedding = getattr(document, "embedding", None)
+        embedding = document.embedding
         if embedding is None:
             missing_ids.append(document.id)
         else:
@@ -62,30 +52,14 @@ def _similarity_scores(
     raise ValueError(f"Unsupported similarity: {similarity}")
 
 
-def _top_score_indices(scores: np.ndarray, limit: int | None) -> list[int]:
-    if limit is None:
-        limit = scores.shape[0]
-    else:
-        limit = min(limit, scores.shape[0])
-    if limit <= 0:
-        return []
-    if limit == scores.shape[0]:
-        candidate_indices = np.arange(scores.shape[0])
-    else:
-        candidate_indices = np.argpartition(scores, -limit)[-limit:]
-    return sorted(candidate_indices.tolist(), key=lambda index: float(scores[index]), reverse=True)
-
-
 @component
 class EmbeddingSimilarityRanker:
     """Score documents that already carry embeddings against a query embedding."""
 
     def __init__(
         self,
-        top_k: int | None = 10,
         similarity: str = "cosine",
     ) -> None:
-        self.top_k = top_k
         self.similarity = similarity
 
     @component.output_types(documents=list[Document])
@@ -93,10 +67,8 @@ class EmbeddingSimilarityRanker:
         self,
         query_embedding: list[float],
         documents: list[Document],
-        top_k: int | None = None,
     ) -> dict[str, list[Document]]:
-        limit = self.top_k if top_k is None else top_k
-        if not documents or limit == 0:
+        if not documents:
             return {"documents": []}
 
         embeddings = _document_embedding_matrix(documents)
@@ -105,10 +77,20 @@ class EmbeddingSimilarityRanker:
             embeddings=embeddings,
             similarity=self.similarity,
         )
-        ranked_indices = _top_score_indices(scores, limit)
+        ranked_indices = sorted(
+            range(scores.shape[0]),
+            key=lambda index: float(scores[index]),
+            reverse=True,
+        )
         return {
             "documents": [
-                _copy_document_with_score(documents[index], float(scores[index]))
+                Document(
+                    id=documents[index].id,
+                    content=documents[index].content,
+                    meta=dict(documents[index].meta),
+                    score=float(scores[index]),
+                    embedding=documents[index].embedding,
+                )
                 for index in ranked_indices
             ]
         }

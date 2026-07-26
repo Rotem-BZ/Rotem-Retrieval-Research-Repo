@@ -5,18 +5,14 @@ from __future__ import annotations
 from typing import Any
 
 from haystack import Document, component
+from haystack.lazy_imports import LazyImport
 
+from retrieval_components.dataclasses import Query
 
-def _create_client(hosts: str | list[str] | None) -> Any:
-    try:
-        from elasticsearch import Elasticsearch
-    except ImportError as exc:
-        raise ImportError(
-            "Elasticsearch components require the optional `elasticsearch` package "
-            "or an injected client."
-        ) from exc
-
-    return Elasticsearch(hosts or "http://localhost:9200")
+with LazyImport(
+    "Run 'pip install \"retrieval-components[elasticsearch]\"' to use Elasticsearch components"
+) as elasticsearch_import:
+    from elasticsearch import Elasticsearch
 
 
 @component
@@ -27,27 +23,39 @@ class ElasticsearchBM25Retriever:
         self,
         index_name: str,
         hosts: str | list[str] | None = None,
-        content_field: str = "content",
+        content_field_name: str = "content",
         meta_field: str = "meta",
         top_k: int = 10,
         client: Any | None = None,
     ) -> None:
         self.index_name = index_name
         self.hosts = hosts
-        self.content_field = content_field
+        self.content_field_name = content_field_name
         self.meta_field = meta_field
         self.top_k = top_k
         self._client = client
 
+    def warm_up(self) -> None:
+        """Initialize the Elasticsearch client once."""
+        if self._client is not None:
+            return
+        elasticsearch_import.check()
+        self._client = Elasticsearch(self.hosts or "http://localhost:9200")
+
     @component.output_types(documents=list[Document])
     def run(
         self,
-        query: str,
+        query: Query,
         top_k: int | None = None,
         candidate_document_ids: list[str] | None = None,
     ) -> dict[str, list[Document]]:
-        limit = top_k or self.top_k
-        search_query: dict[str, Any] = {"match": {self.content_field: query}}
+        if self._client is None:
+            raise RuntimeError("ElasticsearchBM25Retriever must be warmed up before run().")
+        if query.content is None:
+            raise ValueError("ElasticsearchBM25Retriever requires query content.")
+
+        limit = self.top_k if top_k is None else top_k
+        search_query: dict[str, Any] = {"match": {self.content_field_name: query.content}}
         if candidate_document_ids is not None:
             search_query = {
                 "bool": {
@@ -78,22 +86,22 @@ class ElasticsearchBM25Retriever:
                     ],
                 }
             }
-        if self._client is None:
-            self._client = _create_client(self.hosts)
+
         response = self._client.search(
             index=self.index_name,
             query=search_query,
             size=limit,
         )
-        return {
-            "documents": [
+        documents = []
+        for hit in response["hits"]["hits"]:
+            source = hit["_source"]
+            documents.append(
                 Document(
-                    id=hit.get("_id") or hit.get("_source", {}).get("id"),
-                    content=hit.get("_source", {}).get(self.content_field, ""),
-                    meta=dict(hit.get("_source", {}).get(self.meta_field) or {}),
-                    score=hit.get("_score"),
-                    embedding=hit.get("_source", {}).get("embedding"),
+                    id=hit["_id"],
+                    content=source[self.content_field_name],
+                    meta=dict(source[self.meta_field]),
+                    score=hit["_score"],
+                    embedding=source.get("embedding"),
                 )
-                for hit in response.get("hits", {}).get("hits", [])
-            ]
-        }
+            )
+        return {"documents": documents}

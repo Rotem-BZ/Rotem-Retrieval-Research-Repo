@@ -4,5 +4,4 @@ init_parameters:
   weights:
     lexical: 1.0
     dense: 1.0
-  top_k: 5
   rrf_k: 60

@@ -1,4 +1,4 @@
-type: haystack.components.embedders.sentence_transformers_text_embedder.SentenceTransformersTextEmbedder
+type: retrieval_components.models.sentence_transformers_text_embedder.SentenceTransformersTextEmbedder
 init_parameters:
   model: ${selections.embedding_model.checkpoint}
   normalize_embeddings: ${selections.embedding_model.normalize_embeddings}

@@ -2,7 +2,6 @@ defaults:
   - /selections/embedding_model@_global_.selections.embedding_model: ???
   - /component/query_parser@components.query_parser: content_field
   - /component/query_preprocessor@components.query_preprocessor: prefix_cleanup
-  - /component/query_adapter@components.query_adapter: content
   - /component/query_embedder@components.query_embedder: sentence_transformers
   - /component/document_parser@components.document_parser: content_field
   - /component/document_preprocessor@components.document_prefixer: prefix_cleanup
@@ -28,9 +27,7 @@ connections:
   - sender: document_parser.documents
     receiver: document_prefixer.documents
   - sender: query_preprocessor.query
-    receiver: query_adapter.query
-  - sender: query_adapter.text
-    receiver: query_embedder.text
+    receiver: query_embedder.query
   - sender: document_prefixer.documents
     receiver: document_embedder.documents
   - sender: query_embedder.embedding

@@ -2,10 +2,10 @@ import ast
 import re
 from pathlib import Path
 
-
 CATEGORY_MODULES = {
     "retrieval_components.cascade",
     "retrieval_components.chunking",
+    "retrieval_components.experimental",
     "retrieval_components.filtering",
     "retrieval_components.fusion",
     "retrieval_components.indexing",

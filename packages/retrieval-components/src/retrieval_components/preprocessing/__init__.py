@@ -5,15 +5,13 @@ from retrieval_components.preprocessing.content_field_parsers import (
     QueryContentFieldParser,
 )
 from retrieval_components.preprocessing.document_text_prefixer import DocumentTextPrefixer
-from retrieval_components.preprocessing.query_content_adapter import QueryContentAdapter
 from retrieval_components.preprocessing.query_text_preprocessor import QueryTextPreprocessor
-from retrieval_components.preprocessing.text_preprocessor import TextPreprocessor
+from retrieval_components.preprocessing.query_to_string import QueryToString
 
 __all__ = [
     "DocumentContentFieldParser",
     "DocumentTextPrefixer",
-    "QueryContentAdapter",
     "QueryContentFieldParser",
     "QueryTextPreprocessor",
-    "TextPreprocessor",
+    "QueryToString",
 ]

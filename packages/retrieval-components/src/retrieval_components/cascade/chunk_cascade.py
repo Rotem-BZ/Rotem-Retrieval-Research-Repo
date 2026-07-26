@@ -6,20 +6,12 @@ from haystack import Document, component
 
 
 def _source_document_id(document: Document) -> str:
-    source_id = (document.meta or {}).get("source_document_id") or document.id
+    source_id = document.meta.get("source_document_id") or document.id
     if source_id is None:
         raise ValueError(
             "ChunkCascade requires every document to define `meta.source_document_id` or `id`."
         )
     return str(source_id)
-
-
-def _sort_documents_by_score(documents: list[Document]) -> list[Document]:
-    return sorted(
-        documents,
-        key=lambda document: (float(document.score or 0.0), document.id or ""),
-        reverse=True,
-    )
 
 
 @component
@@ -33,7 +25,13 @@ class ChunkCascade:
 
     @component.output_types(documents=list[Document])
     def run(self, documents: list[Document]) -> dict[str, list[Document]]:
-        ranked = _sort_documents_by_score(documents)
+        if any(document.score is None for document in documents):
+            raise ValueError("ChunkCascade requires every document to have a score.")
+        ranked = sorted(
+            documents,
+            key=lambda document: (float(document.score), document.id),
+            reverse=True,
+        )
         selected: list[Document] = []
         selected_counts: dict[str, int] = {}
 

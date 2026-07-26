@@ -20,6 +20,9 @@ Current examples:
 
 - `production/toy_dense_indexing_reference.yaml` is adapted from
   `artifacts/runs/indexing/20260705_231537/resolved_config.yaml`.
+- `production/toy_dense_inference_native_adapter_reference.yaml` keeps the
+  `QueryToString` compatibility boundary in front of a native Haystack
+  `SentenceTransformersTextEmbedder`.
 
 Run it directly with:
 

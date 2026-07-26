@@ -12,22 +12,24 @@ Run this section from the repository root. Prepare the core environment once:
 uv sync --project packages/retrieval-core --extra dev
 ```
 
-Create a keyword-search index and use that exact index for inference:
+Create a dense index and use that exact index for inference:
 
 ```powershell
 uv run --project packages/retrieval-core stage indexing `
   dataset=toy `
   runtime=cpu `
-  pipeline/indexing@pipeline=scaffold/documents_jsonl `
-  selections.index_id=toy-keyword-index `
-  stage.run_id=toy-keyword-indexing
+  pipeline/indexing@pipeline=dense/documents_jsonl `
+  selections/embedding_model=e5/small_v2 `
+  selections.index_id=toy-dense-index `
+  stage.run_id=toy-dense-indexing
 
 uv run --project packages/retrieval-core stage inference `
   dataset=toy `
   runtime=cpu `
-  pipeline/inference@pipeline=scaffold/keyword_jsonl `
-  selections.index_id=toy-keyword-index `
-  stage.run_id=toy-keyword-inference
+  pipeline/inference@pipeline=retrieve/dense_jsonl `
+  selections/embedding_model=e5/small_v2 `
+  selections.index_id=toy-dense-index `
+  stage.run_id=toy-dense-inference
 ```
 
 Evaluate the completed inference run by its exact run ID:
@@ -35,12 +37,12 @@ Evaluate the completed inference run by its exact run ID:
 ```powershell
 uv run --project packages/retrieval-core stage evaluation `
   dataset=toy `
-  stage.inference_run_id=toy-keyword-inference `
-  stage.run_id=toy-keyword-evaluation
+  stage.inference_run_id=toy-dense-inference `
+  stage.run_id=toy-dense-evaluation
 ```
 
 The resulting metrics are written to
-`artifacts/runs/evaluation/toy-keyword-evaluation/metrics.json`.
+`artifacts/runs/evaluation/toy-dense-evaluation/metrics.json`.
 
 ## Reranking a prepared input mapping without an index
 

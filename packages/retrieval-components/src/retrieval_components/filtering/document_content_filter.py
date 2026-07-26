@@ -33,7 +33,11 @@ class DocumentContentFilter:
         rejected: list[Document] = []
 
         for document in documents:
-            content = document.content or ""
+            if document.content is None:
+                raise ValueError(
+                    f"DocumentContentFilter requires document {document.id!r} to have content."
+                )
+            content = document.content
             word_count = len(re.findall(r"\b\w+\b", content))
             accepted = not (
                 (self.min_words is not None and word_count < self.min_words)

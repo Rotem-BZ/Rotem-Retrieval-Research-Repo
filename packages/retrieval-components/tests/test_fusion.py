@@ -7,18 +7,18 @@ from retrieval_components import (
     ScoreFusion,
     ZScoreFusion,
 )
-from retrieval_components.cascade import ChunkCascade, TopKDocuments, TopPDocuments
+from retrieval_components.cascade import ChunkCascade, TopKDocuments
 
 
 def test_reciprocal_rank_fusion_uses_named_source_weights() -> None:
-    fusion = ReciprocalRankFusion(weights={"lexical": 1.0, "dense": 2.0}, top_k=2, rrf_k=10)
+    fusion = ReciprocalRankFusion(weights={"lexical": 1.0, "dense": 2.0}, rrf_k=10)
 
     result = fusion.run(
         lexical=[Document(id="d1"), Document(id="d2")],
         dense=[Document(id="d2"), Document(id="d3")],
     )
 
-    assert [document.id for document in result["documents"]] == ["d2", "d3"]
+    assert [document.id for document in result["documents"]] == ["d2", "d3", "d1"]
 
 
 def test_score_fusion_sums_weighted_scores() -> None:
@@ -72,7 +72,7 @@ def test_z_score_fusion_normalizes_constant_source_to_zero() -> None:
     assert [document.score for document in result["documents"]] == [0.0, 0.0]
 
 
-def test_top_k_and_top_p_cascade_selectors() -> None:
+def test_top_k_cascade_selector() -> None:
     documents = [
         Document(id="d1", score=0.6),
         Document(id="d2", score=0.3),
@@ -83,10 +83,13 @@ def test_top_k_and_top_p_cascade_selectors() -> None:
         "d1",
         "d2",
     ]
-    assert [document.id for document in TopPDocuments(top_p=0.8).run(documents)["documents"]] == [
-        "d1",
-        "d2",
-    ]
+
+
+def test_score_sorting_cascades_reject_missing_scores() -> None:
+    with pytest.raises(ValueError, match="score"):
+        TopKDocuments(top_k=1).run([Document(id="d1")])
+    with pytest.raises(ValueError, match="score"):
+        ChunkCascade(top_k=1).run([Document(id="d1")])
 
 
 def test_chunk_cascade_keeps_top_k_chunks_per_source_document() -> None:

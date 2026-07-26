@@ -10,55 +10,45 @@ from retrieval_core.utils.hashing import file_sha256
 from retrieval_core.utils.io import write_jsonl
 
 
-class CapturingBatchWriter:
-    def __init__(self) -> None:
-        self.path: Path | None = None
-        self.finished = False
-        self.aborted = False
-
-    def begin_batch_write(self, output_path: str) -> None:
-        self.path = Path(output_path)
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.path.touch()
-
-    def finish_batch_write(self) -> None:
-        self.finished = True
-        self.path = None
-
-    def abort_batch_write(self) -> None:
-        self.aborted = True
-        self.path = None
-
-
 class CapturingPipeline:
     def __init__(self, *, fail_on_batch: int | None = None) -> None:
-        self.writer = CapturingBatchWriter()
+        self.index_path: Path | None = None
         self.batches = []
+        self.append_values = []
         self.include_outputs_from = None
         self.concurrency_limit = None
         self.fail_on_batch = fail_on_batch
 
-    def get_component(self, name: str):
-        assert name == "indexer"
-        return self.writer
-
     async def run_async(self, *, data, include_outputs_from, concurrency_limit):
         documents = list(data["input"]["documents"])
+        append = data["indexer"]["append"]
         self.batches.append(documents)
+        self.append_values.append(append)
         self.include_outputs_from = include_outputs_from
         self.concurrency_limit = concurrency_limit
         if self.fail_on_batch == len(self.batches):
             raise RuntimeError("batch failed")
-        assert self.writer.path is not None
-        with self.writer.path.open("a", encoding="utf-8") as handle:
+        assert self.index_path is not None
+        self.index_path.parent.mkdir(parents=True, exist_ok=True)
+        with self.index_path.open("a" if append else "w", encoding="utf-8") as handle:
             for document in documents:
                 handle.write(json.dumps({"id": document.id}) + "\n")
         return {
             "output": {
-                "index_path": str(self.writer.path),
+                "index_path": str(self.index_path),
                 "indexed_count": len(documents),
             }
         }
+
+
+def _capture_pipeline(pipeline: CapturingPipeline):
+    def load_pipeline(config):
+        pipeline.index_path = Path(
+            config["components"]["indexer"]["init_parameters"]["output_path"]
+        )
+        return pipeline
+
+    return load_pipeline
 
 
 def _config(tmp_path: Path, documents_path: Path):
@@ -130,7 +120,7 @@ def test_indexing_stage_loads_documents_and_supplies_batched_pipeline_input(
     pipeline = CapturingPipeline()
     monkeypatch.setattr(
         "retrieval_core.stages.indexing.load_async_pipeline",
-        lambda _config: pipeline,
+        _capture_pipeline(pipeline),
     )
 
     result = asyncio.run(run_indexing(_config(tmp_path, documents_path)))
@@ -146,9 +136,9 @@ def test_indexing_stage_loads_documents_and_supplies_batched_pipeline_input(
     }
     assert documents[0].score == 0.5
     assert documents[0].embedding == [1.0, 0.0]
+    assert pipeline.append_values == [False]
     assert pipeline.include_outputs_from == {"output"}
     assert pipeline.concurrency_limit == 3
-    assert pipeline.writer.finished is True
     assert result["source_document_count"] == 1
     assert result["batch_count"] == 1
     assert result["output"]["indexed_count"] == 1
@@ -172,7 +162,7 @@ def test_indexing_stage_streams_multiple_batches_and_hashes_during_read(
     pipeline = CapturingPipeline()
     monkeypatch.setattr(
         "retrieval_core.stages.indexing.load_async_pipeline",
-        lambda _config: pipeline,
+        _capture_pipeline(pipeline),
     )
     cfg = _config(tmp_path, documents_path)
 
@@ -183,6 +173,7 @@ def test_indexing_stage_streams_multiple_batches_and_hashes_during_read(
         ["d3", "d4"],
         ["d5"],
     ]
+    assert pipeline.append_values == [False, True, True]
     assert result["source_document_count"] == 5
     assert result["batch_count"] == 3
     assert result["output"]["indexed_count"] == 5
@@ -208,7 +199,7 @@ def test_indexing_stage_removes_temporary_index_when_a_later_batch_fails(
     pipeline = CapturingPipeline(fail_on_batch=2)
     monkeypatch.setattr(
         "retrieval_core.stages.indexing.load_async_pipeline",
-        lambda _config: pipeline,
+        _capture_pipeline(pipeline),
     )
     cfg = _config(tmp_path, documents_path)
 
@@ -218,9 +209,29 @@ def test_indexing_stage_removes_temporary_index_when_a_later_batch_fails(
     canonical_path = Path(
         cfg.pipeline.components.indexer.init_parameters.output_path
     )
-    assert pipeline.writer.aborted is True
     assert not canonical_path.exists()
     assert not list(canonical_path.parent.glob(f".{canonical_path.name}.*.tmp"))
+
+
+def test_indexing_stage_writes_an_empty_index_for_an_empty_dataset(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    documents_path = write_jsonl(tmp_path / "documents.jsonl", [])
+    pipeline = CapturingPipeline()
+    monkeypatch.setattr(
+        "retrieval_core.stages.indexing.load_async_pipeline",
+        _capture_pipeline(pipeline),
+    )
+
+    result = asyncio.run(run_indexing(_config(tmp_path, documents_path)))
+
+    assert pipeline.batches == [[]]
+    assert pipeline.append_values == [False]
+    assert result["source_document_count"] == 0
+    assert result["batch_count"] == 0
+    assert result["output"]["indexed_count"] == 0
+    assert Path(result["output"]["index_path"]).read_text(encoding="utf-8") == ""
 
 
 def test_indexing_stage_rejects_duplicate_document_ids(tmp_path: Path) -> None:

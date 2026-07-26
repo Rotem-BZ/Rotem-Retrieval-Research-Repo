@@ -1,6 +1,6 @@
 """Reusable Haystack components for retrieval research."""
 
-from retrieval_components.cascade import ChunkCascade, TopKDocuments, TopPDocuments
+from retrieval_components.cascade import ChunkCascade, TopKDocuments
 from retrieval_components.chunking import LangChainDocumentSplitter
 from retrieval_components.dataclasses import Query
 from retrieval_components.filtering import DocumentContentFilter
@@ -10,7 +10,7 @@ from retrieval_components.fusion import (
     ScoreFusion,
     ZScoreFusion,
 )
-from retrieval_components.indexing import ElasticsearchDocumentIndexer, JsonlDocumentIndexer
+from retrieval_components.indexing import JsonlDocumentIndexer
 from retrieval_components.interfaces import (
     IndexingInput,
     IndexingOutput,
@@ -20,28 +20,21 @@ from retrieval_components.interfaces import (
 from retrieval_components.preprocessing import (
     DocumentContentFieldParser,
     DocumentTextPrefixer,
-    QueryContentAdapter,
     QueryContentFieldParser,
     QueryTextPreprocessor,
-    TextPreprocessor,
+    QueryToString,
 )
 from retrieval_components.ranking import EmbeddingSimilarityRanker
 from retrieval_components.reformulation import HttpQueryReformulator
-from retrieval_components.retrieval import (
-    ElasticsearchBM25Retriever,
-    JsonlEmbeddingRetriever,
-    JsonlKeywordRetriever,
-)
+from retrieval_components.retrieval import JsonlEmbeddingRetriever
 
 __version__ = "0.1.0"
 
 __all__ = [
     "ChunkCascade",
-    "DocumentContentFilter",
     "DocumentContentFieldParser",
+    "DocumentContentFilter",
     "DocumentTextPrefixer",
-    "ElasticsearchBM25Retriever",
-    "ElasticsearchDocumentIndexer",
     "EmbeddingSimilarityRanker",
     "HttpQueryReformulator",
     "IndexingInput",
@@ -50,17 +43,14 @@ __all__ = [
     "InferenceOutput",
     "JsonlDocumentIndexer",
     "JsonlEmbeddingRetriever",
-    "JsonlKeywordRetriever",
     "LangChainDocumentSplitter",
     "LinearScoreFusion",
     "Query",
-    "QueryContentAdapter",
-    "ReciprocalRankFusion",
     "QueryContentFieldParser",
     "QueryTextPreprocessor",
+    "QueryToString",
+    "ReciprocalRankFusion",
     "ScoreFusion",
-    "TextPreprocessor",
     "TopKDocuments",
-    "TopPDocuments",
     "ZScoreFusion",
 ]

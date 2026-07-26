@@ -237,32 +237,30 @@ def test_semantic_sparse_indexer_validates_configured_dimension(tmp_path: Path) 
 def test_semantic_sparse_indexer_preserves_ordinals_across_batches(
     tmp_path: Path,
 ) -> None:
-    configured_path = tmp_path / "configured.json"
-    temporary_path = tmp_path / ".configured.json.batch.tmp"
-    indexer = SemanticSparseIndexer(output_path=str(configured_path))
+    index_path = tmp_path / "semantic-sparse.json"
+    indexer = SemanticSparseIndexer(output_path=str(index_path))
 
-    indexer.begin_batch_write(str(temporary_path))
     indexer.run([_document("doc-1", indices=[0], values=[1.0])])
-    indexer.run([_document("doc-2", indices=[0, 1], values=[0.5, 1.0])])
-    indexer.finish_batch_write()
+    indexer.run(
+        [_document("doc-2", indices=[0, 1], values=[0.5, 1.0])],
+        append=True,
+    )
 
-    payload = json.loads(temporary_path.read_text(encoding="utf-8"))
+    payload = json.loads(index_path.read_text(encoding="utf-8"))
     assert [record["id"] for record in payload["documents"]] == ["doc-1", "doc-2"]
     assert payload["postings"]["0"] == [[0, 1.0], [1, 0.5]]
     assert payload["postings"]["1"] == [[1, 1.0]]
     assert payload["statistics"]["document_count"] == 2
-    assert not configured_path.exists()
 
 
 def test_semantic_sparse_indexer_rejects_duplicates_across_batches(
     tmp_path: Path,
 ) -> None:
-    indexer = SemanticSparseIndexer(output_path=str(tmp_path / "configured.json"))
-    temporary_path = tmp_path / ".configured.json.batch.tmp"
-    indexer.begin_batch_write(str(temporary_path))
+    indexer = SemanticSparseIndexer(output_path=str(tmp_path / "semantic-sparse.json"))
     indexer.run([_document("same", indices=[0], values=[1.0])])
 
     with pytest.raises(ValueError, match="Duplicate document id"):
-        indexer.run([_document("same", indices=[1], values=[1.0])])
-
-    indexer.abort_batch_write()
+        indexer.run(
+            [_document("same", indices=[1], values=[1.0])],
+            append=True,
+        )

@@ -63,6 +63,6 @@ jobs:
       - run: uv sync --project packages/retrieval-core --extra dev
       - shell: bash
         run: |
-          uv run --project packages/retrieval-core stage indexing dataset=toy pipeline/indexing@pipeline=dummy_jsonl stage.run_id=ci-toy-index
-          uv run --project packages/retrieval-core stage inference dataset=toy pipeline/inference@pipeline=dummy_keyword stage.indexing_run_id=ci-toy-index stage.run_id=ci-toy-inference
+          uv run --project packages/retrieval-core stage indexing dataset=toy runtime=cpu pipeline/indexing@pipeline=dense/documents_jsonl selections/embedding_model=e5/small_v2 selections.index_id=ci-toy-index stage.run_id=ci-toy-indexing
+          uv run --project packages/retrieval-core stage inference dataset=toy runtime=cpu pipeline/inference@pipeline=retrieve/dense_jsonl selections/embedding_model=e5/small_v2 selections.index_id=ci-toy-index stage.run_id=ci-toy-inference
           uv run --project packages/retrieval-core stage evaluation dataset=toy stage.inference_run_id=ci-toy-inference stage.run_id=ci-toy-evaluation
