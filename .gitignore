@@ -6,6 +6,9 @@ __pycache__/
 .ruff_cache/
 .mypy_cache/
 
+uv.lock
+!projects/**/uv.lock
+
 artifacts/
 !packages/retrieval-core/src/retrieval_core/utils/artifacts/
 !packages/retrieval-core/src/retrieval_core/utils/artifacts/*.py
