@@ -110,33 +110,24 @@ async def _run_queries(
     if not queries:
         return []
 
-    pending_queries = iter(enumerate(queries))
-    ordered_predictions: list[dict[str, Any] | None] = [None] * len(queries)
+    semaphore = asyncio.Semaphore(query_concurrency_limit)
 
-    async def worker(progress: tqdm[Any]) -> None:
-        for query_index, query in pending_queries:
-            ordered_predictions[query_index] = await _run_query(
+    async def run_query(query: dict[str, Any], progress: tqdm[Any]) -> dict[str, Any]:
+        async with semaphore:
+            prediction = await _run_query(
                 pipeline,
                 inference_mapping,
                 query,
                 pipeline_concurrency_limit=pipeline_concurrency_limit,
             )
-            progress.update()
+        progress.update()
+        return prediction
 
     with tqdm(total=len(queries), desc="queries", disable=not show_progress) as progress:
-        workers = [
-            asyncio.create_task(worker(progress))
-            for _ in range(min(query_concurrency_limit, len(queries)))
-        ]
-        try:
-            await asyncio.gather(*workers)
-        except BaseException:
-            for task in workers:
-                task.cancel()
-            await asyncio.gather(*workers, return_exceptions=True)
-            raise
+        async with asyncio.TaskGroup() as group:
+            tasks = [group.create_task(run_query(query, progress)) for query in queries]
 
-    return [prediction for prediction in ordered_predictions if prediction is not None]
+    return [task.result() for task in tasks]
 
 
 async def _run_query(
