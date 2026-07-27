@@ -1,16 +1,12 @@
 # Retrieval research project Cookiecutter
 
-This template creates an isolated research project that follows the repository's
-baseline-versus-treatment pattern. Generated projects contain:
+This template creates an isolated research project containing:
 
 - an independently locked Python package;
 - editable links to `retrieval-core` and `retrieval-components`;
 - one project-local Haystack query component and Hydra pipeline;
-- an experiment workspace containing a card, a complete base config, minimal Hydra
-  run layers, and a Jupyter analysis notebook;
 - focused component and pipeline-composition tests; and
-- a PowerShell runner that builds one shared index, evaluates both arms, and prints
-  metric deltas.
+- an empty `experiments/` directory ready for separately scaffolded experiments.
 
 ## Generate a project
 
@@ -27,29 +23,26 @@ uv run pytest
 
 The generated treatment is deliberately an identity transformation. Edit
 `src/<package_name>/components.py` and its initialization parameters in
-`configs/pipeline/inference/<package_name>/<pipeline_name>.yaml` before treating the comparison as
-a research run. Leaving it unchanged is useful as an end-to-end parity smoke test.
+`configs/pipeline/inference/<package_name>/<pipeline_name>.yaml` before treating it
+as research code. Leaving it unchanged is useful as an end-to-end parity smoke test.
 
 `uv sync` creates the generated project's own `uv.lock`; the template does not copy
 another experiment's resolved dependency graph.
 
 ## Important prompts
 
-- `project_slug` becomes the directory, distribution, and run-ID prefix.
+- `project_slug` becomes the directory and distribution name.
 - `package_name` must be a valid Python package name.
 - `pipeline_name` names the project-owned Hydra inference configuration selected as
   `<package_name>/<pipeline_name>`.
 - `component_class_name` names the starter Haystack component.
-- `beir_dataset` is the name accepted by `prepare-beir`, such as `scifact`.
-- `dataset_config` is the corresponding Hydra dataset selection, such as
-  `beir_scifact`.
-- `embedding_model` is a shared config selection, such as `e5/small_v2`.
+
+Dataset, model, index, baseline, and treatment selections belong to an experiment,
+not the project scaffold. Generate one from inside the project:
+
+```powershell
+uvx cookiecutter ../../templates/retrieval-experiment --output-dir experiments
+```
 
 The generated relative dependency paths assume the project is created directly
 under `projects/`.
-
-Before launching the generated experiment, create its shared index and replace
-`REPLACE_WITH_EXACT_INDEX_ID` in
-`experiments/<project-slug>/configs/base-experiment-configs/inference.yaml`. On Linux,
-`uv run python ../../awesome-dev-tools/interactive_run_in_parallel_screens.py` chooses the experiment
-and any subset of its explicit runs.

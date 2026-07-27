@@ -12,9 +12,6 @@ VALUES = {
     "package_name": "{{ cookiecutter.package_name }}",
     "pipeline_name": "{{ cookiecutter.pipeline_name }}",
     "component_class_name": "{{ cookiecutter.component_class_name }}",
-    "beir_dataset": "{{ cookiecutter.beir_dataset }}",
-    "dataset_config": "{{ cookiecutter.dataset_config }}",
-    "embedding_model": "{{ cookiecutter.embedding_model }}",
 }
 
 RULES = {
@@ -22,9 +19,6 @@ RULES = {
     "package_name": r"^[a-z][a-z0-9_]*$",
     "pipeline_name": r"^[a-z][a-z0-9_]*$",
     "component_class_name": r"^[A-Z][A-Za-z0-9]*$",
-    "beir_dataset": r"^[a-z][a-z0-9_-]*$",
-    "dataset_config": r"^[a-z][a-z0-9_]*$",
-    "embedding_model": r"^[a-zA-Z0-9][a-zA-Z0-9_/-]*$",
 }
 
 

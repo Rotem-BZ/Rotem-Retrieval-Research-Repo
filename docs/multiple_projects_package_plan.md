@@ -68,8 +68,10 @@ declarative baseline-versus-treatment run entrypoints.
 [`templates/retrieval-project`](../templates/retrieval-project/README.md) turns that
 pattern into a Cookiecutter. It creates an independently lockable package with
 editable monorepo dependencies, a project-local component and Hydra pipeline,
-component and composition tests, and experiment configs with explicit baseline and
-treatment run entrypoints. The generated identity treatment doubles as an end-to-end
+component and composition tests, and an empty experiments directory. The separate
+[`templates/retrieval-experiment`](../templates/retrieval-experiment/README.md)
+Cookiecutter creates one declarative comparison with explicit baseline and treatment
+run entrypoints. The generated identity treatment doubles as an end-to-end
 baseline-parity check before the project implements its actual treatment.
 
 ## Deferred work

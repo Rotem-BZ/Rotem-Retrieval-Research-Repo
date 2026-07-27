@@ -121,8 +121,7 @@ with a repository-wide policy: concise `INFO` events go to stderr and first-part
 
 ## Create a research project
 
-Generate another isolated baseline-versus-treatment project from the repository
-Cookiecutter:
+Generate another isolated retrieval project from the repository Cookiecutter:
 
 ```powershell
 uvx cookiecutter templates/retrieval-project --output-dir projects
@@ -133,11 +132,19 @@ uv run pre-commit install --install-hooks
 uv run pytest
 ```
 
-The generated treatment starts as an identity transform so its first run can verify
-baseline parity. Implement the project-specific behavior in the generated component
-and update its focused test before running the research comparison. See the
-[`retrieval-project` template](templates/retrieval-project/README.md) for its prompts
-and assumptions.
+The generated project starts with an empty `experiments/` directory. Create each
+comparison independently from inside that project:
+
+```powershell
+uvx cookiecutter ../../templates/retrieval-experiment --output-dir experiments
+```
+
+The generated treatment starts as an identity transform, so an experiment can use it
+to verify baseline parity. Implement the project-specific behavior in the component
+and update its focused test before running a research comparison. See the
+[`retrieval-project`](templates/retrieval-project/README.md) and
+[`retrieval-experiment`](templates/retrieval-experiment/README.md) template guides
+for their prompts and assumptions.
 
 ## Development
 

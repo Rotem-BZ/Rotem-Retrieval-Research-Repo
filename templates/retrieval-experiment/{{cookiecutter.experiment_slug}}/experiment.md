@@ -1,4 +1,6 @@
-# {{ cookiecutter.project_name }} experiment
+# {{ cookiecutter.experiment_name }}
+
+{{ cookiecutter.experiment_short_description }}
 
 ## Research question
 
@@ -10,16 +12,16 @@ Describe the expected treatment effect and name the primary metric before runnin
 
 ## Comparison
 
-The baseline uses `retrieve/dense_jsonl`; the treatment uses
-`{{ cookiecutter.package_name }}/{{ cookiecutter.pipeline_name }}`. Keep the dataset, embedding model, shared index,
-retrieval depth, runtime, and evaluation procedure fixed.
+The baseline uses `{{ cookiecutter.baseline_pipeline }}`; the treatment uses
+`{{ cookiecutter.treatment_pipeline }}`. Keep the dataset, embedding model, shared
+index, retrieval depth, runtime, and evaluation procedure fixed.
 
 ## Execution
 
 1. Create the shared index.
-2. Replace `REPLACE_WITH_EXACT_INDEX_ID` in
-   `configs/base-experiment-configs/inference.yaml`.
-3. On Linux, run `uv run python ../../awesome-dev-tools/interactive_run_in_parallel_screens.py --experiment {{ cookiecutter.project_slug }}`.
+2. Confirm that `selections.index_id` in
+   `configs/base-experiment-configs/inference.yaml` names that exact index.
+3. On Linux, run `uv run python ../../awesome-dev-tools/interactive_run_in_parallel_screens.py --experiment {{ cookiecutter.experiment_slug }}`.
 4. Record evaluation commands, acceptance criteria, and results here.
 
 The complete shared configuration lives in

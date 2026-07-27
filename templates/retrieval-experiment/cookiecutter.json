@@ -1,0 +1,10 @@
+{
+  "experiment_name": "My Retrieval Experiment",
+  "experiment_slug": "{{ cookiecutter.experiment_name.lower().replace(' ', '-').replace('_', '-') }}",
+  "experiment_short_description": "Compare one retrieval treatment with a controlled baseline.",
+  "dataset_config": "toy",
+  "embedding_model": "e5/small_v2",
+  "index_id": "REPLACE_WITH_EXACT_INDEX_ID",
+  "baseline_pipeline": "retrieve/dense_jsonl",
+  "treatment_pipeline": "my_project/dense_experiment"
+}
