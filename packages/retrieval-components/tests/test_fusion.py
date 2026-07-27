@@ -74,15 +74,20 @@ def test_z_score_fusion_normalizes_constant_source_to_zero() -> None:
 
 def test_top_k_cascade_selector() -> None:
     documents = [
-        Document(id="d1", score=0.6),
         Document(id="d2", score=0.3),
         Document(id="d3", score=0.1),
+        Document(id="d1", score=0.6),
     ]
 
     assert [document.id for document in TopKDocuments(top_k=2).run(documents)["documents"]] == [
         "d1",
         "d2",
     ]
+
+
+def test_top_k_documents_only_accepts_top_k_as_constructor_parameter() -> None:
+    with pytest.raises(TypeError, match="sort_by_score"):
+        TopKDocuments(top_k=1, sort_by_score=False)
 
 
 def test_score_sorting_cascades_reject_missing_scores() -> None:
