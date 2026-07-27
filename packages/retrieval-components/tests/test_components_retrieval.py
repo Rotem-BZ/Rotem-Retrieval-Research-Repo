@@ -6,7 +6,7 @@ from haystack import Document, Pipeline
 
 import retrieval_components.experimental.elasticsearch_bm25_retriever as retriever_module
 import retrieval_components.experimental.elasticsearch_document_indexer as indexer_module
-from retrieval_components import Query
+from retrieval_components.dataclasses import Query
 from retrieval_components.experimental import (
     ElasticsearchBM25Retriever,
     ElasticsearchDocumentIndexer,

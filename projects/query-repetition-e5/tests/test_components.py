@@ -1,5 +1,5 @@
 from query_repetition_e5.components import QueryRepeater
-from retrieval_components import Query
+from retrieval_components.dataclasses import Query
 
 
 def test_query_repeater_repeats_the_query_with_configured_separator() -> None:

@@ -2,7 +2,7 @@ import asyncio
 
 from haystack import Document
 
-from retrieval_components import Query
+from retrieval_components.dataclasses import Query
 from retrieval_core.data_schema import EVALUATION_DATA_SCHEMA
 from retrieval_core.input_mapping import InferenceMapping
 from retrieval_core.stages.inference import _run_queries

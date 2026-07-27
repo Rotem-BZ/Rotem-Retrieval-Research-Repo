@@ -1,38 +1,83 @@
-import sys
-from types import ModuleType
-
 from haystack import Document
 
-from retrieval_components import Query
 from retrieval_components.chunking import LangChainDocumentSplitter
+from retrieval_components.chunking import langchain_document_splitter as splitter_module
+from retrieval_components.dataclasses import Query
 from retrieval_components.reformulation import HttpQueryReformulator
 
 
-def test_langchain_document_splitter_uses_configured_splitter(monkeypatch) -> None:
-    fake_module = ModuleType("langchain_text_splitters")
+def test_langchain_document_splitter_uses_recursive_splitter_and_drops_empty_chunks(
+    monkeypatch,
+) -> None:
+    calls = []
 
     class FakeSplitter:
-        def __init__(self, marker: str) -> None:
-            self.marker = marker
+        def __init__(self, **kwargs) -> None:
+            calls.append(kwargs)
 
         def split_text(self, text: str) -> list[str]:
-            return [part.strip() for part in text.split(self.marker)]
+            return ["alpha", "   ", "beta"]
 
-    fake_module.FakeSplitter = FakeSplitter
-    monkeypatch.setitem(sys.modules, "langchain_text_splitters", fake_module)
+    monkeypatch.setattr(splitter_module, "RecursiveCharacterTextSplitter", FakeSplitter)
 
-    splitter = LangChainDocumentSplitter(
-        splitter_type="FakeSplitter",
-        splitter_kwargs={"marker": "|"},
+    splitter = LangChainDocumentSplitter(chunk_size=100, chunk_overlap=10)
+    result = splitter.run(
+        [Document(id="d1", content="source text", meta={"kind": "demo"}, score=0.5)]
     )
-    result = splitter.run([Document(id="d1", content="alpha | beta", meta={"kind": "demo"})])
 
+    assert calls == [{"chunk_size": 100, "chunk_overlap": 10}]
     assert [document.content for document in result["documents"]] == ["alpha", "beta"]
+    assert [document.id for document in result["documents"]] == [
+        "d1::chunk-0",
+        "d1::chunk-1",
+    ]
+    assert [document.score for document in result["documents"]] == [0.5, 0.5]
     assert result["documents"][0].meta == {
         "kind": "demo",
         "source_document_id": "d1",
         "chunk_index": 0,
         "chunk_count": 2,
+    }
+
+
+def test_langchain_document_splitter_uses_optional_tokenizer_length(monkeypatch) -> None:
+    calls = {"tokenizer_paths": [], "splitter_parameters": [], "lengths": []}
+
+    class FakeTokenizer:
+        def encode(self, text: str, *, add_special_tokens: bool) -> list[int]:
+            assert add_special_tokens is False
+            return list(range(len(text.split())))
+
+    class FakeAutoTokenizer:
+        @classmethod
+        def from_pretrained(cls, path: str) -> FakeTokenizer:
+            calls["tokenizer_paths"].append(path)
+            return FakeTokenizer()
+
+    class FakeSplitter:
+        def __init__(self, *, chunk_size, chunk_overlap, length_function) -> None:
+            calls["splitter_parameters"].append((chunk_size, chunk_overlap))
+            calls["lengths"].append(length_function("one two three"))
+
+        def split_text(self, text: str) -> list[str]:
+            return [text]
+
+    monkeypatch.setattr(splitter_module, "RecursiveCharacterTextSplitter", FakeSplitter)
+    monkeypatch.setattr(splitter_module, "AutoTokenizer", FakeAutoTokenizer)
+
+    splitter = LangChainDocumentSplitter(
+        chunk_size=50,
+        chunk_overlap=5,
+        tokenizer_path="intfloat/e5-small-v2",
+    )
+    source = Document(id="d1", content="alpha beta")
+    splitter.run([source])
+    splitter.run([source])
+
+    assert calls == {
+        "tokenizer_paths": ["intfloat/e5-small-v2"],
+        "splitter_parameters": [(50, 5)],
+        "lengths": [3],
     }
 
 

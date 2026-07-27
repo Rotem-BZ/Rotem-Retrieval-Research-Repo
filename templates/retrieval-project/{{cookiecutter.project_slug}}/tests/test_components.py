@@ -1,5 +1,5 @@
 from {{ cookiecutter.package_name }}.components import {{ cookiecutter.component_class_name }}
-from retrieval_components import Query
+from retrieval_components.dataclasses import Query
 
 
 def test_query_transformer_returns_the_treatment_query() -> None:

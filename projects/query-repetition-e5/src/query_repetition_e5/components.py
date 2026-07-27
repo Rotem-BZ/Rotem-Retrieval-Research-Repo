@@ -1,7 +1,7 @@
 """Project-specific Haystack components."""
 
 from haystack import component
-from retrieval_components import Query
+from retrieval_components.dataclasses import Query
 
 
 @component

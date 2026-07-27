@@ -1,7 +1,7 @@
 import pytest
 from haystack import Document
 
-from retrieval_components import Query
+from retrieval_components.dataclasses import Query
 from retrieval_components.filtering import DocumentContentFilter
 from retrieval_components.preprocessing import (
     DocumentContentFieldParser,

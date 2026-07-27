@@ -14,7 +14,7 @@ from haystack.components.rankers import (
     TransformersSimilarityRanker as HaystackTransformersSimilarityRanker,
 )
 
-from retrieval_components import Query
+from retrieval_components.dataclasses import Query
 from retrieval_components.models import (
     SentenceTransformersSimilarityRanker,
     SentenceTransformersTextEmbedder,

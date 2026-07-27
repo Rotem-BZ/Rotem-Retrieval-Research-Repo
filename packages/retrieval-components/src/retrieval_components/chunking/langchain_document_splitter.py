@@ -2,40 +2,46 @@
 
 from __future__ import annotations
 
-from importlib import import_module
-from typing import Any
-
 from haystack import Document, component
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from transformers import AutoTokenizer
 
 
 @component
 class LangChainDocumentSplitter:
-    """Split Haystack documents with a splitter from `langchain_text_splitters`."""
+    """Recursively split Haystack documents by character or tokenizer length."""
 
     def __init__(
         self,
-        splitter_type: str = "RecursiveCharacterTextSplitter",
-        splitter_kwargs: dict[str, Any] | None = None,
-        keep_empty: bool = False,
+        chunk_size: int = 360,
+        chunk_overlap: int = 60,
+        tokenizer_path: str | None = None,
     ) -> None:
-        self.splitter_type = splitter_type
-        self.splitter_kwargs = splitter_kwargs or {}
-        self.keep_empty = keep_empty
+        self.chunk_size = chunk_size
+        self.chunk_overlap = chunk_overlap
+        self.tokenizer_path = tokenizer_path
+        self._splitter = None
+
+    def warm_up(self) -> None:
+        """Load the recursive splitter and optional tokenizer once."""
+        if self._splitter is not None:
+            return
+
+        splitter_kwargs = {
+            "chunk_size": self.chunk_size,
+            "chunk_overlap": self.chunk_overlap,
+        }
+        if self.tokenizer_path:
+            tokenizer = AutoTokenizer.from_pretrained(self.tokenizer_path)
+            splitter_kwargs["length_function"] = lambda text: len(
+                tokenizer.encode(text, add_special_tokens=False)
+            )
+
+        self._splitter = RecursiveCharacterTextSplitter(**splitter_kwargs)
 
     @component.output_types(documents=list[Document])
     def run(self, documents: list[Document]) -> dict[str, list[Document]]:
-        try:
-            splitters = import_module("langchain_text_splitters")
-        except ImportError as exc:
-            raise ImportError(
-                "LangChainDocumentSplitter requires the optional "
-                "`langchain-text-splitters` package."
-            ) from exc
-        try:
-            splitter_cls = getattr(splitters, self.splitter_type)
-        except AttributeError as exc:
-            raise ValueError(f"Unknown LangChain splitter type: {self.splitter_type}") from exc
-        splitter = splitter_cls(**self.splitter_kwargs)
+        self.warm_up()
         chunks: list[Document] = []
 
         for document in documents:
@@ -45,17 +51,9 @@ class LangChainDocumentSplitter:
                 )
             if document.id is None:
                 raise ValueError("LangChainDocumentSplitter requires every document to have an id.")
-            text = document.content
-            if hasattr(splitter, "split_text"):
-                split_texts = list(splitter.split_text(text))
-            elif hasattr(splitter, "create_documents"):
-                split_texts = [item.page_content for item in splitter.create_documents([text])]
-            else:
-                raise TypeError(
-                    "LangChain splitter must define split_text() or create_documents()."
-                )
-            if not self.keep_empty:
-                split_texts = [text for text in split_texts if text.strip()]
+            split_texts = [
+                text for text in self._splitter.split_text(document.content) if text.strip()
+            ]
 
             chunk_count = len(split_texts)
             for chunk_index, text in enumerate(split_texts):

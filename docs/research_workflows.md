@@ -734,7 +734,7 @@ Query JSONL records should look like:
 ```
 
 Only `query_id` and `IN` are required by the dataset schema. The inference stage
-creates a `Query` (importable with `from retrieval_components import Query`) whose
+creates a `Query` (importable with `from retrieval_components.dataclasses import Query`) whose
 `id` is `query_id`, whose `content` initially is `None`, and whose `meta` preserves
 the other query fields, including nested dictionaries. Built-in pipelines use
 `QueryContentFieldParser(content_field="query_content")`; alternate pipelines can
