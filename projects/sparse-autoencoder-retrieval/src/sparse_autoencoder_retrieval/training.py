@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import random
 from pathlib import Path
 from typing import Any
@@ -15,6 +16,9 @@ from sparse_autoencoder_retrieval.model import (
     CompositeCodeSparseAutoencoder,
     save_autoencoder_checkpoint,
 )
+from retrieval_core.utils.logging import configure_console_logging
+
+logger = logging.getLogger(__name__)
 
 
 def load_dense_embeddings(input_path: str | Path) -> torch.Tensor:
@@ -118,6 +122,14 @@ def train_autoencoder(
                 **{name: value / example_count for name, value in totals.items()},
             }
         )
+        logger.info(
+            "Training epoch completed: epoch=%d loss=%.6f "
+            "reconstruction_loss=%.6f uniformity_loss=%.6f",
+            epoch,
+            history[-1]["loss"],
+            history[-1]["reconstruction_loss"],
+            history[-1]["uniformity_loss"],
+        )
     model.eval()
     return model, history
 
@@ -145,7 +157,15 @@ def _parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> None:
     """CLI entry point for offline CCSA fitting."""
 
+    configure_console_logging()
     args = _parser().parse_args(argv)
+    logger.info(
+        "Loading training embeddings: input_path=%s device=%s epochs=%d batch_size=%d",
+        Path(args.input_path).resolve(),
+        args.device,
+        args.epochs,
+        args.batch_size,
+    )
     embeddings = load_dense_embeddings(args.input_path)
     model, history = train_autoencoder(
         embeddings,
@@ -174,4 +194,5 @@ def main(argv: list[str] | None = None) -> None:
         metadata=metadata,
         overwrite=args.overwrite,
     )
+    logger.info("Training checkpoint written: path=%s", path)
     print(json.dumps({"checkpoint_path": str(path), "final_metrics": history[-1]}))

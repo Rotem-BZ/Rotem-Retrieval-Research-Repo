@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -10,6 +11,8 @@ from omegaconf import DictConfig, open_dict
 
 from retrieval_core.utils.artifacts import run_manifest
 from retrieval_core.utils.io import config_to_yaml, project_path, write_json, write_text
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -20,7 +23,9 @@ class StageContext:
     output_dir: Path
 
     @classmethod
-    def from_config(cls, cfg: DictConfig) -> "StageContext":
+    def create(cls, cfg: DictConfig) -> "StageContext":
+        """Reserve a new immutable output directory for a stage run."""
+
         output_dir = project_path(cfg.stage.output_dir)
         try:
             output_dir.mkdir(parents=True, exist_ok=False)
@@ -28,13 +33,25 @@ class StageContext:
             raise FileExistsError(
                 f"Run directory already exists; refusing to overwrite immutable run: {output_dir}"
             ) from exc
-        return cls(cfg=cfg, output_dir=output_dir)
+        context = cls(cfg=cfg, output_dir=output_dir)
+        context.write_resolved_config()
+        return context
+
+    @classmethod
+    def from_config(cls, cfg: DictConfig) -> "StageContext":
+        """Compatibility alias for callers that have not adopted ``create``."""
+
+        return cls.create(cfg)
 
     def write_resolved_config(self) -> Path:
-        return write_text(self.output_dir / "resolved_config.yaml", config_to_yaml(self.cfg))
+        path = write_text(self.output_dir / "resolved_config.yaml", config_to_yaml(self.cfg))
+        logger.debug("Wrote resolved configuration: path=%s", path)
+        return path
 
     def write_result(self, payload: Any) -> Path:
-        return write_json(self.output_dir / "result.json", payload)
+        path = write_json(self.output_dir / "result.json", payload)
+        logger.debug("Wrote stage result: path=%s", path)
+        return path
 
     def write_manifest(
         self,
@@ -43,7 +60,12 @@ class StageContext:
         inputs: dict[str, Any] | None = None,
     ) -> Path:
         path = self.output_dir / "manifest.json"
-        return write_json(path, run_manifest(self.cfg, artifacts=artifacts, inputs=inputs))
+        written = write_json(
+            path,
+            run_manifest(self.cfg, artifacts=artifacts, inputs=inputs),
+        )
+        logger.debug("Wrote run manifest: path=%s", written)
+        return written
 
 
 def prepare_stage_run_config(cfg: DictConfig) -> None:

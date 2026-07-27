@@ -623,14 +623,16 @@ The artifact locations are:
 
 ```text
 artifacts/indexes/<index-id>/index.jsonl
-artifacts/runs/indexing/<indexing-run-id>/{resolved_config.yaml,result.json,manifest.json}
+artifacts/runs/indexing/<indexing-run-id>/{resolved_config.yaml,result.json,manifest.json,run.log}
 artifacts/runs/inference/<inference-run-id>/predictions.json
 artifacts/runs/evaluation/<evaluation-run-id>/metrics.json
 ```
 
-Each saved run contains its outputs, `resolved_config.yaml`, `result.json`, and a
+Each saved run contains its outputs, `resolved_config.yaml`, `result.json`, a
 `manifest.json` with exact input references, artifact paths, the resolved-config
-hash, package/Python versions, and Git commit when available.
+hash, package/Python versions, and Git commit when available, and a standard-library
+`run.log` with UTC-timestamped first-party diagnostics. Logging policy is fixed in
+code rather than stored in the experiment configuration.
 
 `stage.run_id` is the single identifier for a stage run. It defaults to a unique,
 Hydra-override-safe timestamp such as `20260723-011220-179277` and may be set

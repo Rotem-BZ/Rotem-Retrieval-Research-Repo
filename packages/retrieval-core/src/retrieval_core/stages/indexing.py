@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 from uuid import uuid4
 
 from haystack import Document
@@ -18,11 +19,15 @@ from retrieval_core.utils.pipelines import load_async_pipeline, to_container
 INDEXING_INPUT_COMPONENT = "input"
 INDEXING_OUTPUT_COMPONENT = "output"
 
+logger = logging.getLogger(__name__)
 
-async def run_indexing(cfg: DictConfig) -> dict:
+
+def prepare_indexing_config(cfg: DictConfig) -> None:
+    """Validate immutable index selection before reserving a run directory."""
+
     index_id = str(cfg.selections.index_id)
     canonical_index_path = index_artifact_path(cfg.paths.indexes_dir, index_id)
-    indexer_name, configured_output_path = _configured_indexer(cfg)
+    _, configured_output_path = _configured_indexer(cfg)
     configured_index_path = project_path(configured_output_path)
     if configured_index_path != canonical_index_path:
         raise ValueError(
@@ -39,7 +44,25 @@ async def run_indexing(cfg: DictConfig) -> dict:
     if batch_size <= 0:
         raise ValueError("runtime.indexing_batch_size must be greater than zero.")
 
+
+async def run_indexing(
+    cfg: DictConfig,
+    *,
+    context: StageContext | None = None,
+) -> dict:
+    prepare_indexing_config(cfg)
+    index_id = str(cfg.selections.index_id)
+    canonical_index_path = index_artifact_path(cfg.paths.indexes_dir, index_id)
+    indexer_name, configured_output_path = _configured_indexer(cfg)
+    batch_size = int(cfg.runtime.indexing_batch_size)
     documents_path = project_path(cfg.dataset.documents_path)
+    logger.info(
+        "Indexing documents: dataset=%s documents_path=%s index_id=%s batch_size=%d",
+        cfg.dataset.name,
+        documents_path,
+        index_id,
+        batch_size,
+    )
     temporary_index_path = canonical_index_path.with_name(
         f".{canonical_index_path.name}.{uuid4().hex}.tmp"
     )
@@ -48,7 +71,7 @@ async def run_indexing(cfg: DictConfig) -> dict:
         temporary_index_path
     )
     pipeline = load_async_pipeline(pipeline_config)
-    context = StageContext.from_config(cfg)
+    context = context or StageContext.create(cfg)
     canonical_index_path.parent.mkdir(parents=True, exist_ok=True)
 
     documents_sha256 = hashlib.sha256()
@@ -120,11 +143,23 @@ async def run_indexing(cfg: DictConfig) -> dict:
                     continue
                 indexed_count += await index_batch(batch, append=batch_count > 0)
                 batch_count += 1
+                logger.debug(
+                    "Indexed batch: batch=%d source_documents=%d indexed_documents=%d",
+                    batch_count,
+                    document_count,
+                    indexed_count,
+                )
                 batch = []
 
         if batch:
             indexed_count += await index_batch(batch, append=batch_count > 0)
             batch_count += 1
+            logger.debug(
+                "Indexed final batch: batch=%d source_documents=%d indexed_documents=%d",
+                batch_count,
+                document_count,
+                indexed_count,
+            )
         elif batch_count == 0:
             indexed_count += await index_batch([], append=False)
 
@@ -142,7 +177,6 @@ async def run_indexing(cfg: DictConfig) -> dict:
         "batch_count": batch_count,
     }
 
-    context.write_resolved_config()
     context.write_result(result)
     context.write_manifest(
         artifacts={"index": canonical_index_path},
@@ -154,6 +188,13 @@ async def run_indexing(cfg: DictConfig) -> dict:
             "document_count": document_count,
             "batch_count": batch_count,
         },
+    )
+    logger.info(
+        "Index published: index_path=%s source_documents=%d indexed_documents=%d batches=%d",
+        canonical_index_path,
+        document_count,
+        indexed_count,
+        batch_count,
     )
     return result
 

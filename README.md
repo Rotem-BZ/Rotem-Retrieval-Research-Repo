@@ -112,9 +112,12 @@ uv sync --extra dev
 ./scripts/run_experiment.ps1
 ```
 
-Every run writes immutable outputs, `resolved_config.yaml`, `result.json`, and
-`manifest.json` below the active project's `artifacts/runs/`. Manifests record the
-installed `retrieval-core` and `retrieval-components` distribution versions.
+Every run writes immutable outputs, `resolved_config.yaml`, `result.json`,
+`manifest.json`, and a UTC-timestamped `run.log` below the active project's
+`artifacts/runs/`. Manifests record the installed `retrieval-core` and
+`retrieval-components` distribution versions. Logging uses Python's standard library
+with a repository-wide policy: concise `INFO` events go to stderr and first-party
+`DEBUG` diagnostics are retained in the run log.
 
 ## Create a research project
 

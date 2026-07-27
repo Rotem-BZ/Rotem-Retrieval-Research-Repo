@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import os
 import sys
 import time
-import traceback
 from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any
@@ -22,10 +22,13 @@ from _internal.experiment_models import (
     status_path,
     update_status,
 )
-from retrieval_core.cli import main as stage_main
+from retrieval_core.cli import run_stage
 from retrieval_core.utils.config import resolve_config_entrypoint
+from retrieval_core.utils.logging import configure_console_logging
 from retrieval_core.utils.time import utc_now
 from _internal.screen import session_exists
+
+logger = logging.getLogger(__name__)
 
 
 def main(argv: Sequence[str] | None = None) -> None:
@@ -51,6 +54,7 @@ def run_worker(
     poll_seconds: float,
     lost_grace_seconds: float,
 ) -> int:
+    configure_console_logging()
     resolved = resolve_config_entrypoint(entrypoint)
     if resolved.experiment_dir is None or not resolved.config_name.startswith("runs/"):
         raise ValueError(
@@ -73,6 +77,12 @@ def run_worker(
     try:
         if isinstance(wait_for, dict):
             update_status(own_status_path, state="waiting", waiting_since=utc_now())
+            logger.info(
+                "Experiment run waiting: experiment=%s run=%s predecessor=%s",
+                plan.experiment_id,
+                run.name,
+                wait_for.get("run_name", "<unknown>"),
+            )
             predecessor_state = wait_for_predecessor(
                 wait_for,
                 poll_seconds=poll_seconds,
@@ -91,12 +101,16 @@ def run_worker(
             finished_at=None,
             exit_code=None,
         )
-        print("Hydra command:")
-        print(render_hydra_command(run), flush=True)
+        logger.info(
+            "Experiment run started: experiment=%s run=%s command=%s",
+            plan.experiment_id,
+            run.name,
+            render_hydra_command(run),
+        )
         previous_cwd = Path.cwd()
         try:
             os.chdir(plan.project_root)
-            stage_main(
+            run_stage(
                 [
                     run.stage_name,
                     "--entrypoint",
@@ -106,7 +120,6 @@ def run_worker(
         finally:
             os.chdir(previous_cwd)
     except BaseException as exc:
-        traceback.print_exc()
         exit_code = (
             exc.code
             if isinstance(exc, SystemExit) and isinstance(exc.code, int)
@@ -122,6 +135,13 @@ def run_worker(
             error_type=type(exc).__name__,
             error=str(exc),
         )
+        logger.error(
+            "Experiment run failed: experiment=%s run=%s error_type=%s error=%s",
+            plan.experiment_id,
+            run.name,
+            type(exc).__name__,
+            exc,
+        )
         return exit_code
 
     update_status(
@@ -129,6 +149,11 @@ def run_worker(
         state="succeeded",
         finished_at=utc_now(),
         exit_code=0,
+    )
+    logger.info(
+        "Experiment run succeeded: experiment=%s run=%s",
+        plan.experiment_id,
+        run.name,
     )
     return 0
 

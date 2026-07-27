@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 
 from haystack import Document, component
+
+logger = logging.getLogger(__name__)
 
 
 @component
@@ -44,4 +47,10 @@ class JsonlDocumentIndexer:
                     record["embedding"] = embedding
                 handle.write(json.dumps(record, ensure_ascii=False) + "\n")
 
+        logger.debug(
+            "JSONL index batch written: path=%s documents=%d append=%s",
+            path,
+            len(documents),
+            append,
+        )
         return {"index_path": str(path), "indexed_count": len(documents)}

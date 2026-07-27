@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from typing import Any
 
 from haystack import AsyncPipeline
@@ -25,25 +26,39 @@ INFERENCE_INPUT_COMPONENT = "input"
 INFERENCE_OUTPUT_COMPONENT = "output"
 INFERENCE_DOCUMENTS_FIELD = "documents"
 
+logger = logging.getLogger(__name__)
 
-async def run_inference(cfg: DictConfig) -> list[dict[str, Any]]:
+
+async def run_inference(
+    cfg: DictConfig,
+    *,
+    context: StageContext | None = None,
+) -> list[dict[str, Any]]:
     prepare_inference_config(cfg)
     pipeline = load_async_pipeline(cfg.pipeline)
-    context = StageContext.from_config(cfg)
+    context = context or StageContext.create(cfg)
 
     inference_mapping = resolve_inference_mapping(cfg)
     pipeline_concurrency_limit = int(cfg.runtime.concurrency_limit)
     query_concurrency_limit = int(cfg.runtime.query_concurrency_limit)
+    logger.info(
+        "Running inference queries: dataset=%s query_count=%d "
+        "query_concurrency=%d pipeline_concurrency=%d",
+        cfg.dataset.name,
+        len(inference_mapping.queries),
+        query_concurrency_limit,
+        pipeline_concurrency_limit,
+    )
     predictions = await _run_queries(
         pipeline,
         inference_mapping,
         query_concurrency_limit=query_concurrency_limit,
         pipeline_concurrency_limit=pipeline_concurrency_limit,
+        show_progress=bool(cfg.runtime.get("progress_bar", True)),
     )
 
     predictions_path = write_predictions(cfg.stage.predictions_path, predictions)
 
-    context.write_resolved_config()
     context.write_result(
         {
             "predictions_path": str(predictions_path),
@@ -70,6 +85,11 @@ async def run_inference(cfg: DictConfig) -> list[dict[str, Any]]:
         artifacts={"predictions": predictions_path},
         inputs=inputs,
     )
+    logger.info(
+        "Predictions written: path=%s query_count=%d",
+        predictions_path,
+        len(predictions),
+    )
     return predictions
 
 
@@ -79,6 +99,7 @@ async def _run_queries(
     *,
     query_concurrency_limit: int,
     pipeline_concurrency_limit: int,
+    show_progress: bool = True,
 ) -> list[dict[str, Any]]:
     """Run independent queries concurrently while retaining their input order."""
 
@@ -102,7 +123,7 @@ async def _run_queries(
             )
             progress.update()
 
-    with tqdm(total=len(queries), desc="queries") as progress:
+    with tqdm(total=len(queries), desc="queries", disable=not show_progress) as progress:
         workers = [
             asyncio.create_task(worker(progress))
             for _ in range(min(query_concurrency_limit, len(queries)))

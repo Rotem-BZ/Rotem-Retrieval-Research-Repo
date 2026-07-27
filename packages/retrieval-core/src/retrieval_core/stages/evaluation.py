@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 from omegaconf import DictConfig
 from omegaconf import open_dict
 
@@ -12,10 +14,16 @@ from retrieval_core.utils.evaluation import evaluate_rankings
 from retrieval_core.utils.io import project_path, read_jsonl, read_predictions, write_json
 from retrieval_core.utils.pipelines import to_container
 
+logger = logging.getLogger(__name__)
 
-def run_evaluation(cfg: DictConfig) -> dict[str, float]:
+
+def run_evaluation(
+    cfg: DictConfig,
+    *,
+    context: StageContext | None = None,
+) -> dict[str, float]:
     prepare_evaluation_config(cfg)
-    context = StageContext.from_config(cfg)
+    context = context or StageContext.create(cfg)
     predictions = read_predictions(cfg.stage.predictions_path)
     qrels: dict[str, dict[str, int]] = {}
     for record in read_jsonl(cfg.dataset.qrels_path):
@@ -25,11 +33,16 @@ def run_evaluation(cfg: DictConfig) -> dict[str, float]:
             query_input = str(record[EVALUATION_DATA_SCHEMA.IN])
             document_id = str(record[EVALUATION_DATA_SCHEMA.doc_id])
             qrels.setdefault(query_input, {})[document_id] = label
+    logger.info(
+        "Evaluating predictions: predictions=%d judged_queries=%d metrics=%s",
+        len(predictions),
+        len(qrels),
+        list(cfg.metrics),
+    )
     metrics = evaluate_rankings(predictions, qrels, to_container(cfg.metrics))
 
     metrics_path = write_json(cfg.stage.metrics_path, metrics)
 
-    context.write_resolved_config()
     context.write_result(
         {
             "predictions_path": str(cfg.stage.predictions_path),
@@ -41,6 +54,7 @@ def run_evaluation(cfg: DictConfig) -> dict[str, float]:
     if cfg.stage.get("inference_run_id"):
         inputs["inference_run_id"] = str(cfg.stage.inference_run_id)
     context.write_manifest(artifacts={"metrics": metrics_path}, inputs=inputs)
+    logger.info("Metrics written: path=%s metrics=%s", metrics_path, metrics)
     return metrics
 
 

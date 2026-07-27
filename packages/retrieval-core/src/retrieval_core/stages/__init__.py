@@ -2,18 +2,28 @@
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable
+from typing import Protocol
 from typing import Any
 
 from omegaconf import DictConfig
 
+from retrieval_core.stages.base import StageContext
 from retrieval_core.stages.evaluation import run_evaluation
 from retrieval_core.stages.indexing import run_indexing
 from retrieval_core.stages.inference import run_inference
 from retrieval_core.stages.prepare_mapping import run_prepare_mapping
 
 StageResult = dict[str, Any] | list[dict[str, Any]]
-StageRunner = Callable[[DictConfig], StageResult | Awaitable[StageResult]]
+
+
+class StageRunner(Protocol):
+    def __call__(
+        self,
+        cfg: DictConfig,
+        *,
+        context: StageContext | None = None,
+    ) -> StageResult | Awaitable[StageResult]: ...
 
 STAGE_RUNNERS: dict[str, StageRunner] = {
     "indexing": run_indexing,

@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import logging
+from time import perf_counter
 from typing import Any
 
 import requests
 from haystack import component
 
 from retrieval_components.dataclasses import Query
+
+logger = logging.getLogger(__name__)
 
 
 @component
@@ -37,6 +41,12 @@ class HttpQueryReformulator:
         payload = dict(self.extra_payload)
         payload[self.request_field] = query.content
 
+        started_at = perf_counter()
+        logger.debug(
+            "Sending query reformulation request: query_id=%s timeout_seconds=%s",
+            query.id,
+            self.timeout,
+        )
         response = requests.post(
             self.url,
             json=payload,
@@ -44,6 +54,13 @@ class HttpQueryReformulator:
             timeout=self.timeout,
         )
         response.raise_for_status()
+        logger.debug(
+            "Query reformulation response received: query_id=%s status=%s "
+            "elapsed_seconds=%.3f",
+            query.id,
+            getattr(response, "status_code", "<unknown>"),
+            perf_counter() - started_at,
+        )
         extracted = response.json()
         for part in self.response_path.split("."):
             if not part:

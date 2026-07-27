@@ -16,9 +16,10 @@ content is materialized by pipeline parser components. Shared infrastructure liv
 
 - `artifacts`: immutable run manifests and artifact resolution
 - `config`: Hydra composition and config-root discovery
-- `console`: stage-oriented terminal output
+- `console`: compatibility wrappers for stage lifecycle messages
 - `evaluation`: ranking metrics
 - `io`: paths, JSON/JSONL, prediction artifacts, text, and YAML serialization
+- `logging.py`: fixed standard-library logging policy and run-file handlers
 - `pipelines`: Haystack pipeline loading
 - `hashing.py` and `time.py`: small cross-cutting primitives
 
@@ -28,7 +29,10 @@ Import shared helpers through their focused package, for example
 
 Developer-only command building and GNU Screen experiment orchestration live in the
 repository-level `awesome-dev-tools/` directory instead of this runtime package. Stage
-outputs use `artifacts/runs/` and carry experiment linkage in their manifests.
+outputs use `artifacts/runs/`, carry experiment linkage in their manifests, and include
+a `run.log` containing UTC-timestamped diagnostics. Console logs are written to stderr at
+`INFO`; run files include first-party `DEBUG` events. This policy is fixed in code and is
+not part of Hydra experiment configuration.
 
 The indexing stage reads dataset JSONL incrementally in
 `runtime.indexing_batch_size` groups and awaits one pipeline execution per group.

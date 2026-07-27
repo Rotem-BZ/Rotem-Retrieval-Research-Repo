@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass
 from pathlib import Path
+from time import perf_counter
 
 import numpy as np
 from haystack import Document, component
+
+logger = logging.getLogger(__name__)
 
 
 def _similarity_scores(
@@ -122,6 +126,8 @@ class JsonlEmbeddingRetriever:
                 f"Embedding index not found at {path}. Run the indexing stage first."
             )
 
+        started_at = perf_counter()
+        logger.info("Loading embedding index: path=%s", path)
         documents: list[Document] = []
         embeddings: list[list[float]] = []
         with path.open("r", encoding="utf-8") as handle:
@@ -151,6 +157,14 @@ class JsonlEmbeddingRetriever:
             documents=documents,
             embeddings=matrix,
             embedding_norms=np.linalg.norm(matrix, axis=1),
+        )
+        logger.info(
+            "Embedding index loaded: path=%s documents=%d dimensions=%d "
+            "elapsed_seconds=%.3f",
+            path,
+            len(documents),
+            matrix.shape[1] if matrix.ndim == 2 else 0,
+            perf_counter() - started_at,
         )
         return self._index
 

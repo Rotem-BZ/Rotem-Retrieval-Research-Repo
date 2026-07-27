@@ -43,7 +43,9 @@ The exposed scripts are:
 - `run_in_screen.py`: launch one arbitrary command in a detached GNU Screen session
   on Linux without creating an experiment. Use `--cwd <project>` when invoking it
   outside the command's project directory; logs default to
-  `<cwd>/artifacts/screens/<session>.log`.
+  `<cwd>/artifacts/screens/<session>.log`. This Screen log is the complete session
+  transcript; a stage also writes its own diagnostic `run.log` inside its immutable
+  run directory.
 - `kill_screens.sh`: close every GNU Screen session owned by the current user.
 - `interactive_prepare_experiment.py`: compatibility alias for
   `interactive_create_run.py`.

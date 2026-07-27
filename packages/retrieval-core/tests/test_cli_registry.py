@@ -5,8 +5,10 @@ from haystack import Document, component
 
 from retrieval_core.cli import main, run_stage
 from retrieval_core.stages import STAGE_RUNNERS
+from retrieval_core.stages.base import StageContext
 from retrieval_core.utils.config import core_config_dir
 from retrieval_core.utils.io import read_json
+from retrieval_core.utils.logging import RUN_LOG_FILENAME
 
 
 @component
@@ -42,9 +44,16 @@ def test_help_lists_default_stages(capsys) -> None:
 def test_console_main_does_not_return_or_print_full_stage_result(
     monkeypatch,
     capsys,
+    caplog,
+    tmp_path: Path,
 ) -> None:
     marker = "FULL_RESULT_SHOULD_NOT_BE_PRINTED"
-    monkeypatch.setitem(STAGE_RUNNERS, "indexing", lambda cfg: [{"marker": marker}])
+    caplog.set_level("INFO", logger="retrieval_core")
+    monkeypatch.setitem(
+        STAGE_RUNNERS,
+        "indexing",
+        lambda cfg, *, context=None: [{"marker": marker}],
+    )
 
     result = main(
         [
@@ -54,13 +63,21 @@ def test_console_main_does_not_return_or_print_full_stage_result(
             "selections/embedding_model=e5/small_v2",
             "runtime=cpu",
             "selections.index_id=test-index",
+            f'paths.project_root="{tmp_path.as_posix()}"',
+            "stage.run_id=logging-test",
         ]
     )
 
     output = capsys.readouterr().out
     assert result is None
     assert marker not in output
-    assert "'result_count': 1" in output
+    assert marker not in caplog.text
+    assert "'result_count': 1" in caplog.text
+    log_path = (
+        tmp_path / "artifacts" / "runs" / "indexing" / "logging-test" / RUN_LOG_FILENAME
+    )
+    assert log_path.is_file()
+    assert "'result_count': 1" in log_path.read_text(encoding="utf-8")
 
 
 def test_prepare_mapping_stage_writes_run_id_mapping_directory(tmp_path: Path) -> None:
@@ -82,16 +99,24 @@ def test_prepare_mapping_stage_writes_run_id_mapping_directory(tmp_path: Path) -
     assert Path(result["metadata_path"]) == mapping_path.parent / "meta.json"
 
 
-def test_materialized_config_dispatches_by_declared_stage(monkeypatch) -> None:
+def test_materialized_config_dispatches_by_declared_stage(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
     captured = {}
 
-    def fake_indexing_runner(cfg):
+    def fake_indexing_runner(cfg, *, context=None):
         captured["run_id"] = cfg.stage.run_id
         captured["output_dir"] = cfg.stage.output_dir
         captured["preserve_run_config"] = cfg.stage.preserve_run_config
         return {"ok": True}
 
     monkeypatch.setitem(STAGE_RUNNERS, "indexing", fake_indexing_runner)
+    monkeypatch.setattr(
+        StageContext,
+        "create",
+        classmethod(lambda cls, cfg: cls(cfg=cfg, output_dir=tmp_path)),
+    )
 
     entrypoint = (
         core_config_dir()
@@ -156,7 +181,38 @@ def test_indexing_publishes_an_immutable_selected_index(tmp_path: Path) -> None:
     assert len(manifest_inputs["documents_sha256"]) == 64
 
     with pytest.raises(FileExistsError, match="choose another selections.index_id"):
-        main(["indexing", *common_overrides, "stage.run_id=indexing-two"])
+        run_stage(["indexing", *common_overrides, "stage.run_id=indexing-two"])
     assert not (
         tmp_path / "artifacts" / "runs" / "indexing" / "indexing-two"
     ).exists()
+
+
+def test_failed_stage_records_traceback_in_run_log(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    marker = "stage exploded"
+
+    def fail(_cfg, *, context=None):
+        raise RuntimeError(marker)
+
+    monkeypatch.setitem(STAGE_RUNNERS, "indexing", fail)
+    overrides = [
+        "dataset=toy",
+        "pipeline/indexing@pipeline=dense/documents_jsonl",
+        "selections/embedding_model=e5/small_v2",
+        "runtime=cpu",
+        "selections.index_id=failing-index",
+        f'paths.project_root="{tmp_path.as_posix()}"',
+        "stage.run_id=failing-run",
+    ]
+
+    with pytest.raises(RuntimeError, match=marker):
+        run_stage(["indexing", *overrides])
+
+    log_path = (
+        tmp_path / "artifacts" / "runs" / "indexing" / "failing-run" / RUN_LOG_FILENAME
+    )
+    contents = log_path.read_text(encoding="utf-8")
+    assert "Stage failed" in contents
+    assert "RuntimeError: stage exploded" in contents
