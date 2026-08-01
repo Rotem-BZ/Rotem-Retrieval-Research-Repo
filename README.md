@@ -99,6 +99,9 @@ explicit experiment runs.
 For copy-ready stage invocations that use only the checked-in toy dataset, see
 [the example command guide](docs/example_commands.md).
 
+Repository-wide follow-up work is tracked in the shared
+[technical backlog](docs/technical_backlog.md).
+
 ## Query-repetition example
 
 [`projects/query-repetition-e5`](projects/query-repetition-e5/README.md) demonstrates
