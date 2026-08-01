@@ -1,9 +1,10 @@
-"""Shared stage scaffolding."""
+"""Shared lifecycle for retrieval experiment stages."""
 
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from abc import ABC, abstractmethod
+from collections.abc import Awaitable
 from pathlib import Path
 from typing import Any
 
@@ -14,34 +15,38 @@ from retrieval_core.utils.io import config_to_yaml, project_path, write_json, wr
 
 logger = logging.getLogger(__name__)
 
+StageResult = dict[str, Any] | list[dict[str, Any]]
 
-@dataclass(frozen=True)
-class StageContext:
-    """Resolved filesystem context for one stage run."""
 
-    cfg: DictConfig
-    output_dir: Path
+class Stage(ABC):
+    """Base class for one configured retrieval stage run."""
 
-    @classmethod
-    def create(cls, cfg: DictConfig) -> "StageContext":
-        """Reserve a new immutable output directory for a stage run."""
+    def __init__(self, cfg: DictConfig) -> None:
+        self.cfg = cfg
+        self.output_dir: Path
 
-        output_dir = project_path(cfg.stage.output_dir)
+    def prepare(self) -> None:
+        """Prepare configuration and reserve the immutable run directory."""
+
+        prepare_stage_run_config(self.cfg)
+        self.prepare_config()
+        self.output_dir = project_path(self.cfg.stage.output_dir)
         try:
-            output_dir.mkdir(parents=True, exist_ok=False)
+            self.output_dir.mkdir(parents=True, exist_ok=False)
         except FileExistsError as exc:
             raise FileExistsError(
-                f"Run directory already exists; refusing to overwrite immutable run: {output_dir}"
+                "Run directory already exists; refusing to overwrite immutable run: "
+                f"{self.output_dir}"
             ) from exc
-        context = cls(cfg=cfg, output_dir=output_dir)
-        context.write_resolved_config()
-        return context
+        self.write_resolved_config()
 
-    @classmethod
-    def from_config(cls, cfg: DictConfig) -> "StageContext":
-        """Compatibility alias for callers that have not adopted ``create``."""
+    @abstractmethod
+    def prepare_config(self) -> None:
+        """Resolve dependencies and validate configuration before material writes."""
 
-        return cls.create(cfg)
+    @abstractmethod
+    def run(self) -> StageResult | Awaitable[StageResult]:
+        """Execute the configured stage and return its compact result."""
 
     def write_resolved_config(self) -> Path:
         path = write_text(self.output_dir / "resolved_config.yaml", config_to_yaml(self.cfg))

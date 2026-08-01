@@ -10,7 +10,7 @@ defaults:
 
 components:
   input:
-    type: retrieval_components.interfaces.stage_io.InferenceInput
+    type: retrieval_components.interfaces.inference.InferenceInput
   query_preprocessor:
     init_parameters:
       prefix: ${selections.embedding_model.query_prefix}
@@ -31,7 +31,7 @@ components:
     init_parameters:
       similarity: ${selections.embedding_model.similarity}
   output:
-    type: retrieval_components.interfaces.stage_io.InferenceOutput
+    type: retrieval_components.interfaces.inference.InferenceOutput
 
 connections:
   - sender: input.query

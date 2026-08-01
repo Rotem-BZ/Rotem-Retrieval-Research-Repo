@@ -6,7 +6,7 @@ from pathlib import Path
 
 from retrieval_core.utils.io import project_path
 
-INDEX_FILENAME = "index.jsonl"
+INDEX_FILENAME = "index.json"
 INDEX_ID_FORBIDDEN_CHARS = {"/", "\\", ":", "*", "?", '"', "<", ">", "|"}
 
 
@@ -25,7 +25,7 @@ def validate_index_id(index_id: str) -> str:
 
 
 def index_artifact_path(indexes_dir: str | Path, index_id: str) -> Path:
-    """Return the canonical JSONL artifact path for an index id."""
+    """Return the canonical persisted-store artifact path for an index id."""
 
     return project_path(indexes_dir) / validate_index_id(index_id) / INDEX_FILENAME
 

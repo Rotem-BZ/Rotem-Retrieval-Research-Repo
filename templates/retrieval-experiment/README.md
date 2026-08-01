@@ -23,7 +23,7 @@ name choices available from those roots.
 - `embedding_model` selects the shared embedding-model configuration.
 - `index_id` must identify an existing immutable index used by both arms.
 - `baseline_pipeline` and `treatment_pipeline` are full Hydra choices such as
-  `retrieve/dense_jsonl` and `my_project/dense_experiment`.
+  `retrieve/dense_in_memory` and `my_project/dense_experiment`.
 
 The analysis notebook discovers qrels from the first selected inference run's
 `resolved_config.yaml`; it does not assume a dataset family or storage layout.

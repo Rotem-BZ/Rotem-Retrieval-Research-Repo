@@ -51,14 +51,14 @@ configs. The CLI derives these roots from the YAML path passed to `--entrypoint`
 Project components are referenced directly by import path from project-owned YAML.
 Reusable project YAML choices stay in the same Hydra groups as core choices but
 are stored below the project's Python package namespace, for example
-`configs/pipeline/inference/query_repetition_e5/dense_query_repetition.yaml` and
-selected as `query_repetition_e5/dense_query_repetition`. Core choices remain
+`configs/pipeline/inference/query_repetition/dense_query_repetition.yaml` and
+selected as `query_repetition/dense_query_repetition`. Core choices remain
 unqualified.
 They should be promoted to `retrieval-components` only when they become reusable.
 
 ## Implemented example
 
-[`projects/query-repetition-e5`](../projects/query-repetition-e5/README.md) exercises
+[`projects/query-repetition`](../projects/query-repetition/README.md) exercises
 the whole design: editable local dependencies, an exact component version, a custom
 component, a project-only Hydra pipeline, independent tests and lockfile, and
 declarative baseline-versus-treatment run entrypoints.

@@ -16,13 +16,13 @@ listed classes from its `__init__.py`.
 | `retrieval_components.experimental` | `ElasticsearchBM25Retriever`, `ElasticsearchDocumentIndexer` | Incubate Elasticsearch components whose interfaces and behavior are not yet stable. |
 | `retrieval_components.filtering` | `DocumentContentFilter` | Filter documents by regex and word-count bounds. |
 | `retrieval_components.fusion` | `LinearScoreFusion`, `ReciprocalRankFusion`, `ScoreFusion`, `ZScoreFusion` | Fuse dynamic named document inputs with source weights, with separate min-max and Z-normalized variants. |
-| `retrieval_components.indexing` | `JsonlDocumentIndexer` | Write documents and embeddings to a local JSONL artifact. |
+| `retrieval_components.indexing` | `PersistedInMemoryDocumentIndexer` | Persist batched documents in a Haystack in-memory store. |
 | `retrieval_components.interfaces` | `IndexingInput`, `IndexingOutput`, `InferenceInput`, `InferenceOutput` | Define fixed stage-boundary sockets for indexing and inference. |
 | `retrieval_components.models` | `SentenceTransformersDocumentEmbedder`, `SentenceTransformersSimilarityRanker`, `SentenceTransformersTextEmbedder`, `TransformersSimilarityRanker` | Provide Query-aware subclasses of native query model components and re-export the native document embedder. |
 | `retrieval_components.preprocessing` | `DocumentTextPrefixer`, `IdentityParser`, `QueryTextPreprocessor`, `QueryToString` | Validate or transform materialized document and Query content, with an explicit compatibility boundary for plain-text components. |
 | `retrieval_components.ranking` | `EmbeddingSimilarityRanker` | Rank already-embedded documents against a query embedding. |
 | `retrieval_components.reformulation` | `HttpQueryReformulator` | Call an injected HTTP reformulation service. |
-| `retrieval_components.retrieval` | `JsonlEmbeddingRetriever` | Retrieve by embedding similarity from local JSONL artifacts. |
+| `retrieval_components.retrieval` | `PersistedInMemoryEmbeddingRetriever` | Load a persisted Haystack in-memory store and delegate embedding retrieval to Haystack. |
 
 Import public classes from their category packages. The package root stays lightweight
 so Haystack can import only the defining module named by a serialized component type.
@@ -50,15 +50,17 @@ required contract:
 - The fusion components add weighted, dynamic named sockets beyond the fixed-input
   use cases covered by `DocumentJoiner`. `LinearScoreFusion` and `ZScoreFusion`
   provide distinct per-source normalization contracts.
-- The JSONL components provide the repository's local dense artifact contract.
+- The persisted in-memory components add the repository's atomic multi-batch artifact
+  lifecycle and candidate-ID interface around Haystack's native document store and
+  embedding retriever; similarity search remains Haystack-owned.
 - Components under `retrieval_components.experimental` are deliberately excluded
   from the package-root API while their interfaces mature. The Elasticsearch
   components use Haystack's lazy-import boundary and initialize clients during
   pipeline warm-up.
 
-`JsonlDocumentIndexer` exposes an optional `append` input. The indexing stage sends
-`append: false` for the first batch and `append: true` for later batches while it
-owns temporary-artifact cleanup and publication.
+The core indexing stage opens one `write_session()` on the reserved `indexer` component
+and sends ordinary document batches through the pipeline. Successful session exit
+atomically publishes the store; exceptional exit discards it.
 
 Optional integrations such as Elasticsearch are imported only when the relevant
 component is used. The chunking module imports its declared LangChain and Transformers

@@ -17,7 +17,7 @@ from retrieval_core.input_mapping import (
     configured_input_mapping_path,
     resolve_inference_mapping,
 )
-from retrieval_core.stages.base import StageContext
+from retrieval_core.stages.base import Stage
 from retrieval_core.utils.artifacts import index_artifact_path
 from retrieval_core.utils.io import project_path, write_predictions
 from retrieval_core.utils.pipelines import load_async_pipeline
@@ -29,68 +29,95 @@ INFERENCE_DOCUMENTS_FIELD = "documents"
 logger = logging.getLogger(__name__)
 
 
-async def run_inference(
-    cfg: DictConfig,
-    *,
-    context: StageContext | None = None,
-) -> list[dict[str, Any]]:
-    prepare_inference_config(cfg)
-    pipeline = load_async_pipeline(cfg.pipeline)
-    context = context or StageContext.create(cfg)
+class InferenceStage(Stage):
+    """Run a configured retrieval pipeline for every mapped query."""
 
-    inference_mapping = resolve_inference_mapping(cfg)
-    pipeline_concurrency_limit = int(cfg.runtime.concurrency_limit)
-    query_concurrency_limit = int(cfg.runtime.query_concurrency_limit)
-    logger.info(
-        "Running inference queries: dataset=%s query_count=%d "
-        "query_concurrency=%d pipeline_concurrency=%d",
-        cfg.dataset.name,
-        len(inference_mapping.queries),
-        query_concurrency_limit,
-        pipeline_concurrency_limit,
-    )
-    predictions = await _run_queries(
-        pipeline,
-        inference_mapping,
-        query_concurrency_limit=query_concurrency_limit,
-        pipeline_concurrency_limit=pipeline_concurrency_limit,
-        show_progress=bool(cfg.runtime.get("progress_bar", True)),
-    )
+    def prepare_config(self) -> None:
+        index_parameters = _index_parameters(self.cfg)
+        selections = self.cfg.get("selections")
+        index_id = selections.get("index_id") if selections else None
+        if not index_parameters:
+            if index_id:
+                raise ValueError(
+                    "selections.index_id is only valid for pipelines with an index_path "
+                    "component init parameter."
+                )
+            return
+        if index_id is None or not str(index_id).strip():
+            raise ValueError(
+                "The selected inference pipeline requires a non-empty selections.index_id."
+            )
 
-    predictions_path = write_predictions(cfg.stage.predictions_path, predictions)
+        expected_path = index_artifact_path(self.cfg.paths.indexes_dir, str(index_id))
+        configured_paths = [_configured_index_path(parameters) for parameters in index_parameters]
+        for configured_path in configured_paths:
+            resolved_path = project_path(configured_path)
+            if resolved_path != expected_path:
+                raise ValueError(
+                    "Every component index_path must resolve from paths.indexes_dir and "
+                    "selections.index_id."
+                )
+        if not expected_path.is_file():
+            raise FileNotFoundError(
+                f"No index exists with selections.index_id={index_id!r}: {expected_path}"
+            )
 
-    context.write_result(
-        {
-            "predictions_path": str(predictions_path),
-            "query_count": len(predictions),
-        },
-    )
-    inputs: dict[str, Any] = {"dataset": str(cfg.dataset.name)}
-    index_parameters = _index_parameters(cfg)
-    if index_parameters:
-        inputs["index_id"] = str(cfg.selections.index_id)
-    index_paths = [
-        str(project_path(index_path))
-        for parameters in index_parameters
-        if (index_path := _configured_index_path(parameters))
-    ]
-    if len(index_paths) == 1:
-        inputs["index_path"] = index_paths[0]
-    elif index_paths:
-        inputs["index_paths"] = index_paths
-    input_mapping_path = configured_input_mapping_path(cfg)
-    if input_mapping_path is not None:
-        inputs["input_mapping_path"] = str(input_mapping_path)
-    context.write_manifest(
-        artifacts={"predictions": predictions_path},
-        inputs=inputs,
-    )
-    logger.info(
-        "Predictions written: path=%s query_count=%d",
-        predictions_path,
-        len(predictions),
-    )
-    return predictions
+    async def run(self) -> list[dict[str, Any]]:
+        pipeline = load_async_pipeline(self.cfg.pipeline)
+
+        inference_mapping = resolve_inference_mapping(self.cfg)
+        pipeline_concurrency_limit = int(self.cfg.runtime.concurrency_limit)
+        query_concurrency_limit = int(self.cfg.runtime.query_concurrency_limit)
+        logger.info(
+            "Running inference queries: dataset=%s query_count=%d "
+            "query_concurrency=%d pipeline_concurrency=%d",
+            self.cfg.dataset.name,
+            len(inference_mapping.queries),
+            query_concurrency_limit,
+            pipeline_concurrency_limit,
+        )
+        predictions = await _run_queries(
+            pipeline,
+            inference_mapping,
+            query_concurrency_limit=query_concurrency_limit,
+            pipeline_concurrency_limit=pipeline_concurrency_limit,
+            show_progress=bool(self.cfg.runtime.get("progress_bar", True)),
+        )
+
+        predictions_path = write_predictions(self.cfg.stage.predictions_path, predictions)
+
+        self.write_result(
+            {
+                "predictions_path": str(predictions_path),
+                "query_count": len(predictions),
+            },
+        )
+        inputs: dict[str, Any] = {"dataset": str(self.cfg.dataset.name)}
+        index_parameters = _index_parameters(self.cfg)
+        if index_parameters:
+            inputs["index_id"] = str(self.cfg.selections.index_id)
+        index_paths = [
+            str(project_path(index_path))
+            for parameters in index_parameters
+            if (index_path := _configured_index_path(parameters))
+        ]
+        if len(index_paths) == 1:
+            inputs["index_path"] = index_paths[0]
+        elif index_paths:
+            inputs["index_paths"] = index_paths
+        input_mapping_path = configured_input_mapping_path(self.cfg)
+        if input_mapping_path is not None:
+            inputs["input_mapping_path"] = str(input_mapping_path)
+        self.write_manifest(
+            artifacts={"predictions": predictions_path},
+            inputs=inputs,
+        )
+        logger.info(
+            "Predictions written: path=%s query_count=%d",
+            predictions_path,
+            len(predictions),
+        )
+        return predictions
 
 
 async def _run_queries(
@@ -167,13 +194,10 @@ async def _run_query(
         raise TypeError("The inference pipeline must return a Query from output.query.")
     if parsed_query.id != query_id:
         raise ValueError(
-            "The inference pipeline changed the query id from "
-            f"{query_id!r} to {parsed_query.id!r}."
+            f"The inference pipeline changed the query id from {query_id!r} to {parsed_query.id!r}."
         )
     if parsed_query.content is None:
-        raise ValueError(
-            f"The inference pipeline returned Query {query_id!r} without content."
-        )
+        raise ValueError(f"The inference pipeline returned Query {query_id!r} without content.")
     prediction = {
         EVALUATION_DATA_SCHEMA.query_id: query_id,
         EVALUATION_DATA_SCHEMA.IN: query_input,
@@ -204,39 +228,6 @@ def _query_meta(query: dict[str, Any]) -> dict[str, Any]:
     meta = {key: value for key, value in query.items() if key not in reserved_fields}
     meta.update(dict(query.get("meta") or {}))
     return meta
-
-
-def prepare_inference_config(cfg: DictConfig) -> None:
-    """Validate the canonical index selected by an index-backed pipeline."""
-
-    index_parameters = _index_parameters(cfg)
-    selections = cfg.get("selections")
-    index_id = selections.get("index_id") if selections else None
-    if not index_parameters:
-        if index_id:
-            raise ValueError(
-                "selections.index_id is only valid for pipelines with an index_path "
-                "component init parameter."
-            )
-        return
-    if index_id is None or not str(index_id).strip():
-        raise ValueError(
-            "The selected inference pipeline requires a non-empty selections.index_id."
-        )
-
-    expected_path = index_artifact_path(cfg.paths.indexes_dir, str(index_id))
-    configured_paths = [_configured_index_path(parameters) for parameters in index_parameters]
-    for configured_path in configured_paths:
-        resolved_path = project_path(configured_path)
-        if resolved_path != expected_path:
-            raise ValueError(
-                "Every component index_path must resolve from paths.indexes_dir and "
-                "selections.index_id."
-            )
-    if not expected_path.is_file():
-        raise FileNotFoundError(
-            f"No index exists with selections.index_id={index_id!r}: {expected_path}"
-        )
 
 
 def _index_parameters(cfg: DictConfig) -> list[DictConfig]:

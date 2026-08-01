@@ -1,5 +1,7 @@
 """Document indexing components."""
 
-from retrieval_components.indexing.jsonl_document_indexer import JsonlDocumentIndexer
+from retrieval_components.indexing.persisted_in_memory_document_indexer import (
+    PersistedInMemoryDocumentIndexer,
+)
 
-__all__ = ["JsonlDocumentIndexer"]
+__all__ = ["PersistedInMemoryDocumentIndexer"]

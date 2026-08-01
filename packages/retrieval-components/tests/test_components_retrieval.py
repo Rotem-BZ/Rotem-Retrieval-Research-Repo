@@ -1,6 +1,3 @@
-import json
-from pathlib import Path
-
 import pytest
 from haystack import Document, Pipeline
 
@@ -11,9 +8,7 @@ from retrieval_components.experimental import (
     ElasticsearchBM25Retriever,
     ElasticsearchDocumentIndexer,
 )
-from retrieval_components.indexing import JsonlDocumentIndexer
 from retrieval_components.ranking import EmbeddingSimilarityRanker
-from retrieval_components.retrieval import JsonlEmbeddingRetriever
 
 
 class FakeElasticsearchClient:
@@ -172,103 +167,6 @@ def test_elasticsearch_bm25_retriever_filters_to_candidate_ids() -> None:
         },
         "size": 3,
     }
-
-
-def test_jsonl_embedding_retriever_reads_persisted_embeddings(tmp_path: Path) -> None:
-    index_path = tmp_path / "embeddings.jsonl"
-    indexer = JsonlDocumentIndexer(output_path=str(index_path))
-    indexer.run(
-        [
-            Document(id="near", content="near document", embedding=[1.0, 0.0]),
-            Document(id="far", content="far document", embedding=[0.0, 1.0]),
-        ]
-    )
-
-    records = [json.loads(line) for line in index_path.read_text(encoding="utf-8").splitlines()]
-    assert records[0]["embedding"] == [1.0, 0.0]
-
-    retriever = JsonlEmbeddingRetriever(index_path=str(index_path), top_k=1)
-    result = retriever.run(query_embedding=[0.9, 0.1])
-
-    assert [document.id for document in result["documents"]] == ["near"]
-
-
-def test_jsonl_embedding_retriever_rejects_records_without_embeddings(tmp_path: Path) -> None:
-    index_path = tmp_path / "embeddings.jsonl"
-    JsonlDocumentIndexer(output_path=str(index_path)).run(
-        [Document(id="missing", content="missing embedding")]
-    )
-
-    with pytest.raises(ValueError, match="record 'missing'.*embedding"):
-        JsonlEmbeddingRetriever(index_path=str(index_path)).run(query_embedding=[1.0, 0.0])
-
-
-def test_jsonl_embedding_retriever_filters_to_candidate_ids(tmp_path: Path) -> None:
-    index_path = tmp_path / "embeddings.jsonl"
-    indexer = JsonlDocumentIndexer(output_path=str(index_path))
-    indexer.run(
-        [
-            Document(id="near", content="near document", embedding=[1.0, 0.0]),
-            Document(id="far", content="far document", embedding=[0.0, 1.0]),
-        ]
-    )
-
-    retriever = JsonlEmbeddingRetriever(index_path=str(index_path), top_k=2)
-    result = retriever.run(query_embedding=[0.9, 0.1], candidate_document_ids=["far"])
-
-    assert [document.id for document in result["documents"]] == ["far"]
-
-
-def test_jsonl_embedding_retriever_filters_chunks_by_source_document_id(tmp_path: Path) -> None:
-    index_path = tmp_path / "embeddings.jsonl"
-    indexer = JsonlDocumentIndexer(output_path=str(index_path))
-    indexer.run(
-        [
-            Document(
-                id="d1::chunk-0",
-                content="near chunk",
-                meta={"source_document_id": "d1"},
-                embedding=[1.0, 0.0],
-            ),
-            Document(
-                id="d2::chunk-0",
-                content="far chunk",
-                meta={"source_document_id": "d2"},
-                embedding=[0.0, 1.0],
-            ),
-        ]
-    )
-
-    retriever = JsonlEmbeddingRetriever(index_path=str(index_path), top_k=2)
-    result = retriever.run(query_embedding=[0.9, 0.1], candidate_document_ids=["d2"])
-
-    assert [document.id for document in result["documents"]] == ["d2::chunk-0"]
-
-
-def test_jsonl_indexer_appends_when_requested(tmp_path: Path) -> None:
-    index_path = tmp_path / "documents.jsonl"
-    indexer = JsonlDocumentIndexer(
-        output_path=str(index_path),
-        overwrite=False,
-    )
-
-    first_result = indexer.run([Document(id="d1", content="one")])
-    second_result = indexer.run(
-        [Document(id="d2", content="two")],
-        append=True,
-    )
-
-    assert first_result == {
-        "index_path": str(index_path),
-        "indexed_count": 1,
-    }
-    assert second_result == {
-        "index_path": str(index_path),
-        "indexed_count": 1,
-    }
-    assert [
-        json.loads(line)["id"] for line in index_path.read_text(encoding="utf-8").splitlines()
-    ] == ["d1", "d2"]
 
 
 def test_embedding_similarity_ranker_scores_embedded_documents() -> None:

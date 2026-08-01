@@ -31,7 +31,7 @@ selections:
 pipeline:
   components:
     input:
-      type: retrieval_components.interfaces.stage_io.InferenceInput
+      type: retrieval_components.interfaces.inference.InferenceInput
     query_preprocessor:
       type: retrieval_components.preprocessing.query_text_preprocessor.QueryTextPreprocessor
       init_parameters:
@@ -52,13 +52,13 @@ pipeline:
         tokenizer_kwargs:
           model_max_length: 512
     retriever:
-      type: retrieval_components.retrieval.jsonl_embedding_retriever.JsonlEmbeddingRetriever
+      type: retrieval_components.retrieval.persisted_in_memory_embedding_retriever.PersistedInMemoryEmbeddingRetriever
       init_parameters:
-        index_path: ./artifacts/indexes/toy_e5_small_v2/index.jsonl
+        index_path: ./artifacts/indexes/toy_e5_small_v2/index.json
         top_k: 10
-        similarity: cosine
+        return_embedding: true
     output:
-      type: retrieval_components.interfaces.stage_io.InferenceOutput
+      type: retrieval_components.interfaces.inference.InferenceOutput
   connections:
     - sender: input.query
       receiver: query_preprocessor.query
@@ -80,7 +80,7 @@ pipeline:
     role: retrieve
     maturity: reference
     input_mode: index
-    storage_backend: jsonl
+    storage_backend: persisted_in_memory
 stage:
   name: inference
   run_id: native-adapter-reference

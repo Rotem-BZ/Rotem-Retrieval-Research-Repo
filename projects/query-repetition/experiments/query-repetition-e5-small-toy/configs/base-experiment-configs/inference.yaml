@@ -1,0 +1,14 @@
+# @package _global_
+defaults:
+  - /stages/inference
+  - override /dataset: toy
+  - override /pipeline/inference@pipeline: retrieve/dense_in_memory
+  - override /selections/embedding_model@selections.embedding_model: e5/small_v2
+  - override /runtime: cpu
+  - _self_
+
+paths:
+  processed_data_dir: ${paths.project_root}/../../data/processed
+
+selections:
+  index_id: toy-e5-small-index

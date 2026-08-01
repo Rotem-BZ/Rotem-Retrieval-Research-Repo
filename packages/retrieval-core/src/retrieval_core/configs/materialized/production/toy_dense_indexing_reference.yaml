@@ -30,7 +30,7 @@ selections:
 pipeline:
   components:
     input:
-      type: retrieval_components.interfaces.stage_io.IndexingInput
+      type: retrieval_components.interfaces.indexing.IndexingInput
     document_parser:
       type: retrieval_components.preprocessing.identity_parser.IdentityParser
     document_prefixer:
@@ -51,12 +51,13 @@ pipeline:
         tokenizer_kwargs:
           model_max_length: 512
     indexer:
-      type: retrieval_components.indexing.jsonl_document_indexer.JsonlDocumentIndexer
+      type: retrieval_components.indexing.persisted_in_memory_document_indexer.PersistedInMemoryDocumentIndexer
       init_parameters:
-        output_path: ./artifacts/indexes/toy_e5_small_v2/index.jsonl
+        output_path: ./artifacts/indexes/toy_e5_small_v2/index.json
+        similarity: cosine
         overwrite: false
     output:
-      type: retrieval_components.interfaces.stage_io.IndexingOutput
+      type: retrieval_components.interfaces.indexing.IndexingOutput
   connections:
   - sender: input.documents
     receiver: document_parser.documents
@@ -72,7 +73,7 @@ pipeline:
     receiver: output.indexed_count
   max_runs_per_component: 100
   metadata:
-    description: Abstract dense JSONL indexing topology with document-level embeddings.
+    description: Abstract dense indexing topology with a persisted in-memory document store.
 stage:
   name: indexing
   run_id: '20260705_231537'

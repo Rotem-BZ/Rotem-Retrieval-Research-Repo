@@ -1,0 +1,5 @@
+type: retrieval_components.retrieval.persisted_in_memory_embedding_retriever.PersistedInMemoryEmbeddingRetriever
+init_parameters:
+  index_path: ${paths.indexes_dir}/${selections.index_id}/index.json
+  top_k: 5
+  return_embedding: true

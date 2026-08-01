@@ -1,0 +1,5 @@
+type: retrieval_components.indexing.persisted_in_memory_document_indexer.PersistedInMemoryDocumentIndexer
+init_parameters:
+  output_path: ${paths.indexes_dir}/${selections.index_id}/index.json
+  similarity: ${selections.embedding_model.similarity}
+  overwrite: false

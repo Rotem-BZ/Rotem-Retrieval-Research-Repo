@@ -18,7 +18,7 @@ from retrieval_core.input_mapping import (
     discover_input_mapping_ids,
     validate_input_mapping_id,
 )
-from retrieval_core.stages import STAGE_RUNNERS
+from retrieval_core.stages import STAGES
 from retrieval_core.utils.artifacts import (
     discover_index_ids,
     discover_inference_run_ids,
@@ -137,7 +137,7 @@ def run_configure(
 
     stage_name = _prompt_menu(
         "Choose stage:",
-        sorted(STAGE_RUNNERS),
+        sorted(STAGES),
         input_fn=input_fn,
         output_fn=output_fn,
         format_item=lambda stage: stage,
@@ -787,7 +787,9 @@ def _prompt_configured_overrides(
                 output_fn=output_fn,
                 format_item=lambda item: str(item),
             )
-            _upsert_override(overrides, HydraOverride(compose=f"{path}={selected_run_id}"))
+            _upsert_override(
+                overrides, HydraOverride(compose=f"{path}={selected_run_id}")
+            )
             continue
 
         configured_indexes_dir = indexes_dir or project_path(cfg.paths.indexes_dir)
@@ -935,13 +937,15 @@ def _suggest_input_mapping_id(cfg: Any, input_mappings_dir: Path) -> str:
     dataset_name = _get_config_value(cfg, "dataset.name", default="")
     recipe_name = _get_config_value(cfg, "input_mapping_recipe.name", default="")
     parts = [
-        part
-        for value in (dataset_name, recipe_name)
-        if (part := _index_id_part(value))
+        part for value in (dataset_name, recipe_name) if (part := _index_id_part(value))
     ]
     base = "-".join(parts) or "input-mapping"
     existing = (
-        {directory.name for directory in input_mappings_dir.iterdir() if directory.is_dir()}
+        {
+            directory.name
+            for directory in input_mappings_dir.iterdir()
+            if directory.is_dir()
+        }
         if input_mappings_dir.is_dir()
         else set()
     )

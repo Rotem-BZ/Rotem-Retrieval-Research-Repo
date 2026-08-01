@@ -1,5 +1,0 @@
-# @package _global_
-defaults:
-  - /base-experiment-configs/inference
-  - override /pipeline/inference@pipeline: query_repetition_e5/dense_query_repetition
-  - _self_

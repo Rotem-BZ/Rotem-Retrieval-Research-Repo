@@ -3,11 +3,8 @@ from __future__ import annotations
 from contextlib import nullcontext
 from pathlib import Path
 
-import pytest
-from omegaconf import OmegaConf
-
 import interactive_run_in_parallel_screens as launcher
-from interactive_create_run import split_run_overrides
+import pytest
 from _internal.experiment_models import (
     ExperimentRun,
     load_plan,
@@ -18,6 +15,8 @@ from _internal.experiment_models import (
     write_run_definition,
 )
 from _internal.experiment_worker import wait_for_predecessor
+from interactive_create_run import split_run_overrides
+from omegaconf import OmegaConf
 from retrieval_core.utils.artifacts import run_manifest
 
 
@@ -69,7 +68,7 @@ def test_create_run_splits_group_selections_from_value_fields(tmp_path: Path) ->
     groups, fields = split_run_overrides(
         (
             "dataset=toy",
-            "pipeline/indexing@pipeline=dense/documents_jsonl",
+            "pipeline/indexing@pipeline=dense/documents_in_memory",
             "selections/embedding_model=e5/small_v2",
             "runtime=cpu",
             "runtime.concurrency_limit=2",
@@ -79,7 +78,7 @@ def test_create_run_splits_group_selections_from_value_fields(tmp_path: Path) ->
 
     assert groups == (
         ("dataset", "toy"),
-        ("pipeline/indexing@pipeline", "dense/documents_jsonl"),
+        ("pipeline/indexing@pipeline", "dense/documents_in_memory"),
         ("selections/embedding_model", "e5/small_v2"),
         ("runtime", "cpu"),
     )
@@ -254,7 +253,7 @@ def _experiment(root: Path, *, name: str = "example") -> Path:
 defaults:
   - /stages/indexing
   - override /dataset: toy
-  - override /pipeline/indexing@pipeline: dense/documents_jsonl
+  - override /pipeline/indexing@pipeline: dense/documents_in_memory
   - override /selections/embedding_model@selections.embedding_model: e5/small_v2
   - override /runtime: cpu
   - _self_

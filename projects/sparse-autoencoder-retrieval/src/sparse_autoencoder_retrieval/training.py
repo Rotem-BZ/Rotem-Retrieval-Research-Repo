@@ -1,4 +1,4 @@
-"""Train CCSA over frozen dense embeddings stored in a repository JSONL index."""
+"""Train CCSA over frozen embeddings stored in a persisted Haystack index."""
 
 from __future__ import annotations
 
@@ -10,41 +10,43 @@ from pathlib import Path
 from typing import Any
 
 import torch
+from haystack.document_stores.in_memory import InMemoryDocumentStore
+from retrieval_core.utils.logging import configure_console_logging
 from torch.utils.data import DataLoader, TensorDataset
 
 from sparse_autoencoder_retrieval.model import (
     CompositeCodeSparseAutoencoder,
     save_autoencoder_checkpoint,
 )
-from retrieval_core.utils.logging import configure_console_logging
 
 logger = logging.getLogger(__name__)
 
 
 def load_dense_embeddings(input_path: str | Path) -> torch.Tensor:
-    """Load a rectangular dense embedding matrix from a JSONL document index."""
+    """Load a rectangular dense embedding matrix from a persisted document store."""
 
     path = Path(input_path)
     if not path.is_file():
         raise FileNotFoundError(f"Dense embedding index not found: {path}")
     embeddings: list[list[float]] = []
     expected_dim: int | None = None
-    with path.open("r", encoding="utf-8") as handle:
-        for line_number, line in enumerate(handle, start=1):
-            if not line.strip():
-                continue
-            record = json.loads(line)
-            embedding = record.get("embedding")
+    store = InMemoryDocumentStore.load_from_disk(str(path))
+    try:
+        for document in store.filter_documents():
+            embedding = document.embedding
             if embedding is None:
-                raise ValueError(f"Record on line {line_number} has no dense embedding.")
+                raise ValueError(f"Document {document.id!r} has no dense embedding.")
             values = [float(value) for value in embedding]
             expected_dim = expected_dim or len(values)
             if len(values) != expected_dim:
                 raise ValueError(
-                    f"Embedding dimension changed on line {line_number}: "
+                    f"Embedding dimension changed at document {document.id!r}: "
                     f"expected {expected_dim}, received {len(values)}."
                 )
             embeddings.append(values)
+    finally:
+        store.delete_all_documents()
+        store.shutdown()
     if len(embeddings) < 2:
         raise ValueError("CCSA training requires at least two dense embeddings.")
     return torch.tensor(embeddings, dtype=torch.float32)
@@ -136,9 +138,11 @@ def train_autoencoder(
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Train a composite-code sparse autoencoder over a dense JSONL index."
+        description="Train a composite-code sparse autoencoder over a persisted dense index."
     )
-    parser.add_argument("--input-path", required=True, help="Dense JSONL index with embeddings.")
+    parser.add_argument(
+        "--input-path", required=True, help="Persisted dense index with embeddings."
+    )
     parser.add_argument("--output-path", required=True, help="Destination .pt checkpoint.")
     parser.add_argument("--num-codebooks", type=int, required=True)
     parser.add_argument("--codebook-size", type=int, required=True)

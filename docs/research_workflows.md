@@ -109,19 +109,19 @@ For example, the shared dense inference topology fixes the graph while requiring
 the semantic embedding-model selection:
 
 ```yaml
-# configs/pipeline/inference/retrieve/dense_jsonl.yaml
+# configs/pipeline/inference/retrieve/dense_in_memory.yaml
 defaults:
   - /selections/embedding_model@_global_.selections.embedding_model: ???
   - /component/query_preprocessor@components.query_preprocessor: prefix_cleanup
   - /component/query_embedder@components.query_embedder: sentence_transformers
-  - /component/retriever@components.retriever: jsonl_embeddings
+  - /component/retriever@components.retriever: persisted_in_memory
   - _self_
 
 components:
   input:
-    type: retrieval_components.interfaces.stage_io.InferenceInput
+    type: retrieval_components.interfaces.inference.InferenceInput
   output:
-    type: retrieval_components.interfaces.stage_io.InferenceOutput
+    type: retrieval_components.interfaces.inference.InferenceOutput
 
 connections:
   - sender: input.query
@@ -145,7 +145,7 @@ The command line supplies the model selection separately from the topology:
 uv run stage inference \
   dataset=beir_scifact \
   runtime=gpu \
-  pipeline/inference@pipeline=retrieve/dense_jsonl \
+  pipeline/inference@pipeline=retrieve/dense_in_memory \
   selections/embedding_model=e5/small_v2 \
   selections.index_id=YOUR_INDEX_ID
 ```
@@ -182,12 +182,12 @@ pipeline syntax. It should contain `components`, `connections`,
 selections by composing them into the root `selections` namespace:
 
 ```yaml
-# configs/pipeline/indexing/dense/documents_jsonl.yaml
+# configs/pipeline/indexing/dense/documents_in_memory.yaml
 defaults:
   - /selections/embedding_model@_global_.selections.embedding_model: ???
   - /component/document_preprocessor@components.document_prefixer: prefix_cleanup
   - /component/document_embedder@components.embedder: sentence_transformers
-  - /component/indexer@components.indexer: jsonl_embeddings
+  - /component/indexer@components.indexer: persisted_in_memory
   - _self_
 ```
 
@@ -248,27 +248,27 @@ inserting one local treatment component. The query-repetition project follows
 this pattern:
 
 ```yaml
-# projects/query-repetition-e5/configs/pipeline/inference/query_repetition_e5/dense_query_repetition.yaml
+# projects/query-repetition/configs/pipeline/inference/query_repetition/dense_query_repetition.yaml
 defaults:
   - /selections/embedding_model@_global_.selections.embedding_model: ???
   - /component/query_preprocessor@components.query_preprocessor: prefix_cleanup
   - /component/query_embedder@components.query_embedder: sentence_transformers
-  - /component/retriever@components.retriever: jsonl_embeddings
+  - /component/retriever@components.retriever: persisted_in_memory
   - _self_
 
 components:
   input:
-    type: retrieval_components.interfaces.stage_io.InferenceInput
+    type: retrieval_components.interfaces.inference.InferenceInput
   query_repeater:
-    type: query_repetition_e5.components.QueryRepeater
+    type: query_repetition.components.QueryRepeater
     init_parameters:
       separator: " "
   output:
-    type: retrieval_components.interfaces.stage_io.InferenceOutput
+    type: retrieval_components.interfaces.inference.InferenceOutput
 ```
 
 Its graph routes `input.query` through `query_repeater` before the shared query
-preprocessor and embedder. The baseline uses the shared `retrieve/dense_jsonl` topology,
+preprocessor and embedder. The baseline uses the shared `retrieve/dense_in_memory` topology,
 so the local component is the intended difference.
 
 As a rule of thumb, use command-line overrides for small scalar changes,
@@ -285,7 +285,7 @@ from that project's directory so `paths.project_root: .`, `data/`, `artifacts/`,
 and the project-local `configs/` tree resolve consistently:
 
 ```powershell
-Set-Location projects/query-repetition-e5
+Set-Location projects/query-repetition
 uv sync --extra dev
 ```
 
@@ -365,20 +365,20 @@ the owning project's snake-case Python package name as the first choice path
 segment:
 
 ```text
-projects/query-repetition-e5/configs/
+projects/query-repetition/configs/
 └── pipeline/inference/
-    └── query_repetition_e5/
+    └── query_repetition/
         └── dense_query_repetition.yaml
 ```
 
 Select that project-owned topology as:
 
 ```yaml
-- override /pipeline/inference@pipeline: query_repetition_e5/dense_query_repetition
+- override /pipeline/inference@pipeline: query_repetition/dense_query_repetition
 ```
 
 The same rule applies to project-owned `component` and `selections` choices.
-Core-owned choices remain unqualified, such as `retrieve/dense_jsonl`,
+Core-owned choices remain unqualified, such as `retrieve/dense_in_memory`,
 `sentence_transformers`, and `e5/small_v2`. This makes ownership visible at every
 selection site without changing the Hydra group being overridden. Do not wrap the
 group itself in a directory such as `project-configs/pipeline/inference`; that
@@ -431,7 +431,7 @@ or rendering becomes the text processed by the indexing pipeline.
 
 Index-backed pipeline templates derive their component paths from
 `paths.indexes_dir` and the global `selections.index_id`. Indexing writes
-`<indexes-dir>/<index-id>/index.jsonl`, and inference validates that exact artifact
+`<indexes-dir>/<index-id>/index.json`, and inference validates that exact artifact
 before loading Haystack. The pipeline defaults list mounts the index selection into
 the global `selections` package, just like an embedding-model selection. Candidate-only
 pipelines omit that default, have no `index_path` parameter, and therefore compose
@@ -527,7 +527,7 @@ through `selections/embedding_model`:
 uv run stage indexing `
   dataset=beir_scifact `
   runtime=gpu `
-  pipeline/indexing@pipeline=dense/documents_jsonl `
+  pipeline/indexing@pipeline=dense/documents_in_memory `
   selections/embedding_model=e5/small_v2 `
   selections.index_id=YOUR_NEW_INDEX_ID
 ```
@@ -536,7 +536,7 @@ uv run stage indexing `
 uv run stage inference `
   dataset=beir_scifact `
   runtime=gpu `
-  pipeline/inference@pipeline=retrieve/dense_jsonl `
+  pipeline/inference@pipeline=retrieve/dense_in_memory `
   selections.index_id=YOUR_INDEX_ID `
   selections/embedding_model=e5/small_v2 `
   pipeline.components.retriever.init_parameters.top_k=100
@@ -553,7 +553,7 @@ topology consumes both document- and chunk-level indexes:
 uv run stage indexing `
   dataset=beir_scifact `
   runtime=gpu `
-  pipeline/indexing@pipeline=dense/chunks_jsonl `
+  pipeline/indexing@pipeline=dense/chunks_in_memory `
   selections/embedding_model=e5/small_v2 `
   selections.index_id=YOUR_NEW_CHUNKED_INDEX_ID
 ```
@@ -562,7 +562,7 @@ uv run stage indexing `
 uv run stage inference `
   dataset=beir_scifact `
   runtime=gpu `
-  pipeline/inference@pipeline=retrieve/dense_jsonl `
+  pipeline/inference@pipeline=retrieve/dense_in_memory `
   selections.index_id=YOUR_CHUNKED_INDEX_ID `
   selections/embedding_model=e5/small_v2 `
   pipeline.components.retriever.init_parameters.top_k=100
@@ -641,15 +641,15 @@ query-repetition project. Prepare SciFact first and choose unique ids:
 
 ```text
 uv run prepare-beir --data-dir data --dataset scifact
-uv run stage indexing dataset=beir_scifact runtime=cpu pipeline/indexing@pipeline=dense/documents_jsonl selections/embedding_model=e5/small_v2 selections.index_id=YOUR_UNIQUE_INDEX_ID stage.run_id=YOUR_UNIQUE_INDEXING_RUN_ID
-uv run stage inference dataset=beir_scifact runtime=cpu pipeline/inference@pipeline=retrieve/dense_jsonl selections/embedding_model=e5/small_v2 selections.index_id=YOUR_UNIQUE_INDEX_ID stage.run_id=YOUR_UNIQUE_INFERENCE_RUN_ID
+uv run stage indexing dataset=beir_scifact runtime=cpu pipeline/indexing@pipeline=dense/documents_in_memory selections/embedding_model=e5/small_v2 selections.index_id=YOUR_UNIQUE_INDEX_ID stage.run_id=YOUR_UNIQUE_INDEXING_RUN_ID
+uv run stage inference dataset=beir_scifact runtime=cpu pipeline/inference@pipeline=retrieve/dense_in_memory selections/embedding_model=e5/small_v2 selections.index_id=YOUR_UNIQUE_INDEX_ID stage.run_id=YOUR_UNIQUE_INFERENCE_RUN_ID
 uv run stage evaluation dataset=beir_scifact stage.inference_run_id=YOUR_UNIQUE_INFERENCE_RUN_ID stage.run_id=YOUR_UNIQUE_EVALUATION_RUN_ID
 ```
 
 The artifact locations are:
 
 ```text
-artifacts/indexes/<index-id>/index.jsonl
+artifacts/indexes/<index-id>/index.json
 artifacts/runs/indexing/<indexing-run-id>/{resolved_config.yaml,result.json,manifest.json,run.log}
 artifacts/runs/inference/<inference-run-id>/predictions.json
 artifacts/runs/evaluation/<evaluation-run-id>/metrics.json
@@ -669,7 +669,7 @@ explicitly when a descriptive or stable id is useful:
 uv run stage inference \
   dataset=beir_scifact \
   runtime=gpu \
-  pipeline/inference@pipeline=retrieve/dense_jsonl \
+  pipeline/inference@pipeline=retrieve/dense_in_memory \
   selections/embedding_model=e5/small_v2 \
   selections.index_id=YOUR_INDEX_ID \
   stage.run_id=dense_smoke
@@ -729,8 +729,8 @@ small overrides on the command line.
 Examples:
 
 ```bash
-uv run stage indexing dataset=beir_scifact runtime=cpu pipeline/indexing@pipeline=dense/documents_jsonl selections/embedding_model=e5/small_v2 selections.index_id=YOUR_NEW_INDEX_ID
-uv run stage inference dataset=beir_scifact runtime=cpu pipeline/inference@pipeline=retrieve/dense_jsonl selections/embedding_model=e5/small_v2 selections.index_id=YOUR_INDEX_ID pipeline.components.retriever.init_parameters.top_k=10
+uv run stage indexing dataset=beir_scifact runtime=cpu pipeline/indexing@pipeline=dense/documents_in_memory selections/embedding_model=e5/small_v2 selections.index_id=YOUR_NEW_INDEX_ID
+uv run stage inference dataset=beir_scifact runtime=cpu pipeline/inference@pipeline=retrieve/dense_in_memory selections/embedding_model=e5/small_v2 selections.index_id=YOUR_INDEX_ID pipeline.components.retriever.init_parameters.top_k=10
 uv run stage evaluation dataset=beir_scifact stage.inference_run_id=YOUR_EXACT_INFERENCE_RUN_ID metrics='["Recall@10","MRR@10","NDCG@10","Precision@10","HitRate@10"]'
 ```
 
@@ -781,8 +781,8 @@ Then select those paths from a project-local dataset config and run the relevant
 dense pipelines:
 
 ```bash
-uv run stage indexing dataset=my_dataset runtime=cpu pipeline/indexing@pipeline=dense/documents_jsonl selections/embedding_model=e5/small_v2 selections.index_id=YOUR_NEW_INDEX_ID
-uv run stage inference dataset=my_dataset runtime=cpu pipeline/inference@pipeline=retrieve/dense_jsonl selections/embedding_model=e5/small_v2 selections.index_id=YOUR_INDEX_ID
+uv run stage indexing dataset=my_dataset runtime=cpu pipeline/indexing@pipeline=dense/documents_in_memory selections/embedding_model=e5/small_v2 selections.index_id=YOUR_NEW_INDEX_ID
+uv run stage inference dataset=my_dataset runtime=cpu pipeline/inference@pipeline=retrieve/dense_in_memory selections/embedding_model=e5/small_v2 selections.index_id=YOUR_INDEX_ID
 uv run stage evaluation dataset=my_dataset stage.inference_run_id=YOUR_EXACT_INFERENCE_RUN_ID
 ```
 
@@ -801,24 +801,24 @@ defaults:
 
 components:
   input:
-    type: retrieval_components.interfaces.stage_io.IndexingInput
+    type: retrieval_components.interfaces.indexing.IndexingInput
   output:
-    type: retrieval_components.interfaces.stage_io.IndexingOutput
+    type: retrieval_components.interfaces.indexing.IndexingOutput
   converter:
     type: my_package.components.MyConverter
     init_parameters: {}
-  writer:
+  indexer:
     type: my_package.components.MyIndexer
     init_parameters:
-      output_path: ${paths.indexes_dir}/${selections.index_id}/index.jsonl
+      output_path: ${paths.indexes_dir}/${selections.index_id}/index.json
 connections:
   - sender: input.documents
     receiver: converter.documents
   - sender: converter.documents
-    receiver: writer.documents
-  - sender: writer.index_path
+    receiver: indexer.documents
+  - sender: indexer.index_path
     receiver: output.index_path
-  - sender: writer.indexed_count
+  - sender: indexer.indexed_count
     receiver: output.indexed_count
 max_runs_per_component: 100
 metadata: {}
@@ -842,13 +842,13 @@ defaults:
 
 components:
   input:
-    type: retrieval_components.interfaces.stage_io.InferenceInput
+    type: retrieval_components.interfaces.inference.InferenceInput
   output:
-    type: retrieval_components.interfaces.stage_io.InferenceOutput
+    type: retrieval_components.interfaces.inference.InferenceOutput
   retriever:
     type: my_package.components.MyRetriever
     init_parameters:
-      index_path: ${paths.indexes_dir}/${selections.index_id}/index.jsonl
+      index_path: ${paths.indexes_dir}/${selections.index_id}/index.json
 connections:
   - sender: input.query
     receiver: retriever.query
@@ -898,7 +898,7 @@ models, and other shared choices, and holds all shared field values:
 defaults:
   - /stages/inference
   - override /dataset: beir_scifact
-  - override /pipeline/inference@pipeline: retrieve/dense_jsonl
+  - override /pipeline/inference@pipeline: retrieve/dense_in_memory
   - override /selections/embedding_model@selections.embedding_model: e5/small_v2
   - override /runtime: gpu
   - _self_
@@ -981,7 +981,7 @@ current lanes are terminal.
   discover choices.
 - **Inference cannot find an index:** select a completed directory under
   `paths.indexes_dir` with `selections.index_id`. The command builder lists valid
-  directories that contain `index.jsonl`. Prefix matching and implicit "latest"
+  directories that contain `index.json`. Prefix matching and implicit "latest"
   resolution are intentionally unsupported. Candidate-only reranking pipelines
   do not use the selection.
 - **A prepared mapping is missing:** run `stage prepare_mapping` with a unique

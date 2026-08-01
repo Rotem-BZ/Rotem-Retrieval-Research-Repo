@@ -5,6 +5,6 @@
   "dataset_config": "toy",
   "embedding_model": "e5/small_v2",
   "index_id": "REPLACE_WITH_EXACT_INDEX_ID",
-  "baseline_pipeline": "retrieve/dense_jsonl",
+  "baseline_pipeline": "retrieve/dense_in_memory",
   "treatment_pipeline": "my_project/dense_experiment"
 }

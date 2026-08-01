@@ -1,5 +1,7 @@
 """Retrieval components."""
 
-from retrieval_components.retrieval.jsonl_embedding_retriever import JsonlEmbeddingRetriever
+from retrieval_components.retrieval.persisted_in_memory_embedding_retriever import (
+    PersistedInMemoryEmbeddingRetriever,
+)
 
-__all__ = ["JsonlEmbeddingRetriever"]
+__all__ = ["PersistedInMemoryEmbeddingRetriever"]

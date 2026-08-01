@@ -11,7 +11,7 @@ defaults:
 
 components:
   input:
-    type: retrieval_components.interfaces.stage_io.IndexingInput
+    type: retrieval_components.interfaces.indexing.IndexingInput
   document_prefixer:
     init_parameters:
       prefix: ${selections.embedding_model.document_prefix}
@@ -24,7 +24,7 @@ components:
     init_parameters:
       sparse_dimension: ${selections.sparse_autoencoder.sparse_dimension}
   output:
-    type: retrieval_components.interfaces.stage_io.IndexingOutput
+    type: retrieval_components.interfaces.indexing.IndexingOutput
 
 connections:
   - sender: input.documents

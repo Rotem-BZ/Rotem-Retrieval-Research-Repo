@@ -8,7 +8,7 @@ defaults:
 
 components:
   input:
-    type: retrieval_components.interfaces.stage_io.InferenceInput
+    type: retrieval_components.interfaces.inference.InferenceInput
   query_preprocessor:
     init_parameters:
       prefix: ${selections.reranker_model.query_prefix}
@@ -21,7 +21,7 @@ components:
       scale_score: ${selections.reranker_model.scale_score}
       tokenizer_kwargs: ${selections.reranker_model.tokenizer_kwargs}
   output:
-    type: retrieval_components.interfaces.stage_io.InferenceOutput
+    type: retrieval_components.interfaces.inference.InferenceOutput
 
 connections:
   - sender: input.query

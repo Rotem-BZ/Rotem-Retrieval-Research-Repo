@@ -13,7 +13,7 @@ git clone https://github.com/Rotem-BZ/Rotem-Retrieval-Research-Repo.git
 cd Rotem-Retrieval-Research-Repo
 git config --global --add safe.directory "$(pwd -P)"
 source ./bash_aliases.sh
-cd projects/query-repetition-e5
+cd projects/query-repetition
 uv sync --extra dev
 uv run nbstripout --install --attributes ../../.gitattributes
 uv run pre-commit install --install-hooks
@@ -44,7 +44,7 @@ uv run pre-commit run --all-files
 For example, after creating an index, inference can be launched with:
 
 ```shell
-uv run stage inference dataset=beir_scifact runtime=cpu pipeline/inference@pipeline=query_repetition_e5/dense_query_repetition selections/embedding_model=e5/small_v2 selections.index_id=YOUR_INDEX_ID runtime.query_concurrency_limit=8
+uv run stage inference dataset=beir_scifact runtime=cpu pipeline/inference@pipeline=query_repetition/dense_query_repetition selections/embedding_model=e5/small_v2 selections.index_id=YOUR_INDEX_ID runtime.query_concurrency_limit=8
 ```
 
 ## Experiments and parallel runs
@@ -104,13 +104,13 @@ Repository-wide follow-up work is tracked in the shared
 
 ## Query-repetition example
 
-[`projects/query-repetition-e5`](projects/query-repetition-e5/README.md) demonstrates
+[`projects/query-repetition`](projects/query-repetition/README.md) demonstrates
 the complete pattern. It installs both monorepo dependencies editably, explicitly
 declares `retrieval-components==0.1.0`, adds a project-local `QueryRepeater`
 component, and includes a reproducible E5-small/SciFact baseline comparison.
 
 ```powershell
-Set-Location projects/query-repetition-e5
+Set-Location projects/query-repetition
 uv sync --extra dev
 ./scripts/run_experiment.ps1
 ```
@@ -160,8 +160,8 @@ uv run --project packages/retrieval-components pytest packages/retrieval-compone
 uv sync --project packages/retrieval-core --extra dev
 uv run --project packages/retrieval-core pytest packages/retrieval-core/tests awesome-dev-tools/tests
 
-uv sync --project projects/query-repetition-e5 --extra dev
-uv run --project projects/query-repetition-e5 pytest projects/query-repetition-e5/tests
+uv sync --project projects/query-repetition --extra dev
+uv run --project projects/query-repetition pytest projects/query-repetition/tests
 ```
 
 See [the package plan](docs/multiple_projects_package_plan.md) for the architectural

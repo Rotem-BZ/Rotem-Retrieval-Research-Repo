@@ -38,7 +38,7 @@ Basic indexing:
 Invoke-EdgeStage indexing `
   dataset=toy `
   runtime=cpu `
-  'pipeline/indexing@pipeline=dense/documents_jsonl' `
+  'pipeline/indexing@pipeline=dense/documents_in_memory' `
   selections/embedding_model=e5/small_v2 `
   "paths.runs_dir=$edgeRuns" `
   "paths.indexes_dir=$edgeIndexes" `
@@ -54,7 +54,7 @@ corpus:
 Invoke-EdgeStage inference `
   dataset=toy `
   runtime=cpu `
-  'pipeline/inference@pipeline=retrieve/dense_jsonl' `
+  'pipeline/inference@pipeline=retrieve/dense_in_memory' `
   selections/embedding_model=e5/small_v2 `
   "paths.runs_dir=$edgeRuns" `
   "paths.indexes_dir=$edgeIndexes" `
@@ -94,7 +94,7 @@ Invoke-EdgeStage inference `
   dataset=toy `
   runtime=cpu `
   "selections.input_mapping=$mappingRun1" `
-  'pipeline/inference@pipeline=retrieve/dense_jsonl' `
+  'pipeline/inference@pipeline=retrieve/dense_in_memory' `
   selections/embedding_model=e5/small_v2 `
   "paths.runs_dir=$edgeRuns" `
   "paths.input_mappings_dir=$edgeMappings" `
@@ -130,7 +130,7 @@ Invoke-EdgeStage inference `
   dataset=toy `
   runtime=cpu `
   "selections.input_mapping=$emptyMappingRun" `
-  'pipeline/inference@pipeline=retrieve/dense_jsonl' `
+  'pipeline/inference@pipeline=retrieve/dense_in_memory' `
   selections/embedding_model=e5/small_v2 `
   "paths.runs_dir=$edgeRuns" `
   "paths.input_mappings_dir=$edgeMappings" `
@@ -162,7 +162,7 @@ Run these commands individually. Each should exit nonzero.
 Runtime selection missing:
 
 ```powershell
-Invoke-EdgeStage indexing dataset=toy 'pipeline/indexing@pipeline=dense/documents_jsonl' selections/embedding_model=e5/small_v2
+Invoke-EdgeStage indexing dataset=toy 'pipeline/indexing@pipeline=dense/documents_in_memory' selections/embedding_model=e5/small_v2
 ```
 
 Missing dataset and indexing pipeline:
@@ -180,7 +180,7 @@ Invoke-EdgeStage indexing dataset=toy runtime=cpu
 Inference pipeline supplied but dataset missing:
 
 ```powershell
-Invoke-EdgeStage inference runtime=cpu 'pipeline/inference@pipeline=retrieve/dense_jsonl' selections/embedding_model=e5/small_v2
+Invoke-EdgeStage inference runtime=cpu 'pipeline/inference@pipeline=retrieve/dense_in_memory' selections/embedding_model=e5/small_v2
 ```
 
 Evaluation dataset missing:
@@ -212,7 +212,7 @@ Unknown index id:
 Invoke-EdgeStage inference `
   dataset=toy `
   runtime=cpu `
-  'pipeline/inference@pipeline=retrieve/dense_jsonl' `
+  'pipeline/inference@pipeline=retrieve/dense_in_memory' `
   selections/embedding_model=e5/small_v2 `
   "paths.runs_dir=$edgeRuns" `
   "paths.indexes_dir=$edgeIndexes" `
@@ -226,7 +226,7 @@ Non-canonical explicit index path:
 Invoke-EdgeStage inference `
   dataset=toy `
   runtime=cpu `
-  'pipeline/inference@pipeline=retrieve/dense_jsonl' `
+  'pipeline/inference@pipeline=retrieve/dense_in_memory' `
   selections/embedding_model=e5/small_v2 `
   "paths.runs_dir=$edgeRuns" `
   "paths.indexes_dir=$edgeIndexes" `
@@ -252,7 +252,7 @@ Invoke-EdgeStage inference `
   dataset=toy `
   runtime=cpu `
   selections.input_mapping=missing `
-  'pipeline/inference@pipeline=retrieve/dense_jsonl' `
+  'pipeline/inference@pipeline=retrieve/dense_in_memory' `
   selections/embedding_model=e5/small_v2 `
   "paths.runs_dir=$edgeRuns" `
   "paths.input_mappings_dir=$edgeRoot/unprepared-mappings" `
@@ -305,7 +305,7 @@ Zero query concurrency:
 Invoke-EdgeStage inference `
   dataset=toy `
   runtime=cpu `
-  'pipeline/inference@pipeline=retrieve/dense_jsonl' `
+  'pipeline/inference@pipeline=retrieve/dense_in_memory' `
   selections/embedding_model=e5/small_v2 `
   "paths.runs_dir=$edgeRuns" `
   "paths.indexes_dir=$edgeIndexes" `
@@ -396,7 +396,7 @@ Both should return an empty document list.
 ```powershell
 uv run --project packages/retrieval-components pytest packages/retrieval-components/tests -q
 uv run --project packages/retrieval-core pytest packages/retrieval-core/tests -q
-uv run --project projects/query-repetition-e5 pytest projects/query-repetition-e5/tests -q
+uv run --project projects/query-repetition pytest projects/query-repetition/tests -q
 
 uv run --project packages/retrieval-components ruff check packages/retrieval-components
 uv run --project packages/retrieval-components ruff format --check packages/retrieval-components

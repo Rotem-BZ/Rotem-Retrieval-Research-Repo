@@ -12,7 +12,7 @@ def test_abstract_dense_e5_indexing_config_keeps_pipeline_haystack_shaped() -> N
         [
             "dataset=toy",
             "runtime=gpu",
-            "pipeline/indexing@pipeline=dense/documents_jsonl",
+            "pipeline/indexing@pipeline=dense/documents_in_memory",
             "selections.index_id=toy-dense",
             "selections/embedding_model=e5/small_v2",
         ],
@@ -50,6 +50,10 @@ def test_abstract_dense_e5_indexing_config_keeps_pipeline_haystack_shaped() -> N
         "device": "cuda",
     }
     assert pipeline_config["components"]["embedder"]["init_parameters"]["progress_bar"] is True
+    assert pipeline_config["components"]["indexer"]["init_parameters"]["similarity"] == "cosine"
+    assert pipeline_config["components"]["indexer"]["type"].endswith(
+        "persisted_in_memory_document_indexer.PersistedInMemoryDocumentIndexer"
+    )
     assert {"input", "embedder", "output"} <= set(pipeline.graph.nodes)
 
 
@@ -59,7 +63,7 @@ def test_chunked_indexing_and_dense_retrieval_share_index_artifact() -> None:
         [
             "dataset=toy",
             "runtime=gpu",
-            "pipeline/indexing@pipeline=dense/chunks_jsonl",
+            "pipeline/indexing@pipeline=dense/chunks_in_memory",
             "selections.index_id=toy-dense-chunked",
             "selections/embedding_model=e5/small_v2",
         ],
@@ -69,7 +73,7 @@ def test_chunked_indexing_and_dense_retrieval_share_index_artifact() -> None:
         [
             "dataset=toy",
             "runtime=gpu",
-            "pipeline/inference@pipeline=retrieve/dense_jsonl",
+            "pipeline/inference@pipeline=retrieve/dense_in_memory",
             "selections.index_id=toy-dense-chunked",
             "selections/embedding_model=e5/small_v2",
         ],
@@ -81,10 +85,10 @@ def test_chunked_indexing_and_dense_retrieval_share_index_artifact() -> None:
     assert "splitter" in indexing_pipeline_config["components"]
     assert indexing_pipeline_config["components"]["indexer"]["init_parameters"][
         "output_path"
-    ].endswith("/index.jsonl")
+    ].endswith("/index.json")
     assert inference_pipeline_config["components"]["retriever"]["init_parameters"][
         "index_path"
-    ].endswith("artifacts/indexes/toy-dense-chunked/index.jsonl")
+    ].endswith("artifacts/indexes/toy-dense-chunked/index.json")
 
 
 def test_abstract_dense_e5_inference_config_prefixes_queries() -> None:
@@ -93,7 +97,7 @@ def test_abstract_dense_e5_inference_config_prefixes_queries() -> None:
         [
             "dataset=toy",
             "runtime=gpu",
-            "pipeline/inference@pipeline=retrieve/dense_jsonl",
+            "pipeline/inference@pipeline=retrieve/dense_in_memory",
             "selections.index_id=toy-dense",
             "selections/embedding_model=e5/small_v2",
         ],
@@ -125,13 +129,13 @@ def test_abstract_dense_e5_inference_config_prefixes_queries() -> None:
     assert (
         pipeline_config["components"]["query_embedder"]["init_parameters"]["progress_bar"] is True
     )
-    assert pipeline_config["components"]["retriever"]["init_parameters"]["similarity"] == "cosine"
+    assert pipeline_config["components"]["retriever"]["type"].endswith(
+        "persisted_in_memory_embedding_retriever.PersistedInMemoryEmbeddingRetriever"
+    )
     assert {"sender": "input.query", "receiver": "query_preprocessor.query"} in pipeline_config[
         "connections"
     ]
-    assert {"sender": "input.query", "receiver": "output.query"} in (
-        pipeline_config["connections"]
-    )
+    assert {"sender": "input.query", "receiver": "output.query"} in (pipeline_config["connections"])
     assert "query_parser" not in pipeline_config["components"]
     assert {"sender": "query_preprocessor.query", "receiver": "query_embedder.query"} in (
         pipeline_config["connections"]
@@ -208,12 +212,8 @@ def test_cross_encoder_reranker_uses_bge_selection_and_prefix_components() -> No
         "SentenceTransformersSimilarityRanker"
     )
     assert pipeline_config["components"]["ranker"]["init_parameters"]["scale_score"] is True
-    assert pipeline_config["components"]["query_preprocessor"]["init_parameters"][
-        "prefix"
-    ] == ""
-    assert pipeline_config["components"]["document_prefixer"]["init_parameters"][
-        "prefix"
-    ] == ""
+    assert pipeline_config["components"]["query_preprocessor"]["init_parameters"]["prefix"] == ""
+    assert pipeline_config["components"]["document_prefixer"]["init_parameters"]["prefix"] == ""
     assert {"query_preprocessor", "document_prefixer"} <= set(pipeline.graph.nodes)
     assert {
         "sender": "input.candidate_documents",
@@ -267,12 +267,14 @@ tokenizer_kwargs:
     pipeline_config = to_container(cfg.pipeline)
     load_async_pipeline(cfg.pipeline)
 
-    assert pipeline_config["components"]["query_preprocessor"]["init_parameters"][
-        "prefix"
-    ] == "rerank query: "
-    assert pipeline_config["components"]["document_prefixer"]["init_parameters"][
-        "prefix"
-    ] == "rerank passage: "
+    assert (
+        pipeline_config["components"]["query_preprocessor"]["init_parameters"]["prefix"]
+        == "rerank query: "
+    )
+    assert (
+        pipeline_config["components"]["document_prefixer"]["init_parameters"]["prefix"]
+        == "rerank passage: "
+    )
     assert pipeline_config["components"]["ranker"]["init_parameters"]["model"] == (
         "test/prefixed-reranker"
     )
@@ -280,16 +282,8 @@ tokenizer_kwargs:
 
 def test_embedding_model_catalog_can_fill_two_named_model_roles(tmp_path: Path) -> None:
     config_dir = tmp_path / "configs"
-    pipeline_path = (
-        config_dir
-        / "pipeline"
-        / "inference"
-        / "test"
-        / "two_embedding_models.yaml"
-    )
-    reranker_model_path = (
-        config_dir / "selections" / "embedding_model" / "test" / "reranker.yaml"
-    )
+    pipeline_path = config_dir / "pipeline" / "inference" / "test" / "two_embedding_models.yaml"
+    reranker_model_path = config_dir / "selections" / "embedding_model" / "test" / "reranker.yaml"
     pipeline_path.parent.mkdir(parents=True)
     reranker_model_path.parent.mkdir(parents=True)
     reranker_model_path.write_text(
@@ -317,7 +311,7 @@ tokenizer_kwargs:
 
 components:
   input:
-    type: retrieval_components.interfaces.stage_io.InferenceInput
+    type: retrieval_components.interfaces.inference.InferenceInput
   retriever_query_preprocessor:
     init_parameters:
       prefix: ${selections.models.retriever.query_prefix}
@@ -335,7 +329,7 @@ components:
       normalize_embeddings: ${selections.models.reranker.normalize_embeddings}
       tokenizer_kwargs: ${selections.models.reranker.tokenizer_kwargs}
   output:
-    type: retrieval_components.interfaces.stage_io.InferenceOutput
+    type: retrieval_components.interfaces.inference.InferenceOutput
 
 connections:
   - sender: input.query
@@ -364,14 +358,8 @@ metadata:
             "dataset=toy",
             "runtime=cpu",
             "pipeline/inference@pipeline=test/two_embedding_models",
-            (
-                "selections/embedding_model@selections.models.retriever="
-                "e5/small_v2"
-            ),
-            (
-                "selections/embedding_model@selections.models.reranker="
-                "test/reranker"
-            ),
+            ("selections/embedding_model@selections.models.retriever=e5/small_v2"),
+            ("selections/embedding_model@selections.models.reranker=test/reranker"),
         ],
         config_dir=config_dir,
     )
@@ -381,21 +369,23 @@ metadata:
 
     assert cfg.selections.models.retriever.checkpoint == "intfloat/e5-small-v2"
     assert cfg.selections.models.reranker.checkpoint == "test/reranker"
-    assert pipeline_config["components"]["retriever_query_preprocessor"][
-        "init_parameters"
-    ]["prefix"] == "query: "
-    assert pipeline_config["components"]["reranker_query_preprocessor"][
-        "init_parameters"
-    ]["prefix"] == "rerank query: "
-    assert pipeline_config["components"]["retriever_query_embedder"][
-        "init_parameters"
-    ]["model"] == "intfloat/e5-small-v2"
-    assert pipeline_config["components"]["reranker_query_embedder"][
-        "init_parameters"
-    ]["model"] == "test/reranker"
-    assert {"retriever_query_embedder", "reranker_query_embedder"} <= set(
-        pipeline.graph.nodes
+    assert (
+        pipeline_config["components"]["retriever_query_preprocessor"]["init_parameters"]["prefix"]
+        == "query: "
     )
+    assert (
+        pipeline_config["components"]["reranker_query_preprocessor"]["init_parameters"]["prefix"]
+        == "rerank query: "
+    )
+    assert (
+        pipeline_config["components"]["retriever_query_embedder"]["init_parameters"]["model"]
+        == "intfloat/e5-small-v2"
+    )
+    assert (
+        pipeline_config["components"]["reranker_query_embedder"]["init_parameters"]["model"]
+        == "test/reranker"
+    )
+    assert {"retriever_query_embedder", "reranker_query_embedder"} <= set(pipeline.graph.nodes)
 
 
 def test_materialized_native_haystack_pipeline_keeps_query_to_string_adapter() -> None:

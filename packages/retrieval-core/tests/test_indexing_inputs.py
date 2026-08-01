@@ -1,49 +1,58 @@
 import asyncio
 import json
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import pytest
 from omegaconf import OmegaConf
 
-from retrieval_core.stages.indexing import run_indexing
+from retrieval_core.stages.indexing import IndexingStage, IndexWriter
 from retrieval_core.utils.hashing import file_sha256
 from retrieval_core.utils.io import write_jsonl
 
 
 class CapturingPipeline:
     def __init__(self, *, fail_on_batch: int | None = None) -> None:
-        self.index_path: Path | None = None
+        self.writer = CapturingWriter()
         self.batches = []
-        self.append_values = []
         self.include_outputs_from = None
         self.concurrency_limit = None
         self.fail_on_batch = fail_on_batch
 
     async def run_async(self, *, data, include_outputs_from, concurrency_limit):
         documents = list(data["input"]["documents"])
-        append = data["indexer"]["append"]
         self.batches.append(documents)
-        self.append_values.append(append)
         self.include_outputs_from = include_outputs_from
         self.concurrency_limit = concurrency_limit
         if self.fail_on_batch == len(self.batches):
             raise RuntimeError("batch failed")
-        assert self.index_path is not None
-        self.index_path.parent.mkdir(parents=True, exist_ok=True)
-        with self.index_path.open("a" if append else "w", encoding="utf-8") as handle:
-            for document in documents:
-                handle.write(json.dumps({"id": document.id}) + "\n")
         return {
             "output": {
-                "index_path": str(self.index_path),
+                "index_path": self.writer.output_path,
                 "indexed_count": len(documents),
             }
         }
 
+    def get_component(self, name: str):
+        assert name == "indexer"
+        return self.writer
+
+
+class CapturingWriter:
+    def __init__(self) -> None:
+        self.output_path = ""
+
+    @asynccontextmanager
+    async def write_session(self):
+        yield
+        path = Path(self.output_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("{}", encoding="utf-8")
+
 
 def _capture_pipeline(pipeline: CapturingPipeline):
     def load_pipeline(config):
-        pipeline.index_path = Path(
+        pipeline.writer.output_path = str(
             config["components"]["indexer"]["init_parameters"]["output_path"]
         )
         return pipeline
@@ -51,8 +60,12 @@ def _capture_pipeline(pipeline: CapturingPipeline):
     return load_pipeline
 
 
+def test_capturing_writer_implements_index_writer() -> None:
+    assert isinstance(CapturingWriter(), IndexWriter)
+
+
 def _config(tmp_path: Path, documents_path: Path):
-    index_path = tmp_path / "artifacts" / "indexes" / "test-index" / "index.jsonl"
+    index_path = tmp_path / "artifacts" / "indexes" / "test-index" / "index.json"
     return OmegaConf.create(
         {
             "paths": {
@@ -67,16 +80,15 @@ def _config(tmp_path: Path, documents_path: Path):
                 "components": {
                     "indexer": {
                         "type": (
-                            "retrieval_components.indexing.jsonl_document_indexer."
-                            "JsonlDocumentIndexer"
+                            "retrieval_components.indexing."
+                            "persisted_in_memory_document_indexer."
+                            "PersistedInMemoryDocumentIndexer"
                         ),
                         "init_parameters": {
                             "output_path": str(index_path),
-                        }
+                        },
                     },
-                    "output": {
-                        "type": "retrieval_components.interfaces.stage_io.IndexingOutput"
-                    },
+                    "output": {"type": "retrieval_components.interfaces.indexing.IndexingOutput"},
                 },
                 "connections": [
                     {
@@ -98,6 +110,12 @@ def _config(tmp_path: Path, documents_path: Path):
             },
         }
     )
+
+
+def _run_stage(cfg):
+    stage = IndexingStage(cfg)
+    stage.prepare()
+    return asyncio.run(stage.run())
 
 
 def test_indexing_stage_loads_documents_and_supplies_batched_pipeline_input(
@@ -123,7 +141,7 @@ def test_indexing_stage_loads_documents_and_supplies_batched_pipeline_input(
         _capture_pipeline(pipeline),
     )
 
-    result = asyncio.run(run_indexing(_config(tmp_path, documents_path)))
+    result = _run_stage(_config(tmp_path, documents_path))
 
     documents = pipeline.batches[0]
     assert len(documents) == 1
@@ -135,7 +153,6 @@ def test_indexing_stage_loads_documents_and_supplies_batched_pipeline_input(
     }
     assert documents[0].score == 0.5
     assert documents[0].embedding == [1.0, 0.0]
-    assert pipeline.append_values == [False]
     assert pipeline.include_outputs_from == {"output"}
     assert pipeline.concurrency_limit == 3
     assert result["source_document_count"] == 1
@@ -165,14 +182,13 @@ def test_indexing_stage_streams_multiple_batches_and_hashes_during_read(
     )
     cfg = _config(tmp_path, documents_path)
 
-    result = asyncio.run(run_indexing(cfg))
+    result = _run_stage(cfg)
 
     assert [[document.id for document in batch] for batch in pipeline.batches] == [
         ["d1", "d2"],
         ["d3", "d4"],
         ["d5"],
     ]
-    assert pipeline.append_values == [False, True, True]
     assert result["source_document_count"] == 5
     assert result["batch_count"] == 3
     assert result["output"]["indexed_count"] == 5
@@ -203,11 +219,9 @@ def test_indexing_stage_removes_temporary_index_when_a_later_batch_fails(
     cfg = _config(tmp_path, documents_path)
 
     with pytest.raises(RuntimeError, match="batch failed"):
-        asyncio.run(run_indexing(cfg))
+        _run_stage(cfg)
 
-    canonical_path = Path(
-        cfg.pipeline.components.indexer.init_parameters.output_path
-    )
+    canonical_path = Path(cfg.pipeline.components.indexer.init_parameters.output_path)
     assert not canonical_path.exists()
     assert not list(canonical_path.parent.glob(f".{canonical_path.name}.*.tmp"))
 
@@ -223,14 +237,13 @@ def test_indexing_stage_writes_an_empty_index_for_an_empty_dataset(
         _capture_pipeline(pipeline),
     )
 
-    result = asyncio.run(run_indexing(_config(tmp_path, documents_path)))
+    result = _run_stage(_config(tmp_path, documents_path))
 
-    assert pipeline.batches == [[]]
-    assert pipeline.append_values == [False]
+    assert pipeline.batches == []
     assert result["source_document_count"] == 0
     assert result["batch_count"] == 0
     assert result["output"]["indexed_count"] == 0
-    assert Path(result["output"]["index_path"]).read_text(encoding="utf-8") == ""
+    assert Path(result["output"]["index_path"]).read_text(encoding="utf-8") == "{}"
 
 
 def test_indexing_stage_rejects_duplicate_document_ids(tmp_path: Path) -> None:
@@ -243,7 +256,7 @@ def test_indexing_stage_rejects_duplicate_document_ids(tmp_path: Path) -> None:
     )
 
     with pytest.raises(ValueError, match="Duplicate document id in dataset: duplicate"):
-        asyncio.run(run_indexing(_config(tmp_path, documents_path)))
+        _run_stage(_config(tmp_path, documents_path))
 
 
 def test_indexing_stage_rejects_documents_without_ids(tmp_path: Path) -> None:
@@ -253,4 +266,4 @@ def test_indexing_stage_rejects_documents_without_ids(tmp_path: Path) -> None:
     )
 
     with pytest.raises(ValueError, match="Document record is missing required fields"):
-        asyncio.run(run_indexing(_config(tmp_path, documents_path)))
+        _run_stage(_config(tmp_path, documents_path))

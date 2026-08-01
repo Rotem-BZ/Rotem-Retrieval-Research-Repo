@@ -2,13 +2,31 @@ from pathlib import Path
 
 import pytest
 import torch
+from haystack import Document
+from haystack.document_stores.in_memory import InMemoryDocumentStore
 
 from sparse_autoencoder_retrieval.model import (
     CompositeCodeSparseAutoencoder,
     load_autoencoder_checkpoint,
     save_autoencoder_checkpoint,
 )
-from sparse_autoencoder_retrieval.training import train_autoencoder
+from sparse_autoencoder_retrieval.training import load_dense_embeddings, train_autoencoder
+
+
+def test_load_dense_embeddings_reads_persisted_in_memory_index(tmp_path: Path) -> None:
+    index_path = tmp_path / "index.json"
+    store = InMemoryDocumentStore(embedding_similarity_function="cosine")
+    store.write_documents(
+        [
+            Document(id="d1", embedding=[1.0, 0.0]),
+            Document(id="d2", embedding=[0.0, 1.0]),
+        ]
+    )
+    store.save_to_disk(str(index_path))
+
+    embeddings = load_dense_embeddings(index_path)
+
+    assert torch.equal(embeddings, torch.tensor([[1.0, 0.0], [0.0, 1.0]]))
 
 
 def test_eval_codes_are_deterministic_and_one_hot_per_codebook() -> None:

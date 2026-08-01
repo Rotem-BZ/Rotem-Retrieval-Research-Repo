@@ -11,7 +11,7 @@ from typing import Any
 import yaml
 from omegaconf import OmegaConf
 
-from retrieval_core.stages import STAGE_RUNNERS
+from retrieval_core.stages import STAGES
 from retrieval_core.utils.config import compose_entrypoint_config
 from retrieval_core.utils.io import read_json, write_json_atomic
 
@@ -82,7 +82,7 @@ def load_run_definition(
         )
     cfg = compose_entrypoint_config(path)
     stage_name = str(cfg.stage.name)
-    if stage_name not in STAGE_RUNNERS:
+    if stage_name not in STAGES:
         raise ValueError(f"Run {path} resolves to unknown stage {stage_name!r}.")
     output_dir = Path(str(OmegaConf.select(cfg, "stage.output_dir")))
     if not output_dir.is_absolute():

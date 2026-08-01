@@ -4,16 +4,16 @@ defaults:
   - /selections/embedding_model@_global_.selections.embedding_model: ???
   - /component/query_preprocessor@components.query_preprocessor: prefix_cleanup
   - /component/query_embedder@components.query_embedder: sentence_transformers
-  - /component/retriever@components.retriever: jsonl_embeddings
+  - /component/retriever@components.retriever: persisted_in_memory
   - _self_
 
 components:
   input:
-    type: retrieval_components.interfaces.stage_io.InferenceInput
+    type: retrieval_components.interfaces.inference.InferenceInput
   query_transformer:
     type: {{ cookiecutter.package_name }}.components.{{ cookiecutter.component_class_name }}
   output:
-    type: retrieval_components.interfaces.stage_io.InferenceOutput
+    type: retrieval_components.interfaces.inference.InferenceOutput
 
 connections:
   - sender: input.query

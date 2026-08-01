@@ -82,4 +82,4 @@ owner in place as the team triages each item.
   - Priority: TBD
   - Owner: Unassigned
   - Context: Validate and commit or discard the modified
-    `projects/query-repetition-e5/uv.lock`.
+    `projects/query-repetition/uv.lock`.

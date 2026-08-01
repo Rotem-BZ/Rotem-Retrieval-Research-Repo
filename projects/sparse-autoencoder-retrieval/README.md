@@ -78,14 +78,14 @@ the frozen corpus embeddings used to train the SAE:
 
 ```powershell
 uv run prepare-beir --data-dir ../../data --dataset scifact
-uv run stage indexing dataset=beir_scifact runtime=cpu pipeline/indexing@pipeline=dense/documents_jsonl selections/embedding_model=e5/small_v2 selections.index_id=scifact-e5-small-dense stage.run_id=scifact-e5-small-dense-indexing
+uv run stage indexing dataset=beir_scifact runtime=cpu pipeline/indexing@pipeline=dense/documents_in_memory selections/embedding_model=e5/small_v2 selections.index_id=scifact-e5-small-dense stage.run_id=scifact-e5-small-dense-indexing
 ```
 
 Train CCSA over those embeddings. The output name agrees with the checked-in
 `e5_small_ccsa` selection:
 
 ```powershell
-uv run train-ccsa --input-path artifacts/indexes/scifact-e5-small-dense/index.jsonl --output-path artifacts/models/e5-small-ccsa-c32-l256.pt --num-codebooks 32 --codebook-size 256 --epochs 20 --batch-size 1024 --balance-weight 1.0
+uv run train-ccsa --input-path artifacts/indexes/scifact-e5-small-dense/index.json --output-path artifacts/models/e5-small-ccsa-c32-l256.pt --num-codebooks 32 --codebook-size 256 --epochs 20 --batch-size 1024 --balance-weight 1.0
 ```
 
 The paper notes that larger batches estimate whole-index balance better. Start

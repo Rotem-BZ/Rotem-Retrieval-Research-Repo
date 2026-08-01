@@ -13,11 +13,7 @@ from typing import Any
 
 from omegaconf import DictConfig, OmegaConf
 
-from retrieval_core.stages import STAGE_RUNNERS, StageResult
-from retrieval_core.stages.base import StageContext, prepare_stage_run_config
-from retrieval_core.stages.evaluation import prepare_evaluation_config
-from retrieval_core.stages.indexing import prepare_indexing_config
-from retrieval_core.stages.inference import prepare_inference_config
+from retrieval_core.stages import STAGES, StageResult
 from retrieval_core.utils.config import compose_entrypoint_config, compose_stage_config
 from retrieval_core.utils.logging import (
     RUN_LOG_FILENAME,
@@ -57,8 +53,8 @@ def run_stage(argv: Sequence[str] | None = None) -> StageResult:
     parser.add_argument(
         "stage_name",
         metavar="STAGE",
-        choices=sorted(STAGE_RUNNERS),
-        help=f"stage to execute ({', '.join(sorted(STAGE_RUNNERS))})",
+        choices=sorted(STAGES),
+        help=f"stage to execute ({', '.join(sorted(STAGES))})",
     )
     parser.add_argument(
         "--entrypoint",
@@ -86,14 +82,8 @@ def run_stage(argv: Sequence[str] | None = None) -> StageResult:
                 f"config entrypoint declares stage '{configured_stage}', but the command "
                 f"requested '{args.stage_name}'"
             )
-        prepare_stage_run_config(cfg)
-        if configured_stage == "indexing":
-            prepare_indexing_config(cfg)
-        elif configured_stage == "inference":
-            prepare_inference_config(cfg)
-        elif configured_stage == "evaluation":
-            prepare_evaluation_config(cfg)
-        context = StageContext.create(cfg)
+        stage = STAGES[configured_stage](cfg)
+        stage.prepare()
     except (SystemExit, KeyboardInterrupt):
         raise
     except Exception:
@@ -101,23 +91,22 @@ def run_stage(argv: Sequence[str] | None = None) -> StageResult:
         raise
 
     stage_name = args.stage_name
-    runner = STAGE_RUNNERS[stage_name]
     started_at = perf_counter()
     execution_started = False
 
     try:
-        with run_file_logging(context.output_dir / RUN_LOG_FILENAME) as log_path:
+        with run_file_logging(stage.output_dir / RUN_LOG_FILENAME) as log_path:
             execution_started = True
             logger.info(
                 "Stage started: stage=%s run_id=%s dataset=%s output_dir=%s log_path=%s",
                 stage_name,
                 cfg.stage.get("run_id"),
                 cfg.get("dataset", {}).get("name", "<none>"),
-                context.output_dir,
+                stage.output_dir,
                 log_path,
             )
             try:
-                result = runner(cfg, context=context)
+                result = stage.run()
                 if inspect.isawaitable(result):
                     result = asyncio.run(result)
             except KeyboardInterrupt:

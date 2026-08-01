@@ -23,10 +23,10 @@ jobs:
             project: packages/retrieval-core
             lint: packages/retrieval-core awesome-dev-tools
             tests: packages/retrieval-core/tests awesome-dev-tools/tests
-          - name: query-repetition-e5
-            project: projects/query-repetition-e5
-            lint: projects/query-repetition-e5
-            tests: projects/query-repetition-e5/tests
+          - name: query-repetition
+            project: projects/query-repetition
+            lint: projects/query-repetition
+            tests: projects/query-repetition/tests
 
     steps:
       - name: Check out repository
@@ -63,6 +63,6 @@ jobs:
       - run: uv sync --project packages/retrieval-core --extra dev
       - shell: bash
         run: |
-          uv run --project packages/retrieval-core stage indexing dataset=toy runtime=cpu pipeline/indexing@pipeline=dense/documents_jsonl selections/embedding_model=e5/small_v2 selections.index_id=ci-toy-index stage.run_id=ci-toy-indexing
-          uv run --project packages/retrieval-core stage inference dataset=toy runtime=cpu pipeline/inference@pipeline=retrieve/dense_jsonl selections/embedding_model=e5/small_v2 selections.index_id=ci-toy-index stage.run_id=ci-toy-inference
+          uv run --project packages/retrieval-core stage indexing dataset=toy runtime=cpu pipeline/indexing@pipeline=dense/documents_in_memory selections/embedding_model=e5/small_v2 selections.index_id=ci-toy-index stage.run_id=ci-toy-indexing
+          uv run --project packages/retrieval-core stage inference dataset=toy runtime=cpu pipeline/inference@pipeline=retrieve/dense_in_memory selections/embedding_model=e5/small_v2 selections.index_id=ci-toy-index stage.run_id=ci-toy-inference
           uv run --project packages/retrieval-core stage evaluation dataset=toy stage.inference_run_id=ci-toy-inference stage.run_id=ci-toy-evaluation

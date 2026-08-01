@@ -4,7 +4,7 @@ import pytest
 from omegaconf import OmegaConf
 
 from retrieval_core.data_schema import EVALUATION_DATA_SCHEMA
-from retrieval_core.stages.evaluation import prepare_evaluation_config, run_evaluation
+from retrieval_core.stages.evaluation import EvaluationStage
 from retrieval_core.utils.artifacts import discover_inference_run_ids
 from retrieval_core.utils.io import write_json, write_jsonl, write_predictions
 
@@ -54,7 +54,9 @@ def test_evaluation_reads_prediction_mapping_json(tmp_path: Path) -> None:
         }
     )
 
-    assert run_evaluation(cfg) == {"Recall@1": 1.0, "MRR@1": 1.0}
+    stage = EvaluationStage(cfg)
+    stage.prepare()
+    assert stage.run() == {"Recall@1": 1.0, "MRR@1": 1.0}
 
 
 def test_evaluation_resolves_prediction_path_from_exact_inference_run_id(tmp_path: Path) -> None:
@@ -82,7 +84,7 @@ def test_evaluation_resolves_prediction_path_from_exact_inference_run_id(tmp_pat
         }
     )
 
-    prepare_evaluation_config(cfg)
+    EvaluationStage(cfg).prepare_config()
 
     assert Path(cfg.stage.predictions_path) == predictions_path
 
@@ -99,7 +101,7 @@ def test_evaluation_does_not_accept_inference_run_prefixes(tmp_path: Path) -> No
     )
 
     with pytest.raises(FileNotFoundError, match="No inference run exists"):
-        prepare_evaluation_config(cfg)
+        EvaluationStage(cfg).prepare_config()
 
 
 def test_discovers_completed_inference_runs_for_selected_dataset(tmp_path: Path) -> None:

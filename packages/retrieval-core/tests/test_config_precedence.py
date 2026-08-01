@@ -12,7 +12,7 @@ from retrieval_core.utils.config import (
 def test_bare_stage_name_resolves_to_stages_group() -> None:
     overrides = [
         "dataset=toy",
-        "pipeline/inference@pipeline=retrieve/dense_jsonl",
+        "pipeline/inference@pipeline=retrieve/dense_in_memory",
         "selections/embedding_model=e5/small_v2",
         "runtime=gpu",
     ]
@@ -131,7 +131,7 @@ def test_run_config_uses_hydra_defaults_without_cli_overrides(tmp_path: Path) ->
 defaults:
   - /stages/inference
   - override /dataset: toy
-  - override /pipeline/inference@pipeline: retrieve/dense_jsonl
+  - override /pipeline/inference@pipeline: retrieve/dense_in_memory
   - override /selections/embedding_model@selections.embedding_model: e5/small_v2
   - override /runtime: cpu
   - _self_

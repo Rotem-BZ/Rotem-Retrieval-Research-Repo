@@ -18,7 +18,7 @@ Create a dense index and use that exact index for inference:
 uv run --project packages/retrieval-core stage indexing `
   dataset=toy `
   runtime=cpu `
-  pipeline/indexing@pipeline=dense/documents_jsonl `
+  pipeline/indexing@pipeline=dense/documents_in_memory `
   selections/embedding_model=e5/small_v2 `
   selections.index_id=toy-dense-index `
   stage.run_id=toy-dense-indexing
@@ -26,7 +26,7 @@ uv run --project packages/retrieval-core stage indexing `
 uv run --project packages/retrieval-core stage inference `
   dataset=toy `
   runtime=cpu `
-  pipeline/inference@pipeline=retrieve/dense_jsonl `
+  pipeline/inference@pipeline=retrieve/dense_in_memory `
   selections/embedding_model=e5/small_v2 `
   selections.index_id=toy-dense-index `
   stage.run_id=toy-dense-inference
@@ -86,7 +86,7 @@ uv run --project packages/retrieval-core stage evaluation `
 Run the remaining commands from the query-repetition project:
 
 ```powershell
-Set-Location projects/query-repetition-e5
+Set-Location projects/query-repetition
 uv sync --extra dev
 ```
 
@@ -99,21 +99,21 @@ uv run stage indexing `
   dataset=toy `
   paths.processed_data_dir=../../data/processed `
   runtime=cpu `
-  pipeline/indexing@pipeline=dense/documents_jsonl `
+  pipeline/indexing@pipeline=dense/documents_in_memory `
   selections/embedding_model=e5/small_v2 `
   selections.index_id=toy-e5-small-index `
   stage.run_id=toy-e5-small-indexing
 ```
 
-Select the project-owned `query_repetition_e5/dense_query_repetition` pipeline to execute
-`query_repetition_e5.components.QueryRepeater` directly:
+Select the project-owned `query_repetition/dense_query_repetition` pipeline to execute
+`query_repetition.components.QueryRepeater` directly:
 
 ```powershell
 uv run stage inference `
   dataset=toy `
   paths.processed_data_dir=../../data/processed `
   runtime=cpu `
-  pipeline/inference@pipeline=query_repetition_e5/dense_query_repetition `
+  pipeline/inference@pipeline=query_repetition/dense_query_repetition `
   selections/embedding_model=e5/small_v2 `
   selections.index_id=toy-e5-small-index `
   stage.run_id=toy-query-repetition-component
@@ -122,7 +122,7 @@ uv run stage inference `
 ## A specific project experiment run
 
 The project includes the toy experiment
-[`query-repetition-e5-small-toy`](../projects/query-repetition-e5/experiments/query-repetition-e5-small-toy/experiment.md).
+[`query-repetition-e5-small-toy`](../projects/query-repetition/experiments/query-repetition-e5-small-toy/experiment.md).
 After creating `toy-e5-small-index` above, launch its checked-in `repeated` run by
 passing the YAML file as the stage entrypoint:
 

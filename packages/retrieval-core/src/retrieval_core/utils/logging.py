@@ -19,7 +19,7 @@ _FIRST_PARTY_LOGGERS = (
     "retrieval_core",
     "retrieval_components",
     "sparse_autoencoder_retrieval",
-    "query_repetition_e5",
+    "query_repetition",
     "_internal",
 )
 _THIRD_PARTY_LOGGERS = (
