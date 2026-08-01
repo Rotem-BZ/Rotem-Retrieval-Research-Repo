@@ -181,7 +181,7 @@ def test_bi_encoder_reranker_uses_candidate_documents() -> None:
     ]
 
 
-def test_cross_encoder_reranker_uses_bge_selection() -> None:
+def test_cross_encoder_reranker_uses_bge_selection_and_prefix_components() -> None:
     cfg = compose_stage_config(
         "inference",
         [
@@ -208,21 +208,194 @@ def test_cross_encoder_reranker_uses_bge_selection() -> None:
         "SentenceTransformersSimilarityRanker"
     )
     assert pipeline_config["components"]["ranker"]["init_parameters"]["scale_score"] is True
+    assert pipeline_config["components"]["query_preprocessor"]["init_parameters"][
+        "prefix"
+    ] == ""
+    assert pipeline_config["components"]["document_prefixer"]["init_parameters"][
+        "prefix"
+    ] == ""
+    assert {"query_preprocessor", "document_prefixer"} <= set(pipeline.graph.nodes)
     assert {
         "sender": "input.candidate_documents",
         "receiver": "document_parser.documents",
     } in pipeline_config["connections"]
     assert {
         "sender": "document_parser.documents",
-        "receiver": "ranker.documents",
+        "receiver": "document_prefixer.documents",
     } in pipeline_config["connections"]
     assert {
-        "sender": "input.query",
+        "sender": "query_preprocessor.query",
         "receiver": "ranker.query",
+    } in pipeline_config["connections"]
+    assert {
+        "sender": "document_prefixer.documents",
+        "receiver": "ranker.documents",
     } in pipeline_config["connections"]
     assert {"sender": "ranker.documents", "receiver": "output.documents"} in pipeline_config[
         "connections"
     ]
+
+
+def test_cross_encoder_reranker_binds_nonempty_model_prefixes(tmp_path: Path) -> None:
+    config_dir = tmp_path / "configs"
+    model_path = config_dir / "selections" / "reranker_model" / "test" / "prefixed.yaml"
+    model_path.parent.mkdir(parents=True)
+    model_path.write_text(
+        """name: test_prefixed_reranker
+artifact_name: test_prefixed_reranker
+checkpoint: test/prefixed-reranker
+document_prefix: "rerank passage: "
+query_prefix: "rerank query: "
+scale_score: false
+tokenizer_kwargs:
+  model_max_length: 256
+""",
+        encoding="utf-8",
+    )
+
+    cfg = compose_stage_config(
+        "inference",
+        [
+            "dataset=toy",
+            "runtime=cpu",
+            "pipeline/inference@pipeline=rerank/cross_encoder",
+            "selections/reranker_model=test/prefixed",
+        ],
+        config_dir=config_dir,
+    )
+
+    pipeline_config = to_container(cfg.pipeline)
+    load_async_pipeline(cfg.pipeline)
+
+    assert pipeline_config["components"]["query_preprocessor"]["init_parameters"][
+        "prefix"
+    ] == "rerank query: "
+    assert pipeline_config["components"]["document_prefixer"]["init_parameters"][
+        "prefix"
+    ] == "rerank passage: "
+    assert pipeline_config["components"]["ranker"]["init_parameters"]["model"] == (
+        "test/prefixed-reranker"
+    )
+
+
+def test_embedding_model_catalog_can_fill_two_named_model_roles(tmp_path: Path) -> None:
+    config_dir = tmp_path / "configs"
+    pipeline_path = (
+        config_dir
+        / "pipeline"
+        / "inference"
+        / "test"
+        / "two_embedding_models.yaml"
+    )
+    reranker_model_path = (
+        config_dir / "selections" / "embedding_model" / "test" / "reranker.yaml"
+    )
+    pipeline_path.parent.mkdir(parents=True)
+    reranker_model_path.parent.mkdir(parents=True)
+    reranker_model_path.write_text(
+        """name: test_reranker
+artifact_name: test_reranker
+checkpoint: test/reranker
+document_prefix: "rerank passage: "
+query_prefix: "rerank query: "
+normalize_embeddings: false
+similarity: dot_product
+tokenizer_kwargs:
+  model_max_length: 256
+""",
+        encoding="utf-8",
+    )
+    pipeline_path.write_text(
+        """defaults:
+  - /selections/embedding_model@_global_.selections.models.retriever: ???
+  - /selections/embedding_model@_global_.selections.models.reranker: ???
+  - /component/query_preprocessor@components.retriever_query_preprocessor: prefix_cleanup
+  - /component/query_embedder@components.retriever_query_embedder: sentence_transformers
+  - /component/query_preprocessor@components.reranker_query_preprocessor: prefix_cleanup
+  - /component/query_embedder@components.reranker_query_embedder: sentence_transformers
+  - _self_
+
+components:
+  input:
+    type: retrieval_components.interfaces.stage_io.InferenceInput
+  retriever_query_preprocessor:
+    init_parameters:
+      prefix: ${selections.models.retriever.query_prefix}
+  retriever_query_embedder:
+    init_parameters:
+      model: ${selections.models.retriever.checkpoint}
+      normalize_embeddings: ${selections.models.retriever.normalize_embeddings}
+      tokenizer_kwargs: ${selections.models.retriever.tokenizer_kwargs}
+  reranker_query_preprocessor:
+    init_parameters:
+      prefix: ${selections.models.reranker.query_prefix}
+  reranker_query_embedder:
+    init_parameters:
+      model: ${selections.models.reranker.checkpoint}
+      normalize_embeddings: ${selections.models.reranker.normalize_embeddings}
+      tokenizer_kwargs: ${selections.models.reranker.tokenizer_kwargs}
+  output:
+    type: retrieval_components.interfaces.stage_io.InferenceOutput
+
+connections:
+  - sender: input.query
+    receiver: retriever_query_preprocessor.query
+  - sender: input.query
+    receiver: reranker_query_preprocessor.query
+  - sender: input.query
+    receiver: output.query
+  - sender: retriever_query_preprocessor.query
+    receiver: retriever_query_embedder.query
+  - sender: reranker_query_preprocessor.query
+    receiver: reranker_query_embedder.query
+  - sender: input.candidate_documents
+    receiver: output.documents
+
+max_runs_per_component: 100
+metadata:
+  description: Test-only topology with two model roles from one catalog.
+""",
+        encoding="utf-8",
+    )
+
+    cfg = compose_stage_config(
+        "inference",
+        [
+            "dataset=toy",
+            "runtime=cpu",
+            "pipeline/inference@pipeline=test/two_embedding_models",
+            (
+                "selections/embedding_model@selections.models.retriever="
+                "e5/small_v2"
+            ),
+            (
+                "selections/embedding_model@selections.models.reranker="
+                "test/reranker"
+            ),
+        ],
+        config_dir=config_dir,
+    )
+
+    pipeline_config = to_container(cfg.pipeline)
+    pipeline = load_async_pipeline(cfg.pipeline)
+
+    assert cfg.selections.models.retriever.checkpoint == "intfloat/e5-small-v2"
+    assert cfg.selections.models.reranker.checkpoint == "test/reranker"
+    assert pipeline_config["components"]["retriever_query_preprocessor"][
+        "init_parameters"
+    ]["prefix"] == "query: "
+    assert pipeline_config["components"]["reranker_query_preprocessor"][
+        "init_parameters"
+    ]["prefix"] == "rerank query: "
+    assert pipeline_config["components"]["retriever_query_embedder"][
+        "init_parameters"
+    ]["model"] == "intfloat/e5-small-v2"
+    assert pipeline_config["components"]["reranker_query_embedder"][
+        "init_parameters"
+    ]["model"] == "test/reranker"
+    assert {"retriever_query_embedder", "reranker_query_embedder"} <= set(
+        pipeline.graph.nodes
+    )
 
 
 def test_materialized_native_haystack_pipeline_keeps_query_to_string_adapter() -> None:

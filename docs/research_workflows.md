@@ -192,25 +192,55 @@ defaults:
 ```
 
 Because the pipeline config is mounted at `pipeline`, component defaults mounted
-at `components.*` land inside `pipeline.components.*`. The semantic model
-selection lands at root under `selections.embedding_model`, where any component
-can reference it:
+at `components.*` land inside `pipeline.components.*`. Reusable component
+fragments declare model-dependent values as required instead of referring to a
+fixed selection name:
 
 ```yaml
 # configs/component/document_embedder/sentence_transformers.yaml
 type: haystack.components.embedders.sentence_transformers_document_embedder.SentenceTransformersDocumentEmbedder
 init_parameters:
-  model: ${selections.embedding_model.checkpoint}
-  normalize_embeddings: ${selections.embedding_model.normalize_embeddings}
+  model: ???
+  normalize_embeddings: ???
+  tokenizer_kwargs: ???
 ```
 
-The same config group can be mounted more than once for future multi-model
-topologies. Prefer role names over numbered names:
+The owning pipeline fills those parameters after selecting the fragment. This
+keeps the final `pipeline` subtree valid Haystack serialization while making the
+model dependency explicit at the topology level:
 
 ```yaml
-selections:
-  candidate_embedding_model: ...
-  rerank_embedding_model: ...
+components:
+  embedder:
+    init_parameters:
+      model: ${selections.embedding_model.checkpoint}
+      normalize_embeddings: ${selections.embedding_model.normalize_embeddings}
+      tokenizer_kwargs: ${selections.embedding_model.tokenizer_kwargs}
+```
+
+The same model catalog can be mounted more than once under role-oriented paths
+for a multi-model topology:
+
+```yaml
+defaults:
+  - /selections/embedding_model@_global_.selections.models.retriever: ???
+  - /selections/embedding_model@_global_.selections.models.reranker: ???
+  - _self_
+
+components:
+  retriever_query_preprocessor:
+    init_parameters:
+      prefix: ${selections.models.retriever.query_prefix}
+  reranker_query_preprocessor:
+    init_parameters:
+      prefix: ${selections.models.reranker.query_prefix}
+```
+
+Select the two catalog entries by their composed packages:
+
+```text
+selections/embedding_model@selections.models.retriever=e5/small_v2
+selections/embedding_model@selections.models.reranker=e5/base_v2
 ```
 
 Project-specific pipeline configs can reuse the shared component groups while

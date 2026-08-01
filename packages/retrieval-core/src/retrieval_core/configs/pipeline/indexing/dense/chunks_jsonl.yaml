@@ -11,6 +11,14 @@ defaults:
 components:
   input:
     type: retrieval_components.interfaces.stage_io.IndexingInput
+  document_prefixer:
+    init_parameters:
+      prefix: ${selections.embedding_model.document_prefix}
+  embedder:
+    init_parameters:
+      model: ${selections.embedding_model.checkpoint}
+      normalize_embeddings: ${selections.embedding_model.normalize_embeddings}
+      tokenizer_kwargs: ${selections.embedding_model.tokenizer_kwargs}
   output:
     type: retrieval_components.interfaces.stage_io.IndexingOutput
   indexer:

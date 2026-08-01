@@ -10,6 +10,17 @@ defaults:
 components:
   input:
     type: retrieval_components.interfaces.stage_io.InferenceInput
+  query_preprocessor:
+    init_parameters:
+      prefix: ${selections.embedding_model.query_prefix}
+  query_embedder:
+    init_parameters:
+      model: ${selections.embedding_model.checkpoint}
+      normalize_embeddings: ${selections.embedding_model.normalize_embeddings}
+      tokenizer_kwargs: ${selections.embedding_model.tokenizer_kwargs}
+  retriever:
+    init_parameters:
+      similarity: ${selections.embedding_model.similarity}
   query_repeater:
     type: query_repetition_e5.components.QueryRepeater
     init_parameters:

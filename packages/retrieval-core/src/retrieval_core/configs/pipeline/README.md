@@ -11,5 +11,15 @@ with Hydra's existing `pipeline/<stage>@pipeline=<choice>` override.
 | Inference | `rerank/bi_encoder` | Rerank a materialized candidate set with embedding similarity. | `embedding_model` |
 | Inference | `rerank/cross_encoder` | Rerank a materialized candidate set with a cross-encoder. | `reranker_model` |
 
+Reusable component fragments leave model-dependent constructor values required.
+The owning pipeline binds those values from its semantic model selection. This
+keeps fragments independent of fixed names such as `embedding_model` and lets a
+pipeline mount the same model catalog more than once under role-oriented paths
+such as `selections.models.retriever` and `selections.models.reranker`.
+
+Both reranking choices route query and document text through the shared prefix
+cleanup components. Model profiles define `query_prefix` and `document_prefix`;
+an explicit empty string means that the model does not require a prefix.
+
 Fusion algorithms remain available as component fragments for project-owned
 pipelines with multiple ranked-list producers.

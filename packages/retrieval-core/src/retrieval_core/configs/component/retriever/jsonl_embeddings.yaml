@@ -2,4 +2,4 @@ type: retrieval_components.retrieval.jsonl_embedding_retriever.JsonlEmbeddingRet
 init_parameters:
   index_path: ${paths.indexes_dir}/${selections.index_id}/index.jsonl
   top_k: 5
-  similarity: ${selections.embedding_model.similarity}
+  similarity: ???

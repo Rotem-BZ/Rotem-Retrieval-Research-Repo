@@ -12,6 +12,17 @@ defaults:
 components:
   input:
     type: retrieval_components.interfaces.stage_io.IndexingInput
+  document_prefixer:
+    init_parameters:
+      prefix: ${selections.embedding_model.document_prefix}
+  embedder:
+    init_parameters:
+      model: ${selections.embedding_model.checkpoint}
+      autoencoder_path: ${selections.sparse_autoencoder.checkpoint_path}
+      normalize_embeddings: ${selections.embedding_model.normalize_embeddings}
+  indexer:
+    init_parameters:
+      sparse_dimension: ${selections.sparse_autoencoder.sparse_dimension}
   output:
     type: retrieval_components.interfaces.stage_io.IndexingOutput
 

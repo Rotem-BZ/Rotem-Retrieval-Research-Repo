@@ -1,7 +1,7 @@
 type: retrieval_components.models.sentence_transformers_text_embedder.SentenceTransformersTextEmbedder
 init_parameters:
-  model: ${selections.embedding_model.checkpoint}
-  normalize_embeddings: ${selections.embedding_model.normalize_embeddings}
+  model: ???
+  normalize_embeddings: ???
   device: ${runtime.device}
   progress_bar: ${runtime.progress_bar}
-  tokenizer_kwargs: ${selections.embedding_model.tokenizer_kwargs}
+  tokenizer_kwargs: ???

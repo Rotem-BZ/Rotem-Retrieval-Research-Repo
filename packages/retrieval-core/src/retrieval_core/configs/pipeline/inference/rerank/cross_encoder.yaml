@@ -1,23 +1,40 @@
 defaults:
   - /selections/reranker_model@_global_.selections.reranker_model: ???
+  - /component/query_preprocessor@components.query_preprocessor: prefix_cleanup
   - /component/document_parser@components.document_parser: identity
+  - /component/document_preprocessor@components.document_prefixer: prefix_cleanup
   - /component/ranker@components.ranker: sentence_transformers_similarity
   - _self_
 
 components:
   input:
     type: retrieval_components.interfaces.stage_io.InferenceInput
+  query_preprocessor:
+    init_parameters:
+      prefix: ${selections.reranker_model.query_prefix}
+  document_prefixer:
+    init_parameters:
+      prefix: ${selections.reranker_model.document_prefix}
+  ranker:
+    init_parameters:
+      model: ${selections.reranker_model.checkpoint}
+      scale_score: ${selections.reranker_model.scale_score}
+      tokenizer_kwargs: ${selections.reranker_model.tokenizer_kwargs}
   output:
     type: retrieval_components.interfaces.stage_io.InferenceOutput
 
 connections:
   - sender: input.query
-    receiver: ranker.query
+    receiver: query_preprocessor.query
   - sender: input.query
     receiver: output.query
   - sender: input.candidate_documents
     receiver: document_parser.documents
   - sender: document_parser.documents
+    receiver: document_prefixer.documents
+  - sender: query_preprocessor.query
+    receiver: ranker.query
+  - sender: document_prefixer.documents
     receiver: ranker.documents
   - sender: ranker.documents
     receiver: output.documents

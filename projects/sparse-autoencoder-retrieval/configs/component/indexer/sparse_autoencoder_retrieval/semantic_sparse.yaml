@@ -3,4 +3,4 @@ init_parameters:
   output_path: ${paths.indexes_dir}/${selections.index_id}/semantic_sparse_index.json
   overwrite: false
   store_dense_embeddings: false
-  sparse_dimension: ${selections.sparse_autoencoder.sparse_dimension}
+  sparse_dimension: ???

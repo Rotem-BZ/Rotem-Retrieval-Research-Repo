@@ -1,5 +1,5 @@
 type: retrieval_components.preprocessing.document_text_prefixer.DocumentTextPrefixer
 init_parameters:
-  prefix: ${selections.embedding_model.document_prefix}
+  prefix: ???
   replace_regexes:
     "\\s+": " "

@@ -1,7 +1,7 @@
 type: retrieval_components.models.sentence_transformers_similarity_ranker.SentenceTransformersSimilarityRanker
 init_parameters:
-  model: ${selections.reranker_model.checkpoint}
+  model: ???
   device: ${runtime.device}
   top_k: 10
-  scale_score: ${selections.reranker_model.scale_score}
-  tokenizer_kwargs: ${selections.reranker_model.tokenizer_kwargs}
+  scale_score: ???
+  tokenizer_kwargs: ???
