@@ -140,7 +140,11 @@ async def _run_query(
     EVALUATION_DATA_SCHEMA.validate_query(query)
     query_id = str(query[EVALUATION_DATA_SCHEMA.query_id])
     query_input = str(query[EVALUATION_DATA_SCHEMA.IN])
-    pipeline_query = Query(id=query_id, meta=_query_meta(query))
+    pipeline_query = Query(
+        id=query_id,
+        content=str(query[EVALUATION_DATA_SCHEMA.query_content]),
+        meta=_query_meta(query),
+    )
     candidate_document_ids = list(inference_mapping.candidate_ids(query_input))
     result = await pipeline.run_async(
         data={
@@ -189,11 +193,12 @@ async def _run_query(
 
 
 def _query_meta(query: dict[str, Any]) -> dict[str, Any]:
-    """Return query fields available to parser components as metadata."""
+    """Return non-canonical query fields as metadata."""
 
     reserved_fields = {
         EVALUATION_DATA_SCHEMA.query_id,
         EVALUATION_DATA_SCHEMA.IN,
+        EVALUATION_DATA_SCHEMA.query_content,
         "meta",
     }
     meta = {key: value for key, value in query.items() if key not in reserved_fields}

@@ -3,7 +3,6 @@ defaults:
   - /selections@_global_.selections: index
   - /selections/embedding_model@_global_.selections.embedding_model: ???
   - /selections/sparse_autoencoder@_global_.selections.sparse_autoencoder: ???
-  - /component/query_parser@components.query_parser: content_field
   - /component/query_preprocessor@components.query_preprocessor: prefix_cleanup
   - /component/query_adapter@components.query_to_string: to_string
   - /component/query_embedder@components.query_embedder: sparse_autoencoder_retrieval/ccsa
@@ -18,10 +17,8 @@ components:
 
 connections:
   - sender: input.query
-    receiver: query_parser.query
-  - sender: query_parser.query
     receiver: query_preprocessor.query
-  - sender: query_parser.query
+  - sender: input.query
     receiver: output.query
   - sender: input.candidate_document_ids
     receiver: retriever.candidate_document_ids

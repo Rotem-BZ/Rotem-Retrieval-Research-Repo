@@ -3,7 +3,7 @@ defaults:
   - /selections@_global_.selections: index
   - /selections/embedding_model@_global_.selections.embedding_model: ???
   - /selections/sparse_autoencoder@_global_.selections.sparse_autoencoder: ???
-  - /component/document_parser@components.document_parser: content_field
+  - /component/document_parser@components.document_parser: identity
   - /component/document_preprocessor@components.document_prefixer: prefix_cleanup
   - /component/document_embedder@components.embedder: sparse_autoencoder_retrieval/ccsa
   - /component/indexer@components.indexer: sparse_autoencoder_retrieval/semantic_sparse

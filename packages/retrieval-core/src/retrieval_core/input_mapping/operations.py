@@ -57,6 +57,7 @@ def _document_from_record(record: dict[str, Any]) -> Document:
     EVALUATION_DATA_SCHEMA.validate_document(record)
     reserved_fields = {
         EVALUATION_DATA_SCHEMA.doc_id,
+        EVALUATION_DATA_SCHEMA.text,
         "meta",
         "score",
         "embedding",
@@ -65,11 +66,7 @@ def _document_from_record(record: dict[str, Any]) -> Document:
     meta.update(dict(record.get("meta") or {}))
     return Document(
         id=str(record[EVALUATION_DATA_SCHEMA.doc_id]),
-        content=(
-            str(record[EVALUATION_DATA_SCHEMA.text])
-            if EVALUATION_DATA_SCHEMA.text in record
-            else None
-        ),
+        content=str(record[EVALUATION_DATA_SCHEMA.text]),
         meta=meta,
         score=record.get("score"),
         embedding=record.get("embedding"),

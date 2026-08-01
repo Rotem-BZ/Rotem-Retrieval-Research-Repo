@@ -1,7 +1,6 @@
 defaults:
   - /selections/reranker_model@_global_.selections.reranker_model: ???
-  - /component/query_parser@components.query_parser: content_field
-  - /component/document_parser@components.document_parser: content_field
+  - /component/document_parser@components.document_parser: identity
   - /component/ranker@components.ranker: sentence_transformers_similarity
   - _self_
 
@@ -13,10 +12,8 @@ components:
 
 connections:
   - sender: input.query
-    receiver: query_parser.query
-  - sender: query_parser.query
     receiver: ranker.query
-  - sender: query_parser.query
+  - sender: input.query
     receiver: output.query
   - sender: input.candidate_documents
     receiver: document_parser.documents

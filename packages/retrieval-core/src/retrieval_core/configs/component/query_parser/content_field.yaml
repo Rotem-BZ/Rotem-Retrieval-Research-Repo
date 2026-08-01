@@ -1,3 +1,0 @@
-type: retrieval_components.preprocessing.content_field_parsers.QueryContentFieldParser
-init_parameters:
-  content_field: query_content

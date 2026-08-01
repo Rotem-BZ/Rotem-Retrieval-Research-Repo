@@ -2,7 +2,6 @@
 defaults:
   - /selections@_global_.selections: index
   - /selections/embedding_model@_global_.selections.embedding_model: ???
-  - /component/query_parser@components.query_parser: content_field
   - /component/query_preprocessor@components.query_preprocessor: prefix_cleanup
   - /component/query_embedder@components.query_embedder: sentence_transformers
   - /component/retriever@components.retriever: jsonl_embeddings
@@ -18,10 +17,8 @@ components:
 
 connections:
   - sender: input.query
-    receiver: query_parser.query
-  - sender: query_parser.query
     receiver: query_transformer.query
-  - sender: query_parser.query
+  - sender: input.query
     receiver: output.query
   - sender: query_transformer.query
     receiver: query_preprocessor.query

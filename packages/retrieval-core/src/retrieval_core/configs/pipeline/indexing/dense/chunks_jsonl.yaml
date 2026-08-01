@@ -1,7 +1,7 @@
 defaults:
   - /selections@_global_.selections: index
   - /selections/embedding_model@_global_.selections.embedding_model: ???
-  - /component/document_parser@components.document_parser: content_field
+  - /component/document_parser@components.document_parser: identity
   - /component/chunker@components.splitter: recursive_char
   - /component/document_preprocessor@components.document_prefixer: prefix_cleanup
   - /component/document_embedder@components.embedder: sentence_transformers

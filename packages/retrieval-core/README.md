@@ -11,7 +11,7 @@ published.
 Feature modules remain directly under `retrieval_core` (`stages`, `input_mapping`,
 `data_schema`, and the stage CLI). `EvaluationDataSchema` is the single source of
 truth for evaluation-file field names and identity validation; query and document
-content is materialized by pipeline parser components. Shared infrastructure lives under
+content is materialized when stage inputs are constructed. Shared infrastructure lives under
 `retrieval_core.utils` and is grouped by responsibility:
 
 - `artifacts`: immutable run manifests and artifact resolution

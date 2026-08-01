@@ -42,17 +42,19 @@ def test_schema_validation_allows_additional_fields() -> None:
     )
 
 
-def test_schema_validation_allows_missing_content_fields() -> None:
-    EVALUATION_DATA_SCHEMA.validate_query(
-        {
-            EVALUATION_DATA_SCHEMA.query_id: "query-1",
-            EVALUATION_DATA_SCHEMA.IN: "1",
-            "question": "metadata-backed query",
-        }
-    )
-    EVALUATION_DATA_SCHEMA.validate_document(
-        {EVALUATION_DATA_SCHEMA.doc_id: "doc-1", "body": "metadata-backed document"}
-    )
+def test_schema_validation_requires_content_fields() -> None:
+    with pytest.raises(ValueError, match="query_content"):
+        EVALUATION_DATA_SCHEMA.validate_query(
+            {
+                EVALUATION_DATA_SCHEMA.query_id: "query-1",
+                EVALUATION_DATA_SCHEMA.IN: "1",
+            }
+        )
+
+    with pytest.raises(ValueError, match="text"):
+        EVALUATION_DATA_SCHEMA.validate_document(
+            {EVALUATION_DATA_SCHEMA.doc_id: "doc-1"}
+        )
 
 
 def test_schema_validation_reports_missing_required_identity_fields() -> None:

@@ -112,7 +112,6 @@ the semantic embedding-model selection:
 # configs/pipeline/inference/retrieve/dense_jsonl.yaml
 defaults:
   - /selections/embedding_model@_global_.selections.embedding_model: ???
-  - /component/query_parser@components.query_parser: content_field
   - /component/query_preprocessor@components.query_preprocessor: prefix_cleanup
   - /component/query_embedder@components.query_embedder: sentence_transformers
   - /component/retriever@components.retriever: jsonl_embeddings
@@ -126,10 +125,8 @@ components:
 
 connections:
   - sender: input.query
-    receiver: query_parser.query
-  - sender: query_parser.query
     receiver: query_preprocessor.query
-  - sender: query_parser.query
+  - sender: input.query
     receiver: output.query
   - sender: query_preprocessor.query
     receiver: query_embedder.query
@@ -543,9 +540,9 @@ uv run stage inference `
 
 ### Reranking Pipelines
 
-The inference stage always sends legacy query text, complete query metadata,
+The inference stage always sends canonical query content, additional query metadata,
 candidate ids, and materialized candidate documents through the `input` component.
-That lets query parsers and reranking pipelines reuse the same stage contract.
+That lets retrieval and reranking pipelines reuse the same stage contract.
 
 To rerank a candidate pool with a bi-encoder, use the candidate reranker
 topology. This embeds `input.candidate_documents`, embeds the query, scores by
@@ -724,10 +721,11 @@ Document JSONL records should look like:
 {"doc_id":"doc-1","text":"Text to index.","title":"An optional extra field"}
 ```
 
-Only `doc_id` is required by the dataset schema. All other JSON-serializable fields,
-including `text`, are preserved as document metadata. Built-in pipelines use
-`DocumentContentFieldParser(content_field="text")`; select or implement another
-document parser for datasets whose embedding text comes from different fields.
+Both `doc_id` and `text` are required by the dataset schema. The stage materializes
+`text` as `Document.content`; other JSON-serializable fields are preserved as document
+metadata. Built-in pipelines use `IdentityParser`, which verifies that content exists
+and otherwise returns documents unchanged. The parser slot remains an extension point
+for future parsers that intentionally transform document content.
 
 Query JSONL records should look like:
 
@@ -735,13 +733,11 @@ Query JSONL records should look like:
 {"query_id":"external-q-1","IN":"q-1","query_content":"Search text.","language":"en"}
 ```
 
-Only `query_id` and `IN` are required by the dataset schema. The inference stage
+`query_id`, `IN`, and `query_content` are required by the dataset schema. The inference stage
 creates a `Query` (importable with `from retrieval_components.dataclasses import Query`) whose
-`id` is `query_id`, whose `content` initially is `None`, and whose `meta` preserves
-the other query fields, including nested dictionaries. Built-in pipelines use
-`QueryContentFieldParser(content_field="query_content")`; alternate pipelines can
-select another field or render several metadata fields. Query parsers,
-preprocessors, retrievers, and query-aware model subclasses consume or return
+`id` is `query_id`, whose `content` is `query_content`, and whose `meta` preserves
+the other query fields, including nested dictionaries. Query preprocessors,
+retrievers, and query-aware model subclasses consume or return
 `Query` values. `QueryToString` unwraps the final content only where a regular
 Haystack or project-owned component still requires a text socket.
 

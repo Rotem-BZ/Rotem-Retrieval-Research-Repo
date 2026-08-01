@@ -62,13 +62,13 @@ def test_semantic_sparse_inference_pipeline_loads() -> None:
 
     assert {
         "input",
-        "query_parser",
         "query_preprocessor",
         "query_to_string",
         "query_embedder",
         "retriever",
         "output",
     } <= set(pipeline.graph.nodes)
+    assert "query_parser" not in pipeline.graph.nodes
     assert pipeline_dict["components"]["query_embedder"]["type"].endswith(
         "SparseAutoencoderTextEmbedder"
     )

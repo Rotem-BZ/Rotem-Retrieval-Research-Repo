@@ -128,9 +128,8 @@ def test_indexing_stage_loads_documents_and_supplies_batched_pipeline_input(
     documents = pipeline.batches[0]
     assert len(documents) == 1
     assert documents[0].id == "d1"
-    assert documents[0].content is None
+    assert documents[0].content == "document text"
     assert documents[0].meta == {
-        "text": "document text",
         "title": "Title",
         "split": "test",
     }

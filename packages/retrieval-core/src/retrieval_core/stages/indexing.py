@@ -82,6 +82,7 @@ async def run_indexing(
     batch: list[Document] = []
     reserved_fields = {
         EVALUATION_DATA_SCHEMA.doc_id,
+        EVALUATION_DATA_SCHEMA.text,
         "meta",
         "score",
         "embedding",
@@ -132,6 +133,7 @@ async def run_indexing(
                 batch.append(
                     Document(
                         id=document_id,
+                        content=str(record[EVALUATION_DATA_SCHEMA.text]),
                         meta=meta,
                         score=record.get("score"),
                         embedding=record.get("embedding"),

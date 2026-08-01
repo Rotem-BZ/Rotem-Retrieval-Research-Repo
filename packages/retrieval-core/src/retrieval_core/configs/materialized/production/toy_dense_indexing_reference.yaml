@@ -32,9 +32,7 @@ pipeline:
     input:
       type: retrieval_components.interfaces.stage_io.IndexingInput
     document_parser:
-      type: retrieval_components.preprocessing.content_field_parsers.DocumentContentFieldParser
-      init_parameters:
-        content_field: text
+      type: retrieval_components.preprocessing.identity_parser.IdentityParser
     document_prefixer:
       type: retrieval_components.preprocessing.document_text_prefixer.DocumentTextPrefixer
       init_parameters:

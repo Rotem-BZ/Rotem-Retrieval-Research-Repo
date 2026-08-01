@@ -19,7 +19,7 @@ listed classes from its `__init__.py`.
 | `retrieval_components.indexing` | `JsonlDocumentIndexer` | Write documents and embeddings to a local JSONL artifact. |
 | `retrieval_components.interfaces` | `IndexingInput`, `IndexingOutput`, `InferenceInput`, `InferenceOutput` | Define fixed stage-boundary sockets for indexing and inference. |
 | `retrieval_components.models` | `SentenceTransformersDocumentEmbedder`, `SentenceTransformersSimilarityRanker`, `SentenceTransformersTextEmbedder`, `TransformersSimilarityRanker` | Provide Query-aware subclasses of native query model components and re-export the native document embedder. |
-| `retrieval_components.preprocessing` | `DocumentContentFieldParser`, `DocumentTextPrefixer`, `QueryContentFieldParser`, `QueryTextPreprocessor`, `QueryToString` | Materialize and transform document or Query content, with an explicit compatibility boundary for plain-text components. |
+| `retrieval_components.preprocessing` | `DocumentTextPrefixer`, `IdentityParser`, `QueryTextPreprocessor`, `QueryToString` | Validate or transform materialized document and Query content, with an explicit compatibility boundary for plain-text components. |
 | `retrieval_components.ranking` | `EmbeddingSimilarityRanker` | Rank already-embedded documents against a query embedding. |
 | `retrieval_components.reformulation` | `HttpQueryReformulator` | Call an injected HTTP reformulation service. |
 | `retrieval_components.retrieval` | `JsonlEmbeddingRetriever` | Retrieve by embedding similarity from local JSONL artifacts. |
@@ -29,7 +29,7 @@ so Haystack can import only the defining module named by a serialized component 
 Query-aware model subclasses remain under `retrieval_components.models`.
 The shared inference value is available as
 `from retrieval_components.dataclasses import Query`; it carries `id`, optional `content`, and
-arbitrary nested metadata between query parsers and preprocessors. Treat it as an
+arbitrary nested metadata between query-aware components. Treat it as an
 immutable value and use `query.with_content(...)` in transformation components.
 
 ## Haystack overlap
@@ -44,8 +44,9 @@ required contract:
   regex transforms beyond the relevant native cleaner contracts.
 - `QueryToString` is retained for regular Haystack or project-owned components that
   still require a plain text socket.
-- `DocumentContentFieldParser` and `QueryContentFieldParser` provide strict dataset-field
-  boundaries before experiment-specific metadata renderers run.
+- `IdentityParser` is the minimal document-parser implementation: it verifies that
+  content was materialized at the dataset boundary and otherwise passes documents
+  through unchanged. The parser slot remains available for richer future parsers.
 - The fusion components add weighted, dynamic named sockets beyond the fixed-input
   use cases covered by `DocumentJoiner`. `LinearScoreFusion` and `ZScoreFusion`
   provide distinct per-source normalization contracts.

@@ -2,7 +2,6 @@ from pathlib import Path
 
 from omegaconf import OmegaConf
 
-from retrieval_core.data_schema import EVALUATION_DATA_SCHEMA
 from retrieval_core.utils.config import compose_stage_config
 from retrieval_core.utils.pipelines import load_async_pipeline, to_container
 
@@ -31,9 +30,8 @@ def test_abstract_dense_e5_indexing_config_keeps_pipeline_haystack_shaped() -> N
     assert cfg.selections.embedding_model.checkpoint == "intfloat/e5-small-v2"
     assert "document_source" not in pipeline_config["components"]
     assert pipeline_config["components"]["input"]["type"].endswith("IndexingInput")
-    assert (
-        pipeline_config["components"]["document_parser"]["init_parameters"]["content_field"]
-        == EVALUATION_DATA_SCHEMA.text
+    assert pipeline_config["components"]["document_parser"]["type"].endswith(
+        "identity_parser.IdentityParser"
     )
     assert {
         "sender": "input.documents",
@@ -128,15 +126,13 @@ def test_abstract_dense_e5_inference_config_prefixes_queries() -> None:
         pipeline_config["components"]["query_embedder"]["init_parameters"]["progress_bar"] is True
     )
     assert pipeline_config["components"]["retriever"]["init_parameters"]["similarity"] == "cosine"
-    assert {"sender": "input.query", "receiver": "query_parser.query"} in pipeline_config[
+    assert {"sender": "input.query", "receiver": "query_preprocessor.query"} in pipeline_config[
         "connections"
     ]
-    assert {"sender": "query_parser.query", "receiver": "query_preprocessor.query"} in (
+    assert {"sender": "input.query", "receiver": "output.query"} in (
         pipeline_config["connections"]
     )
-    assert {"sender": "query_parser.query", "receiver": "output.query"} in (
-        pipeline_config["connections"]
-    )
+    assert "query_parser" not in pipeline_config["components"]
     assert {"sender": "query_preprocessor.query", "receiver": "query_embedder.query"} in (
         pipeline_config["connections"]
     )
@@ -221,7 +217,7 @@ def test_cross_encoder_reranker_uses_bge_selection() -> None:
         "receiver": "ranker.documents",
     } in pipeline_config["connections"]
     assert {
-        "sender": "query_parser.query",
+        "sender": "input.query",
         "receiver": "ranker.query",
     } in pipeline_config["connections"]
     assert {"sender": "ranker.documents", "receiver": "output.documents"} in pipeline_config[

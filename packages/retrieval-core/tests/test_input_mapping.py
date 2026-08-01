@@ -75,11 +75,17 @@ def test_full_input_mapping_runs_all_queries_against_all_documents(tmp_path: Pat
     assert mapping.queries[0]["language"] == "en"
 
 
-def test_inference_mapping_accepts_metadata_only_content_records(tmp_path: Path) -> None:
+def test_inference_mapping_materializes_canonical_document_content(tmp_path: Path) -> None:
     cfg = _cfg(tmp_path, None)
     write_jsonl(
         cfg.dataset.documents_path,
-        [{EVALUATION_DATA_SCHEMA.doc_id: "d1", "body": {"text": "nested"}}],
+        [
+            {
+                EVALUATION_DATA_SCHEMA.doc_id: "d1",
+                EVALUATION_DATA_SCHEMA.text: "document text",
+                "title": "metadata title",
+            }
+        ],
     )
     write_jsonl(
         cfg.dataset.queries_path,
@@ -87,16 +93,15 @@ def test_inference_mapping_accepts_metadata_only_content_records(tmp_path: Path)
             {
                 EVALUATION_DATA_SCHEMA.query_id: "external-q1",
                 EVALUATION_DATA_SCHEMA.IN: "q1",
-                "question": "metadata query",
+                EVALUATION_DATA_SCHEMA.query_content: "query text",
             }
         ],
     )
 
     mapping = resolve_inference_mapping(cfg)
 
-    assert mapping.documents_by_id["d1"].content is None
-    assert mapping.documents_by_id["d1"].meta == {"body": {"text": "nested"}}
-    assert mapping.queries[0]["question"] == "metadata query"
+    assert mapping.documents_by_id["d1"].content == "document text"
+    assert mapping.documents_by_id["d1"].meta == {"title": "metadata title"}
 
 
 def test_file_input_mapping_runs_only_mapped_queries(tmp_path: Path) -> None:

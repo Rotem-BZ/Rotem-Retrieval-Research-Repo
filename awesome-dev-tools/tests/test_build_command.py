@@ -163,11 +163,6 @@ def test_collects_selected_config_graph_with_mount_prefixes() -> None:
             "selected",
         ),
         (
-            "component/query_parser@pipeline.components.query_parser=content_field",
-            "pipeline.components.query_parser",
-            "default",
-        ),
-        (
             "component/query_preprocessor@pipeline.components.query_preprocessor=prefix_cleanup",
             "pipeline.components.query_preprocessor",
             "default",
@@ -275,7 +270,7 @@ def test_effective_editable_fields_convert_composed_list_values() -> None:
     assert isinstance(connections.value, list)
     assert connections.value[0] == {
         "sender": "input.query",
-        "receiver": "query_parser.query",
+        "receiver": "query_preprocessor.query",
     }
 
 
@@ -364,7 +359,7 @@ def test_configure_flow_builds_inference_dense_command_with_top_k(
             "2",
             "3",
             "y",
-            "10",
+            "9",
             "3",
             "3",
             "100",
@@ -471,7 +466,7 @@ def test_configure_flow_switches_nested_component_choice_with_mounted_override(
             "2",
             "3",
             "y",
-            "8",
+            "7",
             "2",
             "1",
             "0",
