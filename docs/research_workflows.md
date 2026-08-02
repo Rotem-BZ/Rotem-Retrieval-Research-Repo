@@ -487,6 +487,24 @@ Useful built-in recipes live under `configs/input_mapping_recipe/`:
 - `dev_tiny`: two-query development pool with easy negatives and cross-query positives.
 - `random_smoke`: two-query smoke-test pool with one random extra document per query.
 
+Generated recipes can instead map every selected query to the same selected document
+pool. Set `use_all_selected_documents_for_every_query: true`, keep
+`query_subset_size` and `document_subset_size` at the desired selection sizes, and
+disable the mutually exclusive per-query sampling counts with either `null` or `0`:
+
+```yaml
+query_subset_size: 10
+document_subset_size: 100
+use_all_selected_documents_for_every_query: true
+random_docs_per_query: null
+easy_negative_docs_per_query: null
+gold_passage_docs_per_query: null
+```
+
+The document subset still contains every qrel-annotated document required by the
+selected queries. The generated mapping assigns the entire resulting subset to each
+selected query.
+
 Prepared mappings are stored outside the dataset tree:
 
 ```text

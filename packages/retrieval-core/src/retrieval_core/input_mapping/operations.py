@@ -22,6 +22,7 @@ GENERATION_KEYS = (
     "seed",
     "query_subset_size",
     "document_subset_size",
+    "use_all_selected_documents_for_every_query",
     "random_docs_per_query",
     "easy_negative_docs_per_query",
     "gold_passage_docs_per_query",
@@ -136,9 +137,7 @@ def validate_input_mapping_id(input_mapping_id: object) -> str:
         or Path(normalized).name != normalized
         or any(character in normalized for character in RUN_ID_FORBIDDEN_CHARS)
     ):
-        raise ValueError(
-            f"Input mapping id must be one folder name, got {input_mapping_id!r}."
-        )
+        raise ValueError(f"Input mapping id must be one folder name, got {input_mapping_id!r}.")
     return normalized
 
 
@@ -213,6 +212,10 @@ def _resolve_file_mapping(
 def input_mapping_generation_params(mapping_cfg: DictConfig) -> dict[str, Any]:
     """Return the generation parameters represented by an input-mapping recipe."""
 
+    def optional_count(name: str) -> int | None:
+        value = mapping_cfg.get(name, 0)
+        return None if value is None else int(value)
+
     params = {
         "seed": int(mapping_cfg.get("seed", 0)),
         "query_subset_size": (
@@ -225,9 +228,12 @@ def input_mapping_generation_params(mapping_cfg: DictConfig) -> dict[str, Any]:
             if mapping_cfg.get("document_subset_size") is None
             else int(mapping_cfg.get("document_subset_size"))
         ),
-        "random_docs_per_query": int(mapping_cfg.get("random_docs_per_query", 0)),
-        "easy_negative_docs_per_query": int(mapping_cfg.get("easy_negative_docs_per_query", 0)),
-        "gold_passage_docs_per_query": int(mapping_cfg.get("gold_passage_docs_per_query", 0)),
+        "use_all_selected_documents_for_every_query": bool(
+            mapping_cfg.get("use_all_selected_documents_for_every_query", False)
+        ),
+        "random_docs_per_query": optional_count("random_docs_per_query"),
+        "easy_negative_docs_per_query": optional_count("easy_negative_docs_per_query"),
+        "gold_passage_docs_per_query": optional_count("gold_passage_docs_per_query"),
     }
     return {key: params[key] for key in GENERATION_KEYS}
 
@@ -267,8 +273,7 @@ def prepare_generated_input_mapping(cfg: DictConfig) -> tuple[GeneratedInputMapp
     mapping_path = prepared_mapping_path(cfg)
     if mapping_path.parent.exists():
         raise FileExistsError(
-            f"Input mapping run already exists; choose another stage.run_id: "
-            f"{mapping_path.parent}"
+            f"Input mapping run already exists; choose another stage.run_id: {mapping_path.parent}"
         )
 
     generated = generate_input_mapping(
@@ -293,19 +298,37 @@ def generate_input_mapping(
     seed: int,
     query_subset_size: int | None = None,
     document_subset_size: int | None = None,
-    random_docs_per_query: int = 0,
-    easy_negative_docs_per_query: int = 0,
-    gold_passage_docs_per_query: int = 0,
+    use_all_selected_documents_for_every_query: bool = False,
+    random_docs_per_query: int | None = 0,
+    easy_negative_docs_per_query: int | None = 0,
+    gold_passage_docs_per_query: int | None = 0,
 ) -> GeneratedInputMapping:
     """Generate a stable candidate mapping from documents, queries, and qrels."""
 
-    for name, value in {
+    sampling_counts = {
         "random_docs_per_query": random_docs_per_query,
         "easy_negative_docs_per_query": easy_negative_docs_per_query,
         "gold_passage_docs_per_query": gold_passage_docs_per_query,
-    }.items():
-        if value < 0:
+    }
+    incompatible_counts = [
+        name
+        for name, value in sampling_counts.items()
+        if use_all_selected_documents_for_every_query and value not in (None, 0)
+    ]
+    if incompatible_counts:
+        raise ValueError(
+            "use_all_selected_documents_for_every_query cannot be combined with non-zero "
+            f"per-query sampling counts: {', '.join(incompatible_counts)}."
+        )
+    for name, value in sampling_counts.items():
+        if value is not None and value < 0:
             raise ValueError(f"{name} must be non-negative.")
+    normalized_sampling_counts = {
+        name: 0 if value is None else value for name, value in sampling_counts.items()
+    }
+    random_docs_per_query = normalized_sampling_counts["random_docs_per_query"]
+    easy_negative_docs_per_query = normalized_sampling_counts["easy_negative_docs_per_query"]
+    gold_passage_docs_per_query = normalized_sampling_counts["gold_passage_docs_per_query"]
     rng = random.Random(seed)
     for document in documents:
         EVALUATION_DATA_SCHEMA.validate_document(document)
@@ -364,73 +387,82 @@ def generate_input_mapping(
         ]
     active_document_set = set(active_document_ids)
 
-    annotated_anywhere = set().union(*annotated_by_query.values()) if annotated_by_query else set()
-    easy_negative_pool = [
-        document_id for document_id in active_document_ids if document_id not in annotated_anywhere
-    ]
-    if easy_negative_docs_per_query and not easy_negative_pool:
-        raise ValueError("No easy negative documents exist for this dataset and document subset.")
-
-    mapping: dict[str, list[str]] = {}
-    for query_input in selected_query_inputs:
-        included = [
-            document_id
-            for document_id in document_ids
-            if document_id in annotated_by_query.get(query_input, set())
-        ]
-        missing_required = [
-            document_id for document_id in included if document_id not in active_document_set
-        ]
-        if missing_required:
-            raise ValueError(
-                f"Document subset excludes annotated documents for query input {query_input}: "
-                f"{missing_required}"
-            )
-
-        included_set = set(included)
-        included.extend(
-            _sample_new(
-                active_document_ids,
-                excluded=included_set,
-                count=random_docs_per_query,
-                rng=rng,
-                label=f"random documents for query input {query_input}",
-            )
+    if use_all_selected_documents_for_every_query:
+        mapping = {query_input: list(active_document_ids) for query_input in selected_query_inputs}
+    else:
+        annotated_anywhere = (
+            set().union(*annotated_by_query.values()) if annotated_by_query else set()
         )
-        included_set = set(included)
-        included.extend(
-            _sample_new(
-                easy_negative_pool,
-                excluded=included_set,
-                count=easy_negative_docs_per_query,
-                rng=rng,
-                label=f"easy negative documents for query input {query_input}",
-            )
-        )
-        included_set = set(included)
-        current_annotations = annotated_by_query.get(query_input, set())
-        positive_elsewhere = set().union(
-            *(
-                document_ids
-                for other_query_input, document_ids in positive_by_query.items()
-                if other_query_input != query_input
-            )
-        )
-        gold_pool = [
+        easy_negative_pool = [
             document_id
             for document_id in active_document_ids
-            if document_id in positive_elsewhere and document_id not in current_annotations
+            if document_id not in annotated_anywhere
         ]
-        included.extend(
-            _sample_new(
-                gold_pool,
-                excluded=included_set,
-                count=gold_passage_docs_per_query,
-                rng=rng,
-                label=f"gold passage negative documents for query input {query_input}",
+        if easy_negative_docs_per_query and not easy_negative_pool:
+            raise ValueError(
+                "No easy negative documents exist for this dataset and document subset."
             )
-        )
-        mapping[query_input] = included
+
+        mapping = {}
+        for query_input in selected_query_inputs:
+            included = [
+                document_id
+                for document_id in document_ids
+                if document_id in annotated_by_query.get(query_input, set())
+            ]
+            missing_required = [
+                document_id for document_id in included if document_id not in active_document_set
+            ]
+            if missing_required:
+                raise ValueError(
+                    f"Document subset excludes annotated documents for query input {query_input}: "
+                    f"{missing_required}"
+                )
+
+            included_set = set(included)
+            included.extend(
+                _sample_new(
+                    active_document_ids,
+                    excluded=included_set,
+                    count=random_docs_per_query,
+                    rng=rng,
+                    label=f"random documents for query input {query_input}",
+                )
+            )
+            included_set = set(included)
+            included.extend(
+                _sample_new(
+                    easy_negative_pool,
+                    excluded=included_set,
+                    count=easy_negative_docs_per_query,
+                    rng=rng,
+                    label=f"easy negative documents for query input {query_input}",
+                )
+            )
+            included_set = set(included)
+            current_annotations = annotated_by_query.get(query_input, set())
+            positive_elsewhere = set().union(
+                *(
+                    document_ids
+                    for other_query_input, document_ids in positive_by_query.items()
+                    if other_query_input != query_input
+                )
+            )
+            gold_pool = [
+                document_id
+                for document_id in active_document_ids
+                if document_id in positive_elsewhere and document_id not in current_annotations
+            ]
+            included.extend(
+                _sample_new(
+                    gold_pool,
+                    excluded=included_set,
+                    count=gold_passage_docs_per_query,
+                    rng=rng,
+                    label=f"gold passage negative documents for query input {query_input}",
+                )
+            )
+            mapping[query_input] = included
 
     candidate_counts = [len(candidate_ids) for candidate_ids in mapping.values()]
     metadata = {
@@ -438,9 +470,8 @@ def generate_input_mapping(
         "seed": seed,
         "query_subset_size": query_subset_size,
         "document_subset_size": document_subset_size,
-        "random_docs_per_query": random_docs_per_query,
-        "easy_negative_docs_per_query": easy_negative_docs_per_query,
-        "gold_passage_docs_per_query": gold_passage_docs_per_query,
+        "use_all_selected_documents_for_every_query": (use_all_selected_documents_for_every_query),
+        **sampling_counts,
         "query_count": len(mapping),
         "active_document_count": len(active_document_ids),
         "candidate_count_min": min(candidate_counts, default=0),

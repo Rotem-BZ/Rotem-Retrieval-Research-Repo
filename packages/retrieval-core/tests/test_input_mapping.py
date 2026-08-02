@@ -261,6 +261,91 @@ def test_generated_mapping_includes_judged_random_easy_and_gold_passage_negative
     assert generated.metadata["candidate_count_max"] == 5
 
 
+def test_generated_mapping_uses_every_selected_document_for_each_selected_query() -> None:
+    documents = [_document(f"d{index}") for index in range(1, 7)]
+    queries = [_query(f"q{index}") for index in range(1, 4)]
+    qrels = [_qrel(f"q{index}", f"d{index}", 1) for index in range(1, 4)]
+
+    generated = generate_input_mapping(
+        dataset_name="toy",
+        documents=documents,
+        queries=queries,
+        qrels=qrels,
+        seed=7,
+        query_subset_size=2,
+        document_subset_size=4,
+        use_all_selected_documents_for_every_query=True,
+        random_docs_per_query=None,
+        easy_negative_docs_per_query=0,
+        gold_passage_docs_per_query=None,
+    )
+
+    assert len(generated.mapping) == 2
+    candidate_lists = list(generated.mapping.values())
+    assert len(candidate_lists[0]) == 4
+    assert candidate_lists[0] == candidate_lists[1]
+    assert generated.metadata["query_count"] == 2
+    assert generated.metadata["active_document_count"] == 4
+    assert generated.metadata["candidate_count_min"] == 4
+    assert generated.metadata["candidate_count_max"] == 4
+    assert generated.metadata["use_all_selected_documents_for_every_query"] is True
+    assert generated.metadata["random_docs_per_query"] is None
+
+
+@pytest.mark.parametrize(
+    "sampling_field",
+    [
+        "random_docs_per_query",
+        "easy_negative_docs_per_query",
+        "gold_passage_docs_per_query",
+    ],
+)
+def test_all_selected_documents_rejects_per_query_sampling(sampling_field: str) -> None:
+    sampling_counts = {
+        "random_docs_per_query": None,
+        "easy_negative_docs_per_query": None,
+        "gold_passage_docs_per_query": None,
+        sampling_field: 1,
+    }
+
+    with pytest.raises(ValueError, match=sampling_field):
+        generate_input_mapping(
+            dataset_name="toy",
+            documents=DOCUMENTS,
+            queries=QUERIES,
+            qrels=QRELS,
+            seed=1,
+            use_all_selected_documents_for_every_query=True,
+            **sampling_counts,
+        )
+
+
+def test_prepared_recipe_accepts_null_sampling_counts_in_all_documents_mode(
+    tmp_path: Path,
+) -> None:
+    cfg = _cfg(
+        tmp_path,
+        {
+            "type": "generated",
+            "name": "shared_pool",
+            "seed": 13,
+            "query_subset_size": 1,
+            "document_subset_size": 3,
+            "use_all_selected_documents_for_every_query": True,
+            "random_docs_per_query": None,
+            "easy_negative_docs_per_query": None,
+            "gold_passage_docs_per_query": None,
+        },
+        run_id="toy_shared_pool",
+    )
+
+    generated, _ = prepare_generated_input_mapping(cfg)
+
+    assert len(generated.mapping) == 1
+    assert len(next(iter(generated.mapping.values()))) == 3
+    assert generated.metadata["use_all_selected_documents_for_every_query"] is True
+
+
 def test_gold_passage_negatives_exclude_documents_annotated_for_current_query() -> None:
     generated = generate_input_mapping(
         dataset_name="toy",
