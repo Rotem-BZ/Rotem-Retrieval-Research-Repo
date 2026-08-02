@@ -1,47 +1,67 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="A hands-on, one-hour onboarding tutorial for the R4 Retrieval Research Repository.">
-<title>R4 Repository Onboarding Tutorial</title>
+<meta name="description" content="A two-hour, hands-on onboarding workshop for the R4 Retrieval Research Repository.">
+<title>R4 Repository Onboarding Workshop</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&amp;family=Manrope:wght@400;500;600;700;800&amp;family=Plus+Jakarta+Sans:wght@500;600;700;800&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=Manrope:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@600;700;800&amp;display=swap" rel="stylesheet">
 <style>
-:root {
+:root,
+[data-theme="dark"] {
   color-scheme: dark;
   --bg: #05070d;
-  --bg-2: #080d17;
-  --surface: rgba(14, 22, 36, 0.86);
-  --surface-2: rgba(17, 27, 44, 0.93);
-  --surface-3: rgba(23, 36, 58, 0.76);
-  --surface-recessed: #060a12;
-  --border: rgba(190, 211, 238, 0.14);
-  --border-bright: rgba(190, 211, 238, 0.29);
-  --text: #eef6ff;
+  --bg-raised: #080d17;
+  --surface: #0f1726;
+  --surface-raised: #141f32;
+  --surface-recessed: #080d16;
+  --border: rgba(193, 215, 242, 0.13);
+  --border-bright: rgba(193, 215, 242, 0.25);
+  --text: #eaf2fc;
   --text-bright: #ffffff;
-  --text-dim: #9aadc3;
-  --text-faint: #677a91;
-  --blue: #4f8cff;
-  --cyan: #24d3ee;
-  --purple: #9b7cff;
-  --green: #50e37b;
-  --yellow: #ffd166;
-  --red: #ff647c;
-  --blue-dim: rgba(79, 140, 255, 0.12);
-  --cyan-dim: rgba(36, 211, 238, 0.11);
-  --purple-dim: rgba(155, 124, 255, 0.11);
-  --green-dim: rgba(80, 227, 123, 0.1);
-  --yellow-dim: rgba(255, 209, 102, 0.1);
-  --red-dim: rgba(255, 100, 124, 0.1);
-  --font-display: "Plus Jakarta Sans", "Trebuchet MS", sans-serif;
-  --font-body: "Manrope", "Segoe UI", sans-serif;
-  --font-mono: "IBM Plex Mono", Consolas, monospace;
-  --shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
-  --radius-lg: 18px;
-  --radius: 12px;
-  --reading: 72ch;
+  --text-dim: #a1b1c5;
+  --text-faint: #74859b;
+  --accent: #35d5df;
+  --accent-strong: #68e5ec;
+  --accent-dim: rgba(53, 213, 223, 0.11);
+  --blue: #78a8ff;
+  --blue-dim: rgba(88, 139, 231, 0.13);
+  --green: #69dfa0;
+  --green-dim: rgba(63, 190, 121, 0.12);
+  --amber: #f4c76b;
+  --amber-dim: rgba(222, 164, 53, 0.13);
+  --neutral-dim: rgba(158, 177, 203, 0.08);
+  --code-bg: #050911;
+  --shadow: 0 24px 64px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f4f7fa;
+  --bg-raised: #eaf0f5;
+  --surface: #ffffff;
+  --surface-raised: #f8fbfd;
+  --surface-recessed: #edf2f6;
+  --border: rgba(24, 45, 68, 0.12);
+  --border-bright: rgba(24, 45, 68, 0.22);
+  --text: #183047;
+  --text-bright: #0a1d2d;
+  --text-dim: #536a80;
+  --text-faint: #718497;
+  --accent: #087e87;
+  --accent-strong: #05636a;
+  --accent-dim: rgba(8, 126, 135, 0.09);
+  --blue: #315fa8;
+  --blue-dim: rgba(49, 95, 168, 0.09);
+  --green: #19784b;
+  --green-dim: rgba(25, 120, 75, 0.09);
+  --amber: #9a6510;
+  --amber-dim: rgba(154, 101, 16, 0.1);
+  --neutral-dim: rgba(43, 70, 96, 0.05);
+  --code-bg: #142231;
+  --shadow: 0 22px 60px rgba(44, 69, 93, 0.14);
 }
 
 * { box-sizing: border-box; }
@@ -50,15 +70,15 @@ body {
   margin: 0;
   min-width: 0;
   overflow-x: hidden;
-  color: var(--text);
-  font-family: var(--font-body);
-  background:
-    radial-gradient(circle at 12% 2%, rgba(36, 211, 238, 0.16), transparent 23rem),
-    radial-gradient(circle at 82% 9%, rgba(155, 124, 255, 0.15), transparent 27rem),
-    radial-gradient(circle at 76% 72%, rgba(80, 227, 123, 0.07), transparent 30rem),
-    linear-gradient(180deg, var(--bg-2), var(--bg) 36rem);
   overflow-wrap: break-word;
+  color: var(--text);
+  font-family: "Manrope", "Segoe UI", sans-serif;
+  background:
+    radial-gradient(circle at 12% 0%, var(--accent-dim), transparent 28rem),
+    radial-gradient(circle at 88% 11%, var(--blue-dim), transparent 31rem),
+    linear-gradient(180deg, var(--bg-raised), var(--bg) 30rem);
 }
+
 body::before {
   content: "";
   position: fixed;
@@ -66,1403 +86,1753 @@ body::before {
   z-index: -1;
   pointer-events: none;
   background-image:
-    linear-gradient(rgba(190, 211, 238, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(190, 211, 238, 0.035) 1px, transparent 1px);
-  background-size: 48px 48px;
-  mask-image: linear-gradient(180deg, #000 0%, rgba(0,0,0,.5) 50%, transparent 100%);
+    linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 56px 56px;
+  opacity: 0.16;
+  mask-image: linear-gradient(180deg, #000, transparent 46rem);
 }
 
-a { color: var(--cyan); text-underline-offset: 3px; }
-a:hover { color: #7ceafa; }
 button, input { font: inherit; }
 button { color: inherit; }
+a {
+  color: var(--accent-strong);
+  text-underline-offset: 3px;
+}
+a:hover { color: var(--accent); }
 img, svg { max-width: 100%; }
-code, pre { font-family: var(--font-mono); }
+code, pre { font-family: "IBM Plex Mono", Consolas, monospace; }
 code {
-  color: #cfe8ff;
-  background: var(--blue-dim);
-  border: 1px solid rgba(79, 140, 255, 0.14);
-  padding: .1em .35em;
-  border-radius: 5px;
-  font-size: .92em;
+  overflow-wrap: anywhere;
+  color: var(--accent-strong);
+  font-size: 0.9em;
 }
 
-.skip-link {
-  position: fixed;
-  top: 8px;
-  left: 8px;
-  z-index: 1000;
-  transform: translateY(-150%);
-  padding: 10px 14px;
-  border-radius: 8px;
-  background: var(--cyan);
-  color: #031018;
-  font-weight: 800;
-}
-.skip-link:focus { transform: none; }
-
-.reading-progress {
-  position: fixed;
-  inset: 0 0 auto;
-  height: 4px;
-  z-index: 500;
-  background: rgba(255,255,255,.04);
-}
-.reading-progress span {
-  display: block;
-  width: 0;
-  height: 100%;
-  background: linear-gradient(90deg, var(--cyan), var(--blue), var(--purple), var(--green));
-  box-shadow: 0 0 18px rgba(36, 211, 238, .5);
-}
-
-.page-shell {
-  width: min(1480px, calc(100% - 48px));
-  margin: 0 auto;
-  display: grid;
-  grid-template-columns: 210px minmax(0, 1fr);
-  gap: 48px;
-}
-.main { min-width: 0; }
-
-.toc {
+.topbar {
   position: sticky;
-  top: 24px;
-  align-self: start;
-  max-height: calc(100dvh - 48px);
-  overflow-y: auto;
-  padding: 28px 0;
-  grid-row: 1 / -1;
+  top: 0;
+  z-index: 100;
+  height: 58px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
 }
-.toc::-webkit-scrollbar { width: 3px; }
-.toc::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 999px; }
-.toc-brand {
+
+.topbar__inner {
+  width: min(100% - 28px, 1120px);
+  height: 100%;
+  margin: 0 auto;
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 26px;
+  gap: 14px;
 }
-.toc-brand img {
-  width: 38px;
-  height: 38px;
-  object-fit: contain;
-  border-radius: 8px;
-  background: rgba(255,255,255,.04);
-}
-.toc-brand strong {
-  display: block;
-  font: 800 14px/1.05 var(--font-display);
-  letter-spacing: -.02em;
-}
-.toc-brand span {
-  color: var(--text-faint);
-  font: 600 9px/1.2 var(--font-mono);
-  letter-spacing: .12em;
-  text-transform: uppercase;
-}
-.toc-title {
-  color: var(--text-faint);
-  font: 700 9px/1 var(--font-mono);
-  letter-spacing: .18em;
-  text-transform: uppercase;
-  padding-bottom: 10px;
-  margin-bottom: 8px;
-  border-bottom: 1px solid var(--border);
-}
-.toc a {
-  display: block;
-  color: var(--text-dim);
-  text-decoration: none;
-  border-left: 2px solid transparent;
-  border-radius: 0 6px 6px 0;
-  padding: 7px 9px;
-  margin: 1px 0;
-  font-size: 12px;
-  line-height: 1.35;
-  transition: color .15s, background .15s, border-color .15s;
-}
-.toc a:hover { color: var(--text); background: rgba(255,255,255,.025); }
-.toc a.active {
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex: 0 0 auto;
   color: var(--text-bright);
-  border-left-color: var(--cyan);
-  background: linear-gradient(90deg, var(--cyan-dim), transparent);
+  text-decoration: none;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
 }
-.toc-tools {
-  margin-top: 24px;
-  padding-top: 18px;
-  border-top: 1px solid var(--border);
+
+.brand img {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  object-fit: cover;
 }
-.toc-progress {
+
+.chapter-status {
+  min-width: 0;
+  margin-right: auto;
   color: var(--text-dim);
-  font: 600 11px/1.4 var(--font-mono);
-  margin-bottom: 10px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.shell-toggle {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 3px;
-  padding: 3px;
+
+.topbar__button {
+  min-height: 34px;
+  padding: 7px 11px;
   border: 1px solid var(--border);
-  border-radius: 9px;
-  background: rgba(255,255,255,.025);
-}
-.shell-toggle button {
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--text-dim);
-  padding: 7px 4px;
+  border-radius: 8px;
+  background: var(--surface);
   cursor: pointer;
-  font: 600 10px/1 var(--font-mono);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
-.shell-toggle button[aria-pressed="true"] {
-  color: var(--text);
-  background: var(--surface-3);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+
+.topbar__button:hover {
+  border-color: var(--border-bright);
+  background: var(--surface-raised);
+}
+
+.progress-track {
+  position: absolute;
+  inset: auto 0 0;
+  height: 2px;
+  background: transparent;
+}
+
+.progress-fill {
+  width: 0;
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--blue));
+  transition: width 80ms linear;
+}
+
+.page {
+  width: min(100% - 32px, 920px);
+  margin: 0 auto;
 }
 
 .hero {
-  min-height: min(860px, 96dvh);
-  display: grid;
-  align-content: center;
-  padding: 88px 0 72px;
-  position: relative;
-}
-.hero-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(280px, .8fr);
-  align-items: center;
-  gap: clamp(32px, 6vw, 88px);
-}
-.eyebrow {
+  min-height: calc(92vh - 58px);
+  padding: clamp(76px, 11vh, 126px) 0 84px;
   display: flex;
-  align-items: center;
-  gap: 11px;
-  color: var(--cyan);
-  font: 700 12px/1 var(--font-mono);
-  letter-spacing: .18em;
+  flex-direction: column;
+  justify-content: center;
+  border-bottom: 1px solid var(--border);
+}
+
+.eyebrow,
+.chapter__number,
+.block__label,
+.minor-label {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  margin: 0 0 22px;
 }
-.eyebrow::before {
-  content: "";
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: currentColor;
-  box-shadow: 0 0 16px currentColor;
+
+.eyebrow {
+  color: var(--accent);
+  margin-bottom: 24px;
 }
-h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; }
+
+h1, h2, h3 {
+  color: var(--text-bright);
+  font-family: "Plus Jakarta Sans", sans-serif;
+  text-wrap: balance;
+}
+
 h1 {
-  font-size: clamp(48px, 7.5vw, 104px);
-  line-height: .98;
-  letter-spacing: -.055em;
+  max-width: 840px;
   margin: 0;
+  font-size: clamp(42px, 8vw, 78px);
+  line-height: 0.98;
+  letter-spacing: -0.045em;
 }
-.gradient-text {
-  color: transparent;
-  background: linear-gradient(90deg, var(--cyan), var(--blue), var(--purple));
-  background-clip: text;
-  -webkit-background-clip: text;
-}
-.hero-lead {
-  max-width: 720px;
-  margin: 28px 0 0;
+
+.hero__lead {
+  max-width: 64ch;
+  margin: 30px 0 0;
   color: var(--text-dim);
-  font-size: clamp(18px, 2vw, 23px);
-  line-height: 1.55;
+  font-size: clamp(18px, 2.5vw, 22px);
+  line-height: 1.65;
 }
-.hero-actions {
+
+.hero__contract {
+  max-width: 68ch;
+  margin-top: 48px;
+  padding: 23px 26px;
+  border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--border));
+  border-radius: 14px;
+  background: var(--accent-dim);
+}
+
+.hero__contract strong {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--accent-strong);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.hero__contract p {
+  margin: 0;
+  color: var(--text);
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+.hero__meta {
+  margin-top: 30px;
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 32px;
-}
-.hero-shell-select {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 20px;
-  color: var(--text-faint);
-  font: 600 10px/1 var(--font-mono);
-  text-transform: uppercase;
-  letter-spacing: .08em;
-}
-.hero-shell-select .shell-toggle { width: 190px; }
-.button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 46px;
-  padding: 0 18px;
-  border: 1px solid var(--border-bright);
-  border-radius: 9px;
-  color: var(--text);
-  background: var(--surface);
-  text-decoration: none;
-  font-weight: 750;
-  transition: transform .15s, border-color .15s, background .15s;
-}
-.button:hover { color: var(--text); transform: translateY(-1px); border-color: var(--cyan); }
-.button.primary {
-  color: #041016;
-  border-color: transparent;
-  background: linear-gradient(90deg, var(--cyan), #79e6f4);
-}
-.button.primary:hover { color: #041016; }
-.hero-panel {
-  position: relative;
-  border: 1px solid var(--border);
-  border-radius: 22px;
-  padding: 28px;
-  background: linear-gradient(180deg, rgba(18, 28, 45, .9), rgba(7, 12, 21, .86));
-  box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,.035);
-  overflow: hidden;
-}
-.hero-panel::after {
-  content: "";
-  position: absolute;
-  width: 230px;
-  height: 230px;
-  right: -70px;
-  top: -80px;
-  border-radius: 50%;
-  background: radial-gradient(circle, var(--purple-dim), transparent 70%);
-}
-.hero-logo {
-  width: min(230px, 70%);
-  display: block;
-  margin: 6px auto 28px;
-  filter: drop-shadow(0 18px 35px rgba(0,0,0,.28));
-}
-.hero-stats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
 }
-.hero-stat {
-  padding: 13px 10px;
-  border: 1px solid var(--border);
-  border-radius: 9px;
-  background: rgba(255,255,255,.025);
-}
-.hero-stat strong { display: block; font: 800 20px/1 var(--font-display); }
-.hero-stat span { color: var(--text-faint); font: 600 9px/1.25 var(--font-mono); text-transform: uppercase; letter-spacing: .08em; }
 
-.section {
-  position: relative;
-  padding: 84px 0;
-  scroll-margin-top: 28px;
-  border-top: 1px solid var(--border);
-}
-.section-head {
-  display: grid;
-  grid-template-columns: 84px minmax(0, 1fr);
-  gap: 22px;
-  align-items: start;
-  margin-bottom: 36px;
-}
-.section-num {
-  color: var(--text-faint);
-  font: 700 13px/1 var(--font-mono);
-  letter-spacing: .1em;
-  padding-top: 11px;
-}
-.section h2 {
-  font-size: clamp(34px, 5vw, 62px);
-  line-height: 1.04;
-  letter-spacing: -.045em;
-  margin: 0;
-}
-.section-summary {
-  max-width: var(--reading);
-  color: var(--text-dim);
-  font-size: 18px;
-  line-height: 1.7;
-  margin: 14px 0 0;
-}
-.prose {
-  max-width: var(--reading);
-  font-size: 17px;
-  line-height: 1.72;
-}
-.prose p { margin: 0 0 1.25em; }
-.prose ul, .prose ol { padding-left: 2em; }
-
-.grid-2, .grid-3, .grid-4 { display: grid; gap: 16px; }
-.grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.grid-2 > *, .grid-3 > *, .grid-4 > *, .hero-grid > *, .section-head > * { min-width: 0; }
-
-.panel {
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 22px;
-  background: var(--surface);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.025);
-}
-.panel.elevated {
-  background: linear-gradient(180deg, var(--surface-2), rgba(8, 13, 23, .9));
-  box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,.03);
-}
-.panel.recessed { background: rgba(4, 8, 14, .58); }
-.panel.cyan-edge { border-top: 3px solid var(--cyan); }
-.panel.purple-edge { border-top: 3px solid var(--purple); }
-.panel.green-edge { border-top: 3px solid var(--green); }
-.panel.yellow-edge { border-top: 3px solid var(--yellow); }
-.panel h3 { font-size: 20px; line-height: 1.25; margin: 0 0 10px; letter-spacing: -.025em; }
-.panel p { color: var(--text-dim); line-height: 1.62; margin: 0; }
-.kicker {
-  color: var(--cyan);
-  font: 700 10px/1 var(--font-mono);
-  letter-spacing: .15em;
-  text-transform: uppercase;
-  margin-bottom: 11px;
-}
-.tag-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
-.tag {
-  color: var(--text-dim);
-  background: rgba(255,255,255,.035);
+.meta-pill {
+  padding: 7px 10px;
   border: 1px solid var(--border);
   border-radius: 999px;
-  padding: 5px 9px;
-  font: 600 10px/1 var(--font-mono);
-}
-
-.callout {
-  max-width: 980px;
-  margin: 24px 0;
-  padding: 17px 20px;
-  border: 1px solid var(--border);
-  border-left: 4px solid var(--cyan);
-  border-radius: 0 10px 10px 0;
-  background: var(--cyan-dim);
   color: var(--text-dim);
-  line-height: 1.62;
+  background: var(--neutral-dim);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
 }
-.callout strong { color: var(--text); }
-.callout.warning { border-left-color: var(--yellow); background: var(--yellow-dim); }
-.callout.success { border-left-color: var(--green); background: var(--green-dim); }
-.callout.purple { border-left-color: var(--purple); background: var(--purple-dim); }
 
-.checklist {
-  list-style: none;
-  padding: 0;
-  margin: 18px 0 0;
+.chapter {
+  padding: 108px 0 118px;
+  border-bottom: 1px solid var(--border);
+  scroll-margin-top: 72px;
 }
-.checklist li {
+
+.chapter__header {
+  max-width: 72ch;
+  margin-bottom: 56px;
+}
+
+.chapter__number {
+  color: var(--accent);
+  margin-bottom: 16px;
+}
+
+.chapter h2 {
+  margin: 0;
+  font-size: clamp(32px, 5vw, 52px);
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+}
+
+.chapter__intro {
+  max-width: 67ch;
+  margin: 22px 0 0;
+  color: var(--text-dim);
+  font-size: 18px;
+  line-height: 1.75;
+}
+
+.workshop-step {
+  margin: 48px 0 0;
+}
+
+.workshop-step + .workshop-step {
+  margin-top: 66px;
+}
+
+.workshop-step h3 {
+  margin: 0 0 16px;
+  font-size: clamp(23px, 3vw, 30px);
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+
+.prose {
+  max-width: 68ch;
+  font-size: 17px;
+  line-height: 1.75;
+  text-wrap: pretty;
+}
+
+.prose p { margin: 0 0 1.35em; }
+.prose p:last-child { margin-bottom: 0; }
+.prose ul, .prose ol { padding-left: 2em; }
+.prose li + li { margin-top: 0.65em; }
+
+.semantic-block {
   position: relative;
-  padding: 13px 14px 13px 48px;
-  border-top: 1px solid var(--border);
-}
-.checklist li:first-child { border-top: 0; }
-.checklist input {
-  position: absolute;
-  left: 14px;
-  top: 15px;
-  width: 20px;
-  height: 20px;
-  accent-color: var(--green);
-}
-.checklist label { cursor: pointer; line-height: 1.5; }
-.checklist small { display: block; color: var(--text-faint); margin-top: 2px; }
-
-.terminal {
+  max-width: 100%;
+  margin: 26px 0;
+  padding: 24px 26px 25px;
   border: 1px solid var(--border);
+  border-left-width: 4px;
   border-radius: 12px;
-  overflow: hidden;
-  background: var(--surface-recessed);
-  box-shadow: 0 18px 45px rgba(0,0,0,.22);
-  margin: 18px 0;
-  min-width: 0;
 }
-.terminal-bar {
+
+.semantic-block--instruction {
+  border-left-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.semantic-block--explanation {
+  border-left-color: var(--blue);
+  background: var(--blue-dim);
+}
+
+.semantic-block--checkpoint {
+  border-left-color: var(--green);
+  background: var(--green-dim);
+}
+
+.semantic-block--warning {
+  border-left-color: var(--amber);
+  background: var(--amber-dim);
+}
+
+.semantic-block--reference {
+  border-left-color: var(--text-faint);
+  background: var(--neutral-dim);
+}
+
+.block__label {
+  margin-bottom: 12px;
+}
+
+.semantic-block--instruction .block__label { color: var(--accent-strong); }
+.semantic-block--explanation .block__label { color: var(--blue); }
+.semantic-block--checkpoint .block__label { color: var(--green); }
+.semantic-block--warning .block__label { color: var(--amber); }
+.semantic-block--reference .block__label { color: var(--text-dim); }
+
+.semantic-block p,
+.semantic-block ul,
+.semantic-block ol {
+  max-width: 69ch;
+  margin-top: 0;
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+.semantic-block p:last-child,
+.semantic-block ul:last-child,
+.semantic-block ol:last-child {
+  margin-bottom: 0;
+}
+
+.semantic-block ul,
+.semantic-block ol {
+  padding-left: 2em;
+}
+
+.semantic-block li + li { margin-top: 0.65em; }
+
+.command-card {
+  margin: 22px 0;
+  overflow: hidden;
+  border: 1px solid var(--border-bright);
+  border-radius: 12px;
+  background: var(--code-bg);
+  box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.24);
+}
+
+.command-card__header {
+  min-height: 42px;
+  padding: 9px 12px 9px 16px;
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-height: 44px;
-  padding: 0 12px;
-  border-bottom: 1px solid var(--border);
-  background: rgba(255,255,255,.03);
-  color: var(--text-faint);
-  font: 600 11px/1 var(--font-mono);
+  justify-content: space-between;
+  gap: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+  color: #a7b9ce;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
-.traffic { display: inline-flex; gap: 6px; }
-.traffic i { width: 9px; height: 9px; border-radius: 50%; background: var(--red); }
-.traffic i:nth-child(2) { background: var(--yellow); }
-.traffic i:nth-child(3) { background: var(--green); }
-.terminal-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 .copy-button {
-  margin-left: auto;
-  border: 1px solid var(--border);
+  padding: 5px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 6px;
-  background: rgba(255,255,255,.035);
-  color: var(--text-dim);
-  padding: 6px 9px;
+  color: #c9d8e8;
+  background: rgba(255, 255, 255, 0.04);
   cursor: pointer;
-  font: 600 10px/1 var(--font-mono);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
-.copy-button:hover { color: var(--text); border-color: var(--cyan); }
-.terminal pre {
+
+.copy-button:hover { background: rgba(255, 255, 255, 0.09); }
+
+.command-card pre {
   margin: 0;
-  padding: 18px 20px 20px;
-  overflow: auto;
-  white-space: pre;
-  color: #d9eaff;
-  font-size: 13px;
-  line-height: 1.72;
-  tab-size: 2;
-}
-.prompt { color: var(--cyan); }
-.comment { color: #71849a; }
-.selection { color: var(--purple); }
-.value { color: var(--green); }
-.output { color: var(--text-dim); }
-[data-shell-block] { display: none; }
-html[data-shell="powershell"] [data-shell-block="powershell"],
-html[data-shell="bash"] [data-shell-block="bash"] { display: block; }
-
-.repo-map {
-  display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(260px, .9fr);
-  gap: 18px;
-  align-items: stretch;
-}
-.tree {
-  margin: 0;
-  padding: 22px;
-  overflow-x: auto;
-  white-space: pre;
-  font: 500 13px/1.8 var(--font-mono);
-  color: var(--text-dim);
-}
-.tree .cyan { color: var(--cyan); }
-.tree .purple { color: var(--purple); }
-.tree .green { color: var(--green); }
-.tree .yellow { color: var(--yellow); }
-.ownership-stack { display: grid; gap: 12px; }
-.ownership {
-  padding: 17px 18px 17px 58px;
-  position: relative;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: rgba(255,255,255,.02);
-}
-.ownership b {
-  position: absolute;
-  left: 16px;
-  top: 16px;
-  width: 28px;
-  height: 28px;
-  display: grid;
-  place-items: center;
-  border-radius: 7px;
-  color: var(--cyan);
-  background: var(--cyan-dim);
-  font: 700 11px/1 var(--font-mono);
-}
-.ownership h3 { font-size: 16px; margin: 0 0 4px; }
-.ownership p { color: var(--text-dim); margin: 0; font-size: 13px; line-height: 1.5; }
-
-.lifecycle {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(150px, 1fr));
-  gap: 0;
-  overflow-x: auto;
-  padding-bottom: 8px;
-}
-.life-step { min-width: 150px; position: relative; padding: 18px; border: 1px solid var(--border); background: var(--surface); }
-.life-step:first-child { border-radius: 12px 0 0 12px; }
-.life-step:last-child { border-radius: 0 12px 12px 0; }
-.life-step:not(:last-child)::after {
-  content: "→";
-  position: absolute;
-  z-index: 2;
-  right: -10px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--cyan);
-  background: var(--bg);
-  width: 20px;
-  text-align: center;
-}
-.life-step span { color: var(--text-faint); font: 700 10px/1 var(--font-mono); }
-.life-step strong { display: block; margin: 8px 0 5px; }
-.life-step small { color: var(--text-dim); line-height: 1.45; }
-
-.builder-hero {
-  display: grid;
-  grid-template-columns: minmax(0, .82fr) minmax(0, 1.18fr);
-  gap: 18px;
-  align-items: stretch;
-}
-.builder-badge {
-  width: 58px;
-  height: 58px;
-  display: grid;
-  place-items: center;
-  border-radius: 14px;
-  background: linear-gradient(135deg, var(--cyan-dim), var(--purple-dim));
-  border: 1px solid var(--border-bright);
-  color: var(--cyan);
-  font: 800 20px/1 var(--font-mono);
-  margin-bottom: 18px;
-}
-.builder-flow {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(120px, 1fr));
-  gap: 8px;
-  margin-top: 24px;
-  overflow-x: auto;
-  padding-bottom: 8px;
-}
-.builder-step {
-  min-width: 120px;
-  padding: 14px;
-  border: 1px solid var(--border);
-  border-radius: 9px;
-  background: rgba(255,255,255,.025);
-}
-.builder-step span { color: var(--cyan); font: 700 9px/1 var(--font-mono); letter-spacing: .08em; }
-.builder-step strong { display: block; font-size: 13px; margin-top: 8px; }
-
-.command-anatomy {
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  overflow: hidden;
-  background: var(--surface-recessed);
-}
-.command-line {
   padding: 20px;
   overflow-x: auto;
-  white-space: nowrap;
-  font: 500 13px/1.7 var(--font-mono);
+  white-space: pre;
+  color: #edf6ff;
+  font-size: 13px;
+  line-height: 1.7;
+  tab-size: 2;
 }
-.cmd-part { display: inline-block; padding: 3px 5px; margin: 1px; border-radius: 5px; }
-.cmd-stage { color: var(--cyan); background: var(--cyan-dim); }
-.cmd-data { color: var(--green); background: var(--green-dim); }
-.cmd-topology { color: var(--purple); background: var(--purple-dim); }
-.cmd-choice { color: var(--blue); background: var(--blue-dim); }
-.cmd-id { color: var(--yellow); background: var(--yellow-dim); }
-.anatomy-legend { display: grid; grid-template-columns: repeat(5, 1fr); border-top: 1px solid var(--border); }
-.anatomy-legend div { min-width: 0; padding: 14px; border-right: 1px solid var(--border); color: var(--text-dim); font-size: 12px; line-height: 1.5; }
-.anatomy-legend div:last-child { border-right: 0; }
-.anatomy-legend strong { display: block; color: var(--text); margin-bottom: 4px; }
 
-.lab-step {
-  display: grid;
-  grid-template-columns: 74px minmax(0, 1fr);
-  gap: 18px;
-  padding: 28px 0;
-  border-top: 1px solid var(--border);
+.command-card code { color: inherit; font-size: inherit; }
+
+.code-note {
+  color: #7f94ab;
 }
-.lab-step:first-of-type { border-top: 0; }
-.lab-index {
-  width: 54px;
-  height: 54px;
-  border: 1px solid var(--border-bright);
-  border-radius: 14px;
-  display: grid;
-  place-items: center;
-  color: var(--cyan);
-  background: var(--cyan-dim);
-  font: 800 13px/1 var(--font-mono);
-  position: sticky;
-  top: 24px;
+
+.path-flow {
+  max-width: 710px;
+  margin: 34px 0;
 }
-.lab-body h3 { font-size: 26px; margin: 0 0 9px; }
-.lab-body > p { max-width: var(--reading); color: var(--text-dim); line-height: 1.65; }
-.choices {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-  gap: 8px;
-  margin: 16px 0;
-}
-.choice {
+
+.path-flow__item {
+  padding: 20px 22px;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 11px 12px;
-  background: rgba(255,255,255,.02);
+  border-radius: 11px;
+  background: var(--surface);
 }
-.choice span { display: block; color: var(--text-faint); font: 700 9px/1 var(--font-mono); text-transform: uppercase; letter-spacing: .09em; margin-bottom: 6px; }
-.choice strong { font: 600 12px/1.45 var(--font-mono); overflow-wrap: anywhere; }
-.checkpoint {
-  display: flex;
-  align-items: flex-start;
-  gap: 11px;
-  margin: 16px 0;
-  padding: 13px 15px;
-  border: 1px solid rgba(80, 227, 123, .18);
-  border-radius: 9px;
-  background: var(--green-dim);
+
+.path-flow__item strong {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--text-bright);
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 16px;
+}
+
+.path-flow__item p {
+  margin: 0;
   color: var(--text-dim);
-  line-height: 1.5;
+  font-size: 14px;
+  line-height: 1.6;
 }
-.checkpoint::before { content: "✓"; color: var(--green); font-weight: 800; }
 
-.pipeline-compare {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin: 22px 0;
+.path-flow__connector {
+  height: 34px;
+  display: flex;
+  align-items: center;
+  padding-left: 28px;
+  color: var(--text-faint);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 16px;
 }
-.pipeline-card { border: 1px solid var(--border); border-radius: 12px; padding: 18px; background: var(--surface); }
-.pipeline-card h3 { font-size: 17px; margin: 0 0 14px; }
-.mini-pipeline { display: flex; align-items: center; gap: 5px; overflow-x: auto; padding-bottom: 4px; }
-.pipe-box { flex: 0 0 auto; padding: 7px 9px; border: 1px solid var(--border); border-radius: 6px; color: var(--text-dim); font: 600 9px/1 var(--font-mono); }
-.pipe-box.changed { border-color: var(--purple); color: var(--purple); background: var(--purple-dim); }
-.pipe-arrow { color: var(--text-faint); }
 
-.artifact-layout { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); gap: 18px; }
-.artifact-files { display: grid; gap: 9px; }
-.artifact-file { padding: 14px 15px; border: 1px solid var(--border); border-radius: 8px; background: rgba(255,255,255,.02); }
-.artifact-file code { display: inline-block; margin-bottom: 6px; }
-.artifact-file p { color: var(--text-dim); font-size: 13px; line-height: 1.5; margin: 0; }
-
-details {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  overflow: hidden;
-  margin: 12px 0;
-  background: rgba(255,255,255,.018);
+.path-flow__connector::before {
+  content: "";
+  width: 1px;
+  height: 100%;
+  margin-right: -1px;
+  background: var(--border-bright);
 }
-details summary {
+
+.path-flow__connector::after {
+  content: "↓";
+  transform: translate(-6px, 10px);
+}
+
+.artifact-strip {
+  margin: 36px 0;
+  padding-left: 18px;
+  border-left: 1px solid var(--border-bright);
+}
+
+.artifact-item {
   position: relative;
-  padding: 15px 18px 15px 42px;
+  padding: 0 0 31px 24px;
+}
+
+.artifact-item:last-child { padding-bottom: 0; }
+.artifact-item::before {
+  content: "";
+  position: absolute;
+  left: -24px;
+  top: 6px;
+  width: 9px;
+  height: 9px;
+  border: 3px solid var(--bg);
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.artifact-item strong {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--text-bright);
+  font-size: 15px;
+}
+
+.artifact-item code {
+  display: block;
+  color: var(--text-dim);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.idea-list {
+  max-width: 68ch;
+  margin: 24px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.idea-list li {
+  position: relative;
+  padding: 17px 0 17px 28px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.idea-list li::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 26px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.idea-list strong { color: var(--text); }
+
+.task-check {
+  display: block;
+  position: relative;
+  padding-left: 33px;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1.65;
+}
+
+.task-check + .task-check { margin-top: 12px; }
+.task-check input {
+  position: absolute;
+  left: 0;
+  top: 4px;
+  width: 19px;
+  height: 19px;
+  accent-color: var(--green);
+}
+
+.task-check:has(input:checked) {
+  color: var(--text-dim);
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+.file-tree {
+  max-width: 750px;
+  margin: 24px 0;
+  padding: 21px 23px;
+  overflow-x: auto;
+  white-space: pre;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  color: var(--text-dim);
+  background: var(--surface-recessed);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  line-height: 1.75;
+}
+
+.file-tree .highlight { color: var(--accent-strong); }
+.file-tree .comment { color: var(--text-faint); }
+
+details.reference {
+  max-width: 100%;
+  margin: 22px 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--neutral-dim);
+}
+
+details.reference summary {
+  padding: 16px 20px;
   cursor: pointer;
   list-style: none;
   color: var(--text);
-  font-weight: 700;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  font-weight: 600;
 }
-details summary::-webkit-details-marker { display: none; }
-details summary::before { content: "+"; position: absolute; left: 18px; top: 14px; color: var(--cyan); font: 700 18px/1 var(--font-mono); }
-details[open] summary::before { content: "−"; }
-details[open] summary { border-bottom: 1px solid var(--border); background: rgba(255,255,255,.02); }
-.details-body { padding: 18px; color: var(--text-dim); line-height: 1.65; }
-.details-body p:first-child { margin-top: 0; }
-.details-body p:last-child { margin-bottom: 0; }
 
-.next-paths { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
-.path-card { padding: 22px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
-.path-card .path-num { color: var(--text-faint); font: 700 10px/1 var(--font-mono); }
-.path-card h3 { margin: 12px 0 8px; font-size: 21px; }
-.path-card p { color: var(--text-dim); line-height: 1.6; }
-.path-card a { font: 600 12px/1 var(--font-mono); }
+details.reference summary::-webkit-details-marker { display: none; }
+details.reference summary::before {
+  content: "›";
+  display: inline-block;
+  margin-right: 10px;
+  color: var(--accent);
+  transition: transform 150ms ease;
+}
+details.reference[open] summary::before { transform: rotate(90deg); }
 
-.closing {
-  margin: 70px 0 100px;
-  padding: clamp(28px, 5vw, 56px);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  background:
-    radial-gradient(circle at 80% 10%, var(--purple-dim), transparent 45%),
-    linear-gradient(180deg, var(--surface-2), rgba(7, 12, 21, .9));
+.reference__body {
+  padding: 20px;
+  border-top: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.reference__body p:first-child { margin-top: 0; }
+.reference__body p:last-child { margin-bottom: 0; }
+.reference__body ul { padding-left: 2em; }
+.reference__body li + li { margin-top: 0.6em; }
+
+.finish {
+  padding: 112px 0 126px;
+}
+
+.finish h2 {
+  max-width: 800px;
+  margin: 0;
+  font-size: clamp(35px, 6vw, 58px);
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+}
+
+.finish__lead {
+  max-width: 65ch;
+  margin: 25px 0 42px;
+  color: var(--text-dim);
+  font-size: 18px;
+  line-height: 1.75;
+}
+
+.toc-dialog {
+  width: min(92vw, 540px);
+  max-height: min(82vh, 760px);
+  margin: 72px auto auto;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-bright);
+  border-radius: 15px;
+  color: var(--text);
+  background: var(--surface);
   box-shadow: var(--shadow);
 }
-.closing h2 { font-size: clamp(36px, 6vw, 70px); margin: 0; letter-spacing: -.05em; }
-.closing p { color: var(--text-dim); font-size: 18px; line-height: 1.65; max-width: 720px; }
 
-@media (max-width: 1120px) {
-  .page-shell { grid-template-columns: 1fr; width: min(100% - 48px, 1050px); gap: 0; }
-  .toc {
-    position: sticky;
-    top: 0;
-    z-index: 300;
-    grid-row: auto;
-    display: flex;
-    gap: 4px;
-    align-items: center;
-    max-height: none;
-    overflow-x: auto;
-    margin: 0 -24px;
-    padding: 11px 24px;
-    background: rgba(5, 7, 13, .94);
-    backdrop-filter: blur(16px);
-    border-bottom: 1px solid var(--border);
-  }
-  .toc-brand, .toc-title, .toc-tools { display: none; }
-  .toc a {
-    flex: 0 0 auto;
-    white-space: nowrap;
-    border-left: 0;
-    border-bottom: 2px solid transparent;
-    border-radius: 6px 6px 0 0;
-    padding: 7px 10px;
-    font-size: 10px;
-  }
-  .toc a.active { border-left: 0; border-bottom-color: var(--cyan); background: var(--surface); }
-  .section { scroll-margin-top: 58px; }
+.toc-dialog::backdrop {
+  background: rgba(1, 5, 10, 0.72);
+  backdrop-filter: blur(4px);
 }
 
-@media (max-width: 820px) {
-  .hero-grid, .repo-map, .builder-hero, .artifact-layout, .pipeline-compare { grid-template-columns: 1fr; }
-  .grid-2, .grid-3, .grid-4, .next-paths { grid-template-columns: 1fr; }
-  .section-head { grid-template-columns: 1fr; gap: 8px; }
-  .section-num { padding-top: 0; }
-  .anatomy-legend { grid-template-columns: 1fr; }
-  .anatomy-legend div { border-right: 0; border-top: 1px solid var(--border); }
-  .anatomy-legend div:first-child { border-top: 0; }
-  .lab-step { grid-template-columns: 1fr; }
-  .lab-index { position: static; }
+.toc-dialog__head {
+  padding: 19px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
 }
 
-@media (max-width: 560px) {
-  .page-shell { width: min(100% - 28px, 1050px); }
-  .toc { margin: 0 -14px; padding-left: 14px; padding-right: 14px; }
-  .hero { min-height: auto; padding: 70px 0 56px; }
-  .hero-panel { padding: 20px; }
-  .hero-stats { grid-template-columns: 1fr; }
-  .section { padding: 64px 0; }
-  .panel { padding: 18px; }
-  .terminal pre { font-size: 12px; padding: 16px; }
-  .builder-flow { grid-template-columns: repeat(5, 150px); }
+.toc-dialog__head strong {
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 17px;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
+.toc-dialog__close {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.toc-links {
+  max-height: calc(82vh - 70px);
+  padding: 12px;
+  overflow-y: auto;
+}
+
+.toc-links a {
+  display: block;
+  padding: 14px 15px;
+  border-radius: 8px;
+  color: var(--text-dim);
+  text-decoration: none;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.toc-links a:hover,
+.toc-links a.active {
+  color: var(--text);
+  background: var(--accent-dim);
+}
+
+.toc-links span {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--accent);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 9px;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 680px) {
+  .topbar__inner { width: min(100% - 18px, 1120px); gap: 9px; }
+  .brand span { display: none; }
+  .chapter-status { font-size: 9px; }
+  .topbar__button { padding: 7px 9px; }
+  .topbar__button .optional-label { display: none; }
+  .page { width: min(100% - 24px, 920px); }
+  .hero { min-height: auto; padding: 74px 0 70px; }
+  .hero__contract { padding: 20px; }
+  .chapter { padding: 82px 0 90px; }
+  .chapter__header { margin-bottom: 44px; }
+  .semantic-block { padding: 21px 19px 22px; }
+  .command-card pre { padding: 17px; font-size: 11px; }
+  .copy-button { display: none; }
 }
 
 @media print {
-  :root { color-scheme: light; --bg: #fff; --bg-2: #fff; --surface: #fff; --surface-2: #f7f9fc; --surface-3: #eef2f7; --surface-recessed: #f5f7fa; --text: #102033; --text-bright: #000; --text-dim: #42546a; --text-faint: #65778b; --border: #d7dee8; --border-bright: #b8c4d2; }
-  body { background: #fff; }
-  body::before, .toc, .reading-progress, .copy-button, .hero-actions { display: none !important; }
-  .page-shell { display: block; width: 100%; }
-  .hero { min-height: 0; padding: 30px 0; }
-  .section { padding: 32px 0; break-inside: auto; }
-  details:not([open]) > *:not(summary) { display: block; }
-  .terminal { break-inside: avoid; box-shadow: none; }
-  .closing { box-shadow: none; }
+  .topbar, .copy-button, .toc-dialog { display: none !important; }
+  body { background: #fff; color: #152a3c; }
+  .page { width: 100%; max-width: 780px; }
+  .hero { min-height: auto; padding-top: 40px; }
+  .chapter { break-before: page; }
+  .semantic-block, .command-card, details.reference { break-inside: avoid; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 </style>
 </head>
 <body>
-<a class="skip-link" href="#main">Skip to tutorial</a>
-<div class="reading-progress" aria-hidden="true"><span id="readingProgress"></span></div>
-
-<div class="page-shell">
-  <nav class="toc" id="toc" aria-label="Tutorial sections">
-    <div class="toc-brand">
+<header class="topbar">
+  <div class="topbar__inner">
+    <a class="brand" href="#top" aria-label="Back to the tutorial start">
       <img src="assets/r4-logo.png" alt="">
-      <div><strong>R4 onboarding</strong><span>hands-on tutorial</span></div>
-    </div>
-    <div class="toc-title">On this page</div>
-    <a href="#welcome">Welcome</a>
-    <a href="#setup">1. Configure</a>
-    <a href="#mental-model">2. Map the repo</a>
-    <a href="#command-builder">3. Build commands</a>
-    <a href="#command-grammar">4. Read Hydra</a>
-    <a href="#lab">5. Run the lab</a>
-    <a href="#evidence">6. Inspect evidence</a>
-    <a href="#next">7. Continue</a>
-    <a href="#troubleshooting">Troubleshooting</a>
-    <div class="toc-tools">
-      <div class="toc-progress"><span id="checkCount">0</span> / <span id="checkTotal">0</span> checkpoints</div>
-      <div class="shell-toggle" aria-label="Command shell">
-        <button type="button" data-shell-select="powershell" aria-pressed="true">PowerShell</button>
-        <button type="button" data-shell-select="bash" aria-pressed="false">Bash</button>
-      </div>
-    </div>
+      <span>R4 Onboarding</span>
+    </a>
+    <div class="chapter-status" id="chapterStatus">Start · Your first reproducible retrieval project</div>
+    <button class="topbar__button" id="themeButton" type="button" aria-label="Switch color theme">
+      Theme
+    </button>
+    <button class="topbar__button" id="contentsButton" type="button">
+      <span class="optional-label">Open </span>contents
+    </button>
+  </div>
+  <div class="progress-track" aria-hidden="true"><div class="progress-fill" id="progressFill"></div></div>
+</header>
+
+<dialog class="toc-dialog" id="tocDialog" aria-labelledby="tocTitle">
+  <div class="toc-dialog__head">
+    <strong id="tocTitle">Workshop contents</strong>
+    <button class="toc-dialog__close" id="tocClose" type="button" aria-label="Close contents">×</button>
+  </div>
+  <nav class="toc-links" id="tocLinks">
+    <a href="#environment"><span>00 · 8 minutes</span>Choose the working environment</a>
+    <a href="#project"><span>01 · 12 minutes</span>Open a research project</a>
+    <a href="#component"><span>02 · 25 minutes</span>Implement one research idea</a>
+    <a href="#pipeline"><span>03 · 20 minutes</span>Compose a complex pipeline</a>
+    <a href="#stages"><span>04 · 32 minutes</span>Build and execute all four stages</a>
+    <a href="#experiment"><span>05 · 18 minutes</span>Package a controlled experiment</a>
+    <a href="#reproduce"><span>06 · 5 minutes</span>Leave reproducible research behind</a>
   </nav>
+</dialog>
 
-  <main class="main" id="main">
-    <section class="hero" id="welcome">
-      <div class="hero-grid">
-        <div>
-          <p class="eyebrow">Repository onboarding</p>
-          <h1>From checkout to <span class="gradient-text">traceable evidence.</span></h1>
-          <p class="hero-lead">Learn the R4 mental model, configure one isolated research project, create Hydra commands with the repository’s interactive builder, and run a baseline–treatment comparison on the checked-in toy corpus.</p>
-          <div class="hero-actions">
-            <a class="button primary" href="#setup">Start onboarding</a>
-            <a class="button" href="#command-builder">Already configured? Build a command</a>
+<main class="page" id="top">
+  <section class="hero">
+    <div class="eyebrow">R4 · team research monorepo · hands-on workshop</div>
+    <h1>Your first reproducible retrieval project</h1>
+    <p class="hero__lead">
+      Over roughly two hours, you will open an isolated project, implement a component,
+      compose it into a Haystack pipeline, execute every R4 stage, and package the work
+      as a baseline-versus-treatment experiment that another researcher can rerun.
+    </p>
+    <div class="hero__contract">
+      <strong>Your finish line</strong>
+      <p>
+        You will leave with an index, a prepared input mapping, inference predictions,
+        evaluation metrics, and a project-local experiment containing a shared base
+        configuration and explicit run entrypoints.
+      </p>
+    </div>
+    <div class="hero__meta" aria-label="Workshop assumptions">
+      <span class="meta-pill">About 2 hours</span>
+      <span class="meta-pill">Expert Python · uv · Git</span>
+      <span class="meta-pill">Hydra and Haystack basics assumed</span>
+      <span class="meta-pill">Windows or Linux</span>
+    </div>
+  </section>
+
+  <section class="chapter" id="environment" data-title="00 · Choose the working environment">
+    <header class="chapter__header">
+      <div class="chapter__number">Chapter 00 · 8 minutes</div>
+      <h2>Choose the machine that fits the research</h2>
+      <p class="chapter__intro">
+        R4 supports Windows and Linux. Make this choice before installing the project
+        because local model execution, remote storage, and long-running jobs will shape
+        the environment you want to keep for the duration of the research.
+      </p>
+    </header>
+
+    <div class="semantic-block semantic-block--explanation">
+      <div class="block__label">Why this matters</div>
+      <p>
+        Shared configuration templates can be composed and run directly through
+        <code>packages/retrieval-core</code>; creating a project is not a prerequisite
+        when you only need existing behavior. This workshop deliberately opens a project
+        early because your component, dependency lock, artifacts, and experiments need a
+        durable owner.
+      </p>
+    </div>
+
+    <div class="semantic-block semantic-block--warning">
+      <div class="block__label">Choose deliberately</div>
+      <p>
+        Use a Linux remote server when this project will run local transformer models
+        that benefit from a GPU. Windows is fully supported for CPU work and for Windows
+        GPU environments you already operate. The tutorial always shows PowerShell first
+        and Bash second; follow one platform consistently.
+      </p>
+    </div>
+
+    <div class="workshop-step">
+      <h3>Clone R4 and enter the repository</h3>
+      <div class="semantic-block semantic-block--instruction">
+        <div class="block__label">Do this</div>
+        <p>Open PowerShell on Windows or Bash on Linux, then run the matching block.</p>
+        <div class="command-card">
+          <div class="command-card__header">
+            <span>Terminal · Windows and Linux</span>
+            <button class="copy-button" type="button">Copy</button>
           </div>
-          <div class="tag-row" aria-label="Tutorial characteristics">
-            <span class="tag">CPU path</span><span class="tag">toy dataset</span><span class="tag">PowerShell + Bash</span><span class="tag">no prior Hydra knowledge</span>
-          </div>
-          <div class="hero-shell-select"><span>Show commands for</span><div class="shell-toggle" aria-label="Command shell"><button type="button" data-shell-select="powershell" aria-pressed="true">PowerShell</button><button type="button" data-shell-select="bash" aria-pressed="false">Bash</button></div></div>
+          <pre><code><span class="code-note"># Windows · PowerShell</span>
+git clone https://github.com/Rotem-BZ/Rotem-Retrieval-Research-Repo.git
+Set-Location Rotem-Retrieval-Research-Repo
+
+<span class="code-note"># Linux · Bash</span>
+git clone https://github.com/Rotem-BZ/Rotem-Retrieval-Research-Repo.git
+cd Rotem-Retrieval-Research-Repo
+source ./bash_aliases.sh</code></pre>
         </div>
-        <aside class="hero-panel" aria-label="Tutorial overview">
-          <img class="hero-logo" src="assets/r4-logo.png" alt="R4 Retrieval Research Repository logo">
-          <div class="hero-stats">
-            <div class="hero-stat"><strong>55</strong><span>minutes</span></div>
-            <div class="hero-stat"><strong>4</strong><span>stage contracts</span></div>
-            <div class="hero-stat"><strong>1</strong><span>controlled change</span></div>
-          </div>
-          <div class="callout warning" style="margin-bottom:0"><strong>First run note.</strong> Dependency and E5 model downloads can add time on a slow connection. The rest of the lab uses only checked-in data.</div>
-        </aside>
+        <p>
+          The Linux aliases make <code>build-command</code> and <code>kill-screens</code>
+          available in that shell. The Windows workflow uses the underlying Python
+          helper directly.
+        </p>
       </div>
-    </section>
+    </div>
 
-    <section class="section" id="setup">
-      <div class="section-head">
-        <div class="section-num">01 / 07</div>
-        <div><h2>Configure one project, not a global environment.</h2><p class="section-summary">R4 is a monorepo, but each research project owns its Python requirements and lockfile. We will use <code>projects/query-repetition</code> as the working environment for the whole tutorial.</p></div>
-      </div>
-
-      <div class="grid-3">
-        <article class="panel cyan-edge"><p class="kicker">System tool</p><h3>Git</h3><p>Clones the repository and records the exact code state in run manifests.</p></article>
-        <article class="panel purple-edge"><p class="kicker">Environment tool</p><h3>uv</h3><p>Resolves Python, installs the locked project, and executes tools inside its environment.</p></article>
-        <article class="panel green-edge"><p class="kicker">Managed for you</p><h3>Python ≥ 3.11</h3><p><code>uv sync</code> can provision the required interpreter. No manual virtual-environment activation is needed.</p></article>
-      </div>
-
-      <h3 style="margin-top:32px">Preflight</h3>
-      <div class="terminal" data-shell-block="powershell">
-        <div class="terminal-bar"><span class="traffic"><i></i><i></i><i></i></span><span class="terminal-title">PowerShell · any directory</span><button class="copy-button" type="button">Copy</button></div>
-        <pre><span class="prompt">PS&gt;</span> git --version
-<span class="prompt">PS&gt;</span> uv --version</pre>
-      </div>
-      <div class="terminal" data-shell-block="bash">
-        <div class="terminal-bar"><span class="traffic"><i></i><i></i><i></i></span><span class="terminal-title">Bash · any directory</span><button class="copy-button" type="button">Copy</button></div>
-        <pre><span class="prompt">$</span> git --version
-<span class="prompt">$</span> uv --version</pre>
-      </div>
-
-      <details>
-        <summary>Starting from a fresh clone</summary>
-        <div class="details-body">
-          <div class="terminal" data-shell-block="powershell">
-            <div class="terminal-bar"><span class="traffic"><i></i><i></i><i></i></span><span class="terminal-title">PowerShell · clone and trust this checkout</span><button class="copy-button" type="button">Copy</button></div>
-            <pre><span class="prompt">PS&gt;</span> git clone https://github.com/Rotem-BZ/Rotem-Retrieval-Research-Repo.git
-<span class="prompt">PS&gt;</span> Set-Location Rotem-Retrieval-Research-Repo
-<span class="prompt">PS&gt;</span> git config --global --add safe.directory "$(Resolve-Path .)"</pre>
-          </div>
-          <div class="terminal" data-shell-block="bash">
-            <div class="terminal-bar"><span class="traffic"><i></i><i></i><i></i></span><span class="terminal-title">Bash · clone and trust this checkout</span><button class="copy-button" type="button">Copy</button></div>
-            <pre><span class="prompt">$</span> git clone https://github.com/Rotem-BZ/Rotem-Retrieval-Research-Repo.git
-<span class="prompt">$</span> cd Rotem-Retrieval-Research-Repo
-<span class="prompt">$</span> git config --global --add safe.directory "$(pwd -P)"</pre>
-          </div>
-          <p>The trust entry is intentionally limited to this absolute clone path. Use it only for a repository you trust.</p>
+    <details class="reference">
+      <summary>Optional proof: run shared configuration without a project</summary>
+      <div class="reference__body">
+        <p>
+          From the repository root, the core package can own the active environment and
+          artifact root. This is useful for shared smoke tests, but it is not the workspace
+          used in the rest of this tutorial.
+        </p>
+        <div class="command-card">
+          <div class="command-card__header"><span>Terminal · either platform</span><button class="copy-button" type="button">Copy</button></div>
+          <pre><code>uv sync --project packages/retrieval-core --extra dev
+uv run --project packages/retrieval-core stage --help</code></pre>
         </div>
-      </details>
-
-      <h3 style="margin-top:30px">Install the example project</h3>
-      <div class="terminal" data-shell-block="powershell">
-        <div class="terminal-bar"><span class="traffic"><i></i><i></i><i></i></span><span class="terminal-title">PowerShell · repository root</span><button class="copy-button" type="button">Copy</button></div>
-        <pre><span class="prompt">PS&gt;</span> Set-Location projects/query-repetition
-<span class="prompt">PS&gt;</span> uv sync --extra dev
-<span class="prompt">PS&gt;</span> uv run nbstripout --install --attributes ../../.gitattributes
-<span class="prompt">PS&gt;</span> uv run pre-commit install --install-hooks</pre>
       </div>
-      <div class="terminal" data-shell-block="bash">
-        <div class="terminal-bar"><span class="traffic"><i></i><i></i><i></i></span><span class="terminal-title">Bash · repository root</span><button class="copy-button" type="button">Copy</button></div>
-        <pre><span class="prompt">$</span> source ./bash_aliases.sh
-<span class="prompt">$</span> cd projects/query-repetition
-<span class="prompt">$</span> uv sync --extra dev
-<span class="prompt">$</span> uv run nbstripout --install --attributes ../../.gitattributes
-<span class="prompt">$</span> uv run pre-commit install --install-hooks</pre>
-      </div>
-      <div class="callout"><strong>Working-directory rule.</strong> Stay in <code>projects/query-repetition</code> for normal stage and helper commands. The current directory is how the CLI and command builder include this project’s config tree before falling back to shared core configs.</div>
+    </details>
 
-      <article class="panel recessed" style="margin-top:24px">
-        <p class="kicker">Verify the checkout</p>
-        <ul class="checklist">
-          <li><input type="checkbox" id="check-python" data-checkpoint><label for="check-python"><code>uv run python --version</code><small>Confirms the managed interpreter.</small></label></li>
-          <li><input type="checkbox" id="check-tests" data-checkpoint><label for="check-tests"><code>uv run pytest -q</code><small>Confirms the project package, editable dependencies, and project tests.</small></label></li>
-          <li><input type="checkbox" id="check-help" data-checkpoint><label for="check-help"><code>uv run stage --help</code><small>Lists indexing, inference, evaluation, and prepare_mapping.</small></label></li>
-          <li><input type="checkbox" id="check-hooks" data-checkpoint><label for="check-hooks"><code>uv run nbstripout --status</code> and <code>uv run pre-commit run --all-files</code><small>Checks notebook and large-file safeguards.</small></label></li>
+    <div class="semantic-block semantic-block--checkpoint">
+      <div class="block__label">Checkpoint</div>
+      <label class="task-check"><input type="checkbox" data-check="environment-clone">The repository root contains <code>packages</code>, <code>projects</code>, <code>templates</code>, and <code>awesome-dev-tools</code>.</label>
+      <label class="task-check"><input type="checkbox" data-check="environment-platform">I have chosen Windows or Linux for this workshop, and I know when the Linux GPU server is the better long-term home.</label>
+    </div>
+  </section>
+
+  <section class="chapter" id="project" data-title="01 · Open a research project">
+    <header class="chapter__header">
+      <div class="chapter__number">Chapter 01 · 12 minutes</div>
+      <h2>Give the research a durable project home</h2>
+      <p class="chapter__intro">
+        A project is the boundary for treatment code, project-wide pipeline choices,
+        an independently resolved environment, generated artifacts, and one or more
+        experiments. The template provides that boundary without copying another
+        project’s dependency graph.
+      </p>
+    </header>
+
+    <div class="workshop-step">
+      <h3>Choose a project identity</h3>
+      <div class="semantic-block semantic-block--instruction">
+        <div class="block__label">Decide before typing</div>
+        <p>
+          Pick a short research theme. The project name can outlive this first workshop
+          experiment, while the component and pipeline names should describe the starter
+          treatment. Keep the generated identity implementation: it is a useful parity
+          test until you replace its behavior.
+        </p>
+        <ul>
+          <li><code>project_name</code>: a readable research area, such as “Metadata-aware retrieval”.</li>
+          <li><code>project_slug</code>: the project directory and distribution name.</li>
+          <li><code>package_name</code>: a valid Python import name.</li>
+          <li><code>pipeline_name</code>: the project-owned Hydra inference choice.</li>
+          <li><code>component_class_name</code>: the starter Haystack component.</li>
         </ul>
-      </article>
-    </section>
-
-    <section class="section" id="mental-model">
-      <div class="section-head">
-        <div class="section-num">02 / 07</div>
-        <div><h2>One monorepo, three ownership levels.</h2><p class="section-summary">The fastest way to become productive is to put each change at the right altitude: reusable behavior, shared orchestration, or one project’s hypothesis.</p></div>
       </div>
+    </div>
 
-      <div class="repo-map">
-        <div class="terminal" style="margin:0">
-          <div class="terminal-bar"><span class="traffic"><i></i><i></i><i></i></span><span class="terminal-title">Rotem-Retrieval-Research-Repo/</span></div>
-          <pre class="tree"><span class="cyan">packages/retrieval-components/</span>  reusable Haystack behavior
-<span class="purple">packages/retrieval-core/</span>        stages, config, metrics, provenance
-<span class="green">projects/</span>
-  query-repetition/              isolated research project
-    pyproject.toml               project dependencies
-    uv.lock                      project lockfile
-    src/                         project-owned components
-    configs/                     project Hydra choices
-    experiments/                 cards, run YAML, analysis
-    artifacts/                   generated evidence
-<span class="yellow">awesome-dev-tools/</span>              command + run helpers
-templates/                       project and experiment scaffolds
-data/processed/toy/              checked-in smoke corpus
-docs/                            workflow and command guides</pre>
-        </div>
-        <div class="ownership-stack">
-          <article class="ownership"><b>01</b><h3>Reusable retrieval code</h3><p>Put components that another project can import unchanged in <code>retrieval-components</code>.</p></article>
-          <article class="ownership"><b>02</b><h3>Shared mechanics</h3><p>Put stages, artifact contracts, configuration, or metrics in <code>retrieval-core</code>.</p></article>
-          <article class="ownership"><b>03</b><h3>Research-specific variation</h3><p>Keep one hypothesis’s code, configs, experiments, analysis, and artifacts in its project.</p></article>
-        </div>
-      </div>
+    <div class="workshop-step">
+      <h3>Scaffold and initialize the project</h3>
+      <div class="semantic-block semantic-block--instruction">
+        <div class="block__label">Do this · repository root</div>
+        <p>
+          Run Cookiecutter, answer its prompts, then replace
+          <code>YOUR_PROJECT_SLUG</code> with the generated directory name.
+        </p>
+        <div class="command-card">
+          <div class="command-card__header">
+            <span>Terminal · Windows and Linux</span>
+            <button class="copy-button" type="button">Copy</button>
+          </div>
+          <pre><code><span class="code-note"># Windows · PowerShell</span>
+uvx cookiecutter templates/retrieval-project --output-dir projects
+Set-Location projects/YOUR_PROJECT_SLUG
+uv sync --extra dev
+uv run nbstripout --install --attributes ../../.gitattributes
+uv run pre-commit install --install-hooks
+uv run pytest
 
-      <h3 style="margin-top:34px">The evidence-producing lifecycle</h3>
-      <div class="lifecycle" aria-label="Research lifecycle">
-        <div class="life-step"><span>01</span><strong>Frame</strong><small>Write a falsifiable hypothesis.</small></div>
-        <div class="life-step"><span>02</span><strong>Compose</strong><small>Select topology and implementations.</small></div>
-        <div class="life-step"><span>03</span><strong>Test</strong><small>Verify the unit you changed.</small></div>
-        <div class="life-step"><span>04</span><strong>Run</strong><small>Execute a narrow stage contract.</small></div>
-        <div class="life-step"><span>05</span><strong>Inspect</strong><small>Read immutable outputs and lineage.</small></div>
-        <div class="life-step"><span>06</span><strong>Report</strong><small>Make claims from evidence.</small></div>
-      </div>
-      <div class="callout purple"><strong>North star.</strong> R4 keeps the claim, executable difference, and resulting evidence connected. Configuration is not merely setup; it is part of the research record.</div>
-    </section>
-
-    <section class="section" id="command-builder">
-      <div class="section-head">
-        <div class="section-num">03 / 07</div>
-        <div><h2>Build Hydra commands interactively.</h2><p class="section-summary">Do not begin by memorizing long override strings. The repository’s command builder discovers valid choices in context, validates the final composition, and gives you a copyable <code>uv run stage …</code> command.</p></div>
-      </div>
-
-      <div class="builder-hero">
-        <article class="panel elevated cyan-edge">
-          <div class="builder-badge">&gt;_</div>
-          <p class="kicker">Recommended starting point</p>
-          <h3><code>interactive_build_command.py</code></h3>
-          <p>The helper uses the nearest <code>configs/</code> directory at or above your current working directory. In this tutorial that means project choices first, then shared <code>retrieval-core</code> fallbacks.</p>
-          <div class="tag-row"><span class="tag">artifact-aware</span><span class="tag">config-aware</span><span class="tag">clipboard-ready</span></div>
-        </article>
-        <div class="terminal" style="margin:0">
-          <div class="terminal-bar"><span class="traffic"><i></i><i></i><i></i></span><span class="terminal-title">Launch from projects/query-repetition</span><button class="copy-button" type="button">Copy</button></div>
-          <pre data-shell-block="powershell"><span class="comment"># PowerShell: use the helper directly</span>
-<span class="prompt">PS&gt;</span> uv run python ../../awesome-dev-tools/interactive_build_command.py</pre>
-          <pre data-shell-block="bash"><span class="comment"># Bash: short alias after sourcing bash_aliases.sh</span>
-<span class="prompt">$</span> build-command
-
-<span class="comment"># Direct form works too</span>
-<span class="prompt">$</span> uv run python ../../awesome-dev-tools/interactive_build_command.py</pre>
+<span class="code-note"># Linux · Bash</span>
+uvx cookiecutter templates/retrieval-project --output-dir projects
+cd projects/YOUR_PROJECT_SLUG
+uv sync --extra dev
+uv run nbstripout --install --attributes ../../.gitattributes
+uv run pre-commit install --install-hooks
+uv run pytest</code></pre>
         </div>
       </div>
 
-      <div class="builder-flow" aria-label="What the command builder does">
-        <div class="builder-step"><span>STEP 01</span><strong>Find config roots</strong></div>
-        <div class="builder-step"><span>STEP 02</span><strong>Choose a stage</strong></div>
-        <div class="builder-step"><span>STEP 03</span><strong>Resolve required choices</strong></div>
-        <div class="builder-step"><span>STEP 04</span><strong>Select exact artifacts</strong></div>
-        <div class="builder-step"><span>STEP 05</span><strong>Validate + copy</strong></div>
+      <div class="semantic-block semantic-block--explanation">
+        <div class="block__label">Why this matters</div>
+        <p>
+          The project receives its own <code>pyproject.toml</code> and
+          <code>uv.lock</code>. During monorepo development, <code>retrieval-core</code>
+          and <code>retrieval-components</code> resolve through editable relative paths,
+          so shared code changes are immediately visible without surrendering the
+          project’s dependency boundary.
+        </p>
+      </div>
+    </div>
+
+    <div class="workshop-step">
+      <h3>Orient yourself by ownership</h3>
+      <pre class="file-tree">projects/YOUR_PROJECT_SLUG/
+├── <span class="highlight">pyproject.toml + uv.lock</span>                  <span class="comment">project environment</span>
+├── src/YOUR_PACKAGE/
+│   └── <span class="highlight">components.py</span>                         <span class="comment">hypothesis-specific behavior</span>
+├── configs/pipeline/inference/YOUR_PACKAGE/
+│   └── <span class="highlight">YOUR_PIPELINE.yaml</span>                    <span class="comment">project-owned pipeline choice</span>
+├── tests/                                      <span class="comment">component and composition contracts</span>
+├── <span class="highlight">experiments/</span>                                <span class="comment">controlled comparisons</span>
+└── artifacts/                                  <span class="comment">immutable stage products</span></pre>
+      <div class="semantic-block semantic-block--explanation">
+        <div class="block__label">Read the structure as a decision rule</div>
+        <p>
+          Hypothesis-specific behavior belongs here. A component that has become
+          generally reusable across projects belongs in
+          <code>packages/retrieval-components</code>. Stage orchestration and artifact
+          lifecycle belong in <code>packages/retrieval-core</code>. Keeping those
+          responsibilities separate is what lets new research start quickly without
+          turning one experiment into shared infrastructure prematurely.
+        </p>
+      </div>
+    </div>
+
+    <div class="semantic-block semantic-block--checkpoint">
+      <div class="block__label">Checkpoint</div>
+      <label class="task-check"><input type="checkbox" data-check="project-tests">The generated project’s focused tests pass inside its own uv environment.</label>
+      <label class="task-check"><input type="checkbox" data-check="project-lock">The project now has its own <code>uv.lock</code>, and my shell remains inside the project directory.</label>
+    </div>
+  </section>
+
+  <section class="chapter" id="component" data-title="02 · Implement one research idea">
+    <header class="chapter__header">
+      <div class="chapter__number">Chapter 02 · 25 minutes</div>
+      <h2>Turn one research idea into a component contract</h2>
+      <p class="chapter__intro">
+        The generated component is intentionally an identity transform. Choose a small
+        intervention that can be expressed with explicit input and output sockets, then
+        use the repository’s component implementation skill to place, configure, test,
+        and document it consistently.
+      </p>
+    </header>
+
+    <div class="workshop-step">
+      <h3>Choose the intervention</h3>
+      <div class="prose">
+        <p>
+          Keep the first implementation small enough to complete today. The suggestions
+          below are starting points, not a prescribed menu. A more interesting idea is
+          welcome when you can state its contract and test it without external services.
+        </p>
+      </div>
+      <ul class="idea-list">
+        <li><strong>Query transformation:</strong> add a prefix, controlled repetition, field-aware phrasing, or deterministic normalization.</li>
+        <li><strong>Candidate handling:</strong> filter candidates from metadata, preserve a controlled subset, or reorder candidates before ranking.</li>
+        <li><strong>Document transformation:</strong> clean a field, prepare chunks, or enrich metadata without losing source identity.</li>
+        <li><strong>Retrieval composition:</strong> introduce fusion, a reranking step, or a small adapter around an existing Haystack component.</li>
+        <li><strong>Your own idea:</strong> define the smallest component that makes the research question executable.</li>
+      </ul>
+
+      <div class="semantic-block semantic-block--instruction">
+        <div class="block__label">Write this down</div>
+        <p>Before asking an agent to implement anything, record:</p>
+        <ol>
+          <li>the hypothesis-specific behavior in one precise paragraph;</li>
+          <li>constructor settings and defaults;</li>
+          <li>input and output socket names and types;</li>
+          <li>mutation and failure behavior; and</li>
+          <li>two normal cases and one edge case that a focused test can prove.</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="workshop-step">
+      <h3>Use the component implementation skill</h3>
+      <div class="semantic-block semantic-block--explanation">
+        <div class="block__label">What the skill contributes</div>
+        <p>
+          <code>implement-new-component</code> applies the repository’s ownership rules,
+          Haystack v2 socket conventions, serialization shape, Hydra placement, exports,
+          focused tests, and documentation checks. You remain responsible for a clear
+          research contract; the skill makes the resulting repository change coherent.
+        </p>
       </div>
 
-      <div class="grid-2" style="margin-top:22px">
-        <article class="panel"><p class="kicker">It knows configuration</p><h3>Project choices are included</h3><p>Because you launch it inside <code>projects/query-repetition</code>, the builder can offer <code>query_repetition/dense_query_repetition</code> alongside shared core pipelines.</p></article>
-        <article class="panel"><p class="kicker">It knows artifacts</p><h3>Only completed dependencies appear</h3><p>Inference can select an existing index or input mapping. Evaluation can select completed inference runs for the chosen dataset.</p></article>
-        <article class="panel"><p class="kicker">It exposes advanced control</p><h3>Review or edit selected configs</h3><p>Answer <code>y</code> at the review prompt to switch a nested choice or edit fields such as <code>top_k</code>, concurrency, or <code>stage.run_id</code>.</p></article>
-        <article class="panel"><p class="kicker">It fails early</p><h3>The final config is composed first</h3><p>Missing required values, invalid combinations, and unavailable dependencies are reported before the command is handed back.</p></article>
-      </div>
-
-      <h3 style="margin-top:34px">A typical builder session</h3>
-      <div class="terminal">
-        <div class="terminal-bar"><span class="traffic"><i></i><i></i><i></i></span><span class="terminal-title">Illustrative transcript · choose by label, not fixed menu number</span></div>
-        <pre><span class="output">Retrieval Research command builder
-Config search path:
-  .../projects/query-repetition/configs
-  .../packages/retrieval-core/.../configs
-
-Choose stage:</span>
-  <span class="selection">indexing</span>
-<span class="output">Choose dataset:</span>
-  <span class="selection">toy</span>
-<span class="output">Choose pipeline/indexing@pipeline:</span>
-  <span class="selection">dense/documents_in_memory</span>
-<span class="output">Choose runtime:</span>
-  <span class="selection">cpu</span>
-<span class="output">Choose selections/embedding_model:</span>
-  <span class="selection">e5/small_v2</span>
-<span class="output">Review/edit selected configs? [y/N]:</span> n
-<span class="output">new index id [toy-e5-small-v2-index]:</span>
-
-<span class="output">Command:</span>
-<span class="value">uv run stage indexing dataset=toy pipeline/indexing@pipeline=dense/documents_in_memory runtime=cpu selections/embedding_model=e5/small_v2 selections.index_id=toy-e5-small-v2-index</span>
-<span class="output">Command copied to clipboard.</span></pre>
-      </div>
-      <div class="callout success"><strong>The suggested ID is collision-aware.</strong> If <code>toy-e5-small-v2-index</code> already exists, the helper proposes the next available suffix. R4 indexes are immutable, so this is safer than reusing a hard-coded tutorial ID.</div>
-
-      <details>
-        <summary>Launch the builder while your terminal is at the repository root</summary>
-        <div class="details-body">
-          <p>Temporarily enter the project so artifact discovery and the generated command use the same project context:</p>
-          <div class="terminal" data-shell-block="powershell">
-            <div class="terminal-bar"><span class="traffic"><i></i><i></i><i></i></span><span class="terminal-title">PowerShell · repository root</span><button class="copy-button" type="button">Copy</button></div>
-            <pre><span class="prompt">PS&gt;</span> Push-Location projects/query-repetition
-<span class="prompt">PS&gt;</span> uv run python ../../awesome-dev-tools/interactive_build_command.py
-<span class="prompt">PS&gt;</span> Pop-Location</pre>
+      <div class="semantic-block semantic-block--instruction">
+        <div class="block__label">Do this · Codex task</div>
+        <p>
+          Open Codex at the repository root and invoke the skill with the contract you
+          just wrote. Adapt this prompt rather than copying an underspecified request.
+        </p>
+        <div class="command-card">
+          <div class="command-card__header">
+            <span>Codex prompt · not a terminal command</span>
+            <button class="copy-button" type="button">Copy</button>
           </div>
-          <div class="terminal" data-shell-block="bash">
-            <div class="terminal-bar"><span class="traffic"><i></i><i></i><i></i></span><span class="terminal-title">Bash · repository root</span><button class="copy-button" type="button">Copy</button></div>
-            <pre><span class="prompt">$</span> (cd projects/query-repetition &amp;&amp; uv run python ../../awesome-dev-tools/interactive_build_command.py)</pre>
-          </div>
-          <p>The helper also accepts <code>--config-dir</code> for deliberate config-tree inspection, but ordinary stage work should keep the project directory as its execution context.</p>
-        </div>
-      </details>
-      <details>
-        <summary>If clipboard copying is unavailable</summary>
-        <div class="details-body"><p>The builder still prints the full command and does not fail. On Linux, install an <code>xclip</code> or <code>xsel</code> package if your desktop session does not already provide a clipboard backend.</p></div>
-      </details>
-    </section>
+          <pre><code>$implement-new-component
 
-    <section class="section" id="command-grammar">
-      <div class="section-head">
-        <div class="section-num">04 / 07</div>
-        <div><h2>Read the command the builder produced.</h2><p class="section-summary">The helper removes guesswork, but the command remains an explicit research record. Learn its five parts so you can review, adjust, and commit it confidently.</p></div>
-      </div>
+Implement a project-owned Haystack v2 component in
+projects/YOUR_PROJECT_SLUG.
 
-      <div class="command-anatomy">
-        <div class="command-line"><span class="cmd-part cmd-stage">uv run stage inference</span> <span class="cmd-part cmd-data">dataset=toy</span> <span class="cmd-part cmd-data">runtime=cpu</span> <span class="cmd-part cmd-topology">pipeline/inference@pipeline=query_repetition/dense_query_repetition</span> <span class="cmd-part cmd-choice">selections/embedding_model=e5/small_v2</span> <span class="cmd-part cmd-id">selections.index_id=toy-e5-small-v2-index</span></div>
-        <div class="anatomy-legend">
-          <div><strong>Stage</strong>The narrow workflow contract.</div>
-          <div><strong>Context</strong>Dataset and runtime configuration.</div>
-          <div><strong>Topology</strong>The graph shape mounted at <code>pipeline</code>.</div>
-          <div><strong>Selection</strong>A semantic implementation choice.</div>
-          <div><strong>Dependency</strong>The exact immutable upstream artifact.</div>
-        </div>
-      </div>
+Research behavior:
+DESCRIBE_THE_INTERVENTION_AND_HYPOTHESIS
 
-      <div class="grid-3" style="margin-top:24px">
-        <article class="panel cyan-edge"><p class="kicker">Stage</p><h3>What work happens?</h3><p><code>prepare_mapping</code>, <code>indexing</code>, <code>inference</code>, or <code>evaluation</code>.</p></article>
-        <article class="panel purple-edge"><p class="kicker">Topology + choices</p><h3>How does it happen?</h3><p>The pipeline defines connections; selections provide concrete models and components.</p></article>
-        <article class="panel green-edge"><p class="kicker">Artifacts</p><h3>What exact evidence?</h3><p>Index IDs and run IDs connect stages without silently choosing “latest.”</p></article>
-      </div>
+Contract:
+- Constructor: LIST_SERIALIZABLE_SETTINGS_AND_DEFAULTS
+- Input sockets: LIST_NAMES_AND_TYPES
+- Output sockets: LIST_NAMES_AND_TYPES
+- Mutation/failure behavior: STATE_IT_EXPLICITLY
+- Tests: LIST_TWO_NORMAL_CASES_AND_ONE_EDGE_CASE
 
-      <h3 style="margin-top:34px">Configuration search order</h3>
-      <div class="lifecycle" style="grid-template-columns:repeat(3,minmax(220px,1fr))">
-        <div class="life-step"><span>SEARCHED FIRST</span><strong>Experiment</strong><small><code>experiments/&lt;slug&gt;/configs/</code></small></div>
-        <div class="life-step"><span>SEARCHED SECOND</span><strong>Project</strong><small><code>projects/&lt;project&gt;/configs/</code></small></div>
-        <div class="life-step"><span>FALLBACK</span><strong>Core</strong><small><code>pkg://retrieval_core.configs</code></small></div>
-      </div>
-      <div class="callout"><strong>Specific choices override shared defaults.</strong> A project can add one pipeline without copying shared datasets, runtimes, models, stages, or metrics.</div>
-    </section>
-
-    <section class="section" id="lab">
-      <div class="section-head">
-        <div class="section-num">05 / 07</div>
-        <div><h2>Run a baseline–treatment comparison.</h2><p class="section-summary">Create every Hydra command with the helper. The representative output blocks are here so you can check the result before pasting it into the terminal.</p></div>
-      </div>
-
-      <div class="pipeline-compare">
-        <article class="pipeline-card"><p class="kicker">Baseline</p><h3>Unchanged dense retrieval</h3><div class="mini-pipeline"><span class="pipe-box">query</span><span class="pipe-arrow">→</span><span class="pipe-box">prefix</span><span class="pipe-arrow">→</span><span class="pipe-box">embed</span><span class="pipe-arrow">→</span><span class="pipe-box">retrieve</span></div></article>
-        <article class="pipeline-card"><p class="kicker">Treatment</p><h3>Repeat raw query once</h3><div class="mini-pipeline"><span class="pipe-box">query</span><span class="pipe-arrow">→</span><span class="pipe-box changed">repeat ×2</span><span class="pipe-arrow">→</span><span class="pipe-box">prefix</span><span class="pipe-arrow">→</span><span class="pipe-box">embed</span><span class="pipe-arrow">→</span><span class="pipe-box">retrieve</span></div></article>
-      </div>
-      <div class="callout warning"><strong>Research interpretation.</strong> The toy corpus validates configuration, execution, artifact linkage, and comparison mechanics. Its metric deltas are not evidence that query repetition generalizes.</div>
-
-      <article class="lab-step">
-        <div class="lab-index">A</div>
-        <div class="lab-body">
-          <h3>Create the shared index</h3>
-          <p>Launch the command builder. Select the following labels, decline config editing for now, and accept its suggested new index ID. Copy the final command and run it.</p>
-          <div class="choices">
-            <div class="choice"><span>Stage</span><strong>indexing</strong></div>
-            <div class="choice"><span>Dataset</span><strong>toy</strong></div>
-            <div class="choice"><span>Pipeline</span><strong>dense/documents_in_memory</strong></div>
-            <div class="choice"><span>Runtime</span><strong>cpu</strong></div>
-            <div class="choice"><span>Embedding model</span><strong>e5/small_v2</strong></div>
-          </div>
-          <div class="terminal">
-            <div class="terminal-bar"><span class="traffic"><i></i><i></i><i></i></span><span class="terminal-title">Representative builder output · your ID may have a suffix</span><button class="copy-button" type="button">Copy</button></div>
-            <pre><span class="prompt">$</span> uv run stage indexing dataset=toy pipeline/indexing@pipeline=dense/documents_in_memory runtime=cpu selections/embedding_model=e5/small_v2 selections.index_id=toy-e5-small-v2-index</pre>
-          </div>
-          <div class="checkpoint">Keep the selected index ID. The next two inference commands must use this exact shared index.</div>
-          <label><input type="checkbox" data-checkpoint> Indexing completed and <code>artifacts/indexes/&lt;index-id&gt;/</code> exists.</label>
-        </div>
-      </article>
-
-      <article class="lab-step">
-        <div class="lab-index">B</div>
-        <div class="lab-body">
-          <h3>Run baseline inference</h3>
-          <p>Run the builder again. It now discovers the completed index. Select “All documents” for the input mapping, then choose the index from Step A.</p>
-          <div class="choices">
-            <div class="choice"><span>Stage</span><strong>inference</strong></div>
-            <div class="choice"><span>Dataset</span><strong>toy</strong></div>
-            <div class="choice"><span>Pipeline</span><strong>retrieve/dense_in_memory</strong></div>
-            <div class="choice"><span>Runtime</span><strong>cpu</strong></div>
-            <div class="choice"><span>Input mapping</span><strong>All documents</strong></div>
-            <div class="choice"><span>Index</span><strong>the ID from Step A</strong></div>
-          </div>
-          <div class="terminal">
-            <div class="terminal-bar"><span class="traffic"><i></i><i></i><i></i></span><span class="terminal-title">Representative builder output</span><button class="copy-button" type="button">Copy</button></div>
-            <pre><span class="prompt">$</span> uv run stage inference dataset=toy pipeline/inference@pipeline=retrieve/dense_in_memory runtime=cpu selections/embedding_model=e5/small_v2 selections.input_mapping=null selections.index_id=&lt;index-id&gt;</pre>
-          </div>
-          <div class="checkpoint">Note the <code>run_id</code> printed by “Stage completed.” Evaluation will discover it automatically.</div>
-          <label><input type="checkbox" data-checkpoint> Baseline inference produced <code>predictions.json</code>.</label>
-        </div>
-      </article>
-
-      <article class="lab-step">
-        <div class="lab-index">C</div>
-        <div class="lab-body">
-          <h3>Run the treatment</h3>
-          <p>Build another inference command, changing only the pipeline topology. The project-owned choice is visible because the helper is running in <code>projects/query-repetition</code>.</p>
-          <div class="choices">
-            <div class="choice"><span>Stage</span><strong>inference</strong></div>
-            <div class="choice"><span>Dataset</span><strong>toy</strong></div>
-            <div class="choice"><span>Pipeline</span><strong>query_repetition/dense_query_repetition</strong></div>
-            <div class="choice"><span>Runtime</span><strong>cpu</strong></div>
-            <div class="choice"><span>Embedding model</span><strong>e5/small_v2</strong></div>
-            <div class="choice"><span>Index</span><strong>the same Step A ID</strong></div>
-          </div>
-          <div class="terminal">
-            <div class="terminal-bar"><span class="traffic"><i></i><i></i><i></i></span><span class="terminal-title">Representative builder output</span><button class="copy-button" type="button">Copy</button></div>
-            <pre><span class="prompt">$</span> uv run stage inference dataset=toy pipeline/inference@pipeline=query_repetition/dense_query_repetition runtime=cpu selections/embedding_model=e5/small_v2 selections.input_mapping=null selections.index_id=&lt;the-same-index-id&gt;</pre>
-          </div>
-          <div class="checkpoint">The controlled difference should be readable at a glance: only the inference pipeline choice changes.</div>
-          <label><input type="checkbox" data-checkpoint> Treatment inference completed against the same index.</label>
-        </div>
-      </article>
-
-      <article class="lab-step">
-        <div class="lab-index">D</div>
-        <div class="lab-body">
-          <h3>Evaluate both exact runs</h3>
-          <p>Launch the builder with the <code>evaluation</code> stage. It lists completed inference runs for <code>toy</code>; select the baseline’s exact ID and accept the default metrics. Run the generated command, then repeat for the treatment.</p>
-          <div class="choices">
-            <div class="choice"><span>Stage</span><strong>evaluation</strong></div>
-            <div class="choice"><span>Dataset</span><strong>toy</strong></div>
-            <div class="choice"><span>Inference dependency</span><strong>one exact completed run</strong></div>
-            <div class="choice"><span>Metrics</span><strong>accept the default list</strong></div>
-          </div>
-          <div class="terminal">
-            <div class="terminal-bar"><span class="traffic"><i></i><i></i><i></i></span><span class="terminal-title">Representative builder output · run twice</span><button class="copy-button" type="button">Copy</button></div>
-            <pre><span class="prompt">$</span> uv run stage evaluation dataset=toy stage.inference_run_id=&lt;exact-inference-run-id&gt; metrics='["Recall@10","Recall@50","Recall@100","MRR@50","NDCG@10","HitRate@10"]'</pre>
-          </div>
-          <div class="checkpoint">You now have two independent evaluation artifacts, each linked to its exact prediction run.</div>
-          <label><input type="checkbox" data-checkpoint> Both evaluation directories contain <code>metrics.json</code>.</label>
-        </div>
-      </article>
-
-      <article class="lab-step">
-        <div class="lab-index">E</div>
-        <div class="lab-body">
-          <h3>Compare the metrics</h3>
-          <p>Use the two run IDs printed when evaluation completed, then pass their metric files to the project’s comparison helper. The listing below helps you find recent IDs; confirm which manifest points to the baseline inference before putting the baseline path first.</p>
-          <div class="terminal" data-shell-block="powershell">
-            <div class="terminal-bar"><span class="traffic"><i></i><i></i><i></i></span><span class="terminal-title">PowerShell · projects/query-repetition</span><button class="copy-button" type="button">Copy</button></div>
-            <pre><span class="comment"># See the newest evaluation run IDs</span>
-<span class="prompt">PS&gt;</span> Get-ChildItem artifacts/runs/evaluation | Sort-Object LastWriteTime -Descending | Select-Object -First 2 Name
-
-<span class="prompt">PS&gt;</span> uv run python scripts/compare_metrics.py `
-  "artifacts/runs/evaluation/&lt;baseline-evaluation-id&gt;/metrics.json" `
-  "artifacts/runs/evaluation/&lt;treatment-evaluation-id&gt;/metrics.json"</pre>
-          </div>
-          <div class="terminal" data-shell-block="bash">
-            <div class="terminal-bar"><span class="traffic"><i></i><i></i><i></i></span><span class="terminal-title">Bash · projects/query-repetition</span><button class="copy-button" type="button">Copy</button></div>
-            <pre><span class="comment"># See the newest evaluation run IDs</span>
-<span class="prompt">$</span> ls -1t artifacts/runs/evaluation | head -2
-
-<span class="prompt">$</span> uv run python scripts/compare_metrics.py \
-  "artifacts/runs/evaluation/&lt;baseline-evaluation-id&gt;/metrics.json" \
-  "artifacts/runs/evaluation/&lt;treatment-evaluation-id&gt;/metrics.json"</pre>
-          </div>
-          <div class="checkpoint">Success is a traceable comparison—not a particular sign or size of delta.</div>
-          <label><input type="checkbox" data-checkpoint> The comparison table prints baseline, repeated, and delta columns.</label>
-        </div>
-      </article>
-
-      <details>
-        <summary>Optional: assign readable run IDs in the builder</summary>
-        <div class="details-body"><p>At <code>Review/edit selected configs? [y/N]</code>, answer <code>y</code>. Choose the stage config, choose “Edit fields,” and set <code>stage.run_id</code>. This is useful for a tutorial or deliberate ad-hoc run. Checked-in experiment entrypoints assign stable run identities automatically.</p></div>
-      </details>
-    </section>
-
-    <section class="section" id="evidence">
-      <div class="section-head">
-        <div class="section-num">06 / 07</div>
-        <div><h2>Follow the evidence, not terminal memory.</h2><p class="section-summary">Every successful stage records its effective configuration, lineage, outputs, and diagnostics below the active project’s <code>artifacts/</code> directory.</p></div>
-      </div>
-
-      <div class="artifact-layout">
-        <div class="terminal" style="margin:0">
-          <div class="terminal-bar"><span class="traffic"><i></i><i></i><i></i></span><span class="terminal-title">projects/query-repetition/artifacts/</span></div>
-          <pre class="tree">indexes/
-  &lt;index-id&gt;/
-    index.jsonl
-runs/
-  indexing/&lt;run-id&gt;/
-  inference/&lt;run-id&gt;/
-    predictions.json
-    resolved_config.yaml
-    manifest.json
-    result.json
-    run.log
-  evaluation/&lt;run-id&gt;/
-    metrics.json
-    resolved_config.yaml
-    manifest.json
-    result.json
-    run.log</pre>
-        </div>
-        <div class="artifact-files">
-          <article class="artifact-file"><code>predictions.json</code><p>Ranked documents produced for each query.</p></article>
-          <article class="artifact-file"><code>metrics.json</code><p>Aggregate ranking measurements for one exact inference run.</p></article>
-          <article class="artifact-file"><code>resolved_config.yaml</code><p>The full effective configuration after Hydra composition.</p></article>
-          <article class="artifact-file"><code>manifest.json</code><p>Stage identity, exact inputs, config hash, Git commit, and installed package versions.</p></article>
-          <article class="artifact-file"><code>run.log</code><p>UTC-timestamped diagnostics, including first-party DEBUG events.</p></article>
+Wire it into the generated project pipeline. Preserve the existing
+project ownership boundary, update focused tests and project docs,
+and report the exact verification that was run.</code></pre>
         </div>
       </div>
 
-      <h3 style="margin-top:32px">Inspect one completed run</h3>
-      <div class="terminal" data-shell-block="powershell">
-        <div class="terminal-bar"><span class="traffic"><i></i><i></i><i></i></span><span class="terminal-title">PowerShell · replace the run ID</span><button class="copy-button" type="button">Copy</button></div>
-        <pre><span class="prompt">PS&gt;</span> Get-Content -Raw artifacts/runs/inference/&lt;run-id&gt;/manifest.json
-<span class="prompt">PS&gt;</span> Get-Content -Raw artifacts/runs/inference/&lt;run-id&gt;/resolved_config.yaml
-<span class="prompt">PS&gt;</span> Get-Content -Tail 30 artifacts/runs/inference/&lt;run-id&gt;/run.log</pre>
+      <div class="semantic-block semantic-block--warning">
+        <div class="block__label">Review before accepting</div>
+        <p>
+          Confirm that the component stayed in the project unless it is genuinely
+          reusable, uses Haystack’s <code>@component</code> API with explicit outputs,
+          preserves relevant <code>Query</code> or <code>Document</code> fields, and has
+          no hidden filesystem or network work outside its declared purpose.
+        </p>
       </div>
-      <div class="terminal" data-shell-block="bash">
-        <div class="terminal-bar"><span class="traffic"><i></i><i></i><i></i></span><span class="terminal-title">Bash · replace the run ID</span><button class="copy-button" type="button">Copy</button></div>
-        <pre><span class="prompt">$</span> less artifacts/runs/inference/&lt;run-id&gt;/manifest.json
-<span class="prompt">$</span> less artifacts/runs/inference/&lt;run-id&gt;/resolved_config.yaml
-<span class="prompt">$</span> tail -30 artifacts/runs/inference/&lt;run-id&gt;/run.log</pre>
+    </div>
+
+    <div class="workshop-step">
+      <h3>Prove the component in isolation</h3>
+      <div class="semantic-block semantic-block--instruction">
+        <div class="block__label">Do this · project directory</div>
+        <div class="command-card">
+          <div class="command-card__header"><span>Terminal · either platform</span><button class="copy-button" type="button">Copy</button></div>
+          <pre><code>uv run pytest
+uv run ruff check .</code></pre>
+        </div>
+        <p>
+          Read the component test and the pipeline-composition test. They should prove
+          both the socket-level behavior and that the serialized pipeline can actually
+          be loaded.
+        </p>
+      </div>
+    </div>
+
+    <div class="semantic-block semantic-block--checkpoint">
+      <div class="block__label">Checkpoint</div>
+      <label class="task-check"><input type="checkbox" data-check="component-contract">I can explain the component’s constructor, sockets, mutation policy, and failure behavior without reading its implementation.</label>
+      <label class="task-check"><input type="checkbox" data-check="component-tests">The project test suite proves the custom behavior and pipeline composition.</label>
+    </div>
+  </section>
+
+  <section class="chapter" id="pipeline" data-title="03 · Compose a complex pipeline">
+    <header class="chapter__header">
+      <div class="chapter__number">Chapter 03 · 20 minutes</div>
+      <h2>Compose behavior from ownership layers</h2>
+      <p class="chapter__intro">
+        R4 uses Hydra as the experiment interface and Haystack as the executable graph.
+        Complex pipelines emerge from small config choices: shared component fragments,
+        project-owned topology, model selections, runtime settings, and a few intentional
+        overrides.
+      </p>
+    </header>
+
+    <div class="workshop-step">
+      <h3>Understand the config search order</h3>
+      <div class="path-flow" aria-label="Hydra configuration search order">
+        <div class="path-flow__item">
+          <strong>Experiment configuration</strong>
+          <p>One comparison’s base config, run entrypoints, and optional experiment-only choices.</p>
+        </div>
+        <div class="path-flow__connector" aria-hidden="true"></div>
+        <div class="path-flow__item">
+          <strong>Project configuration</strong>
+          <p>Your project pipeline and durable research-area defaults.</p>
+        </div>
+        <div class="path-flow__connector" aria-hidden="true"></div>
+        <div class="path-flow__item">
+          <strong>retrieval-core configuration</strong>
+          <p>Shared stages, datasets, components, runtime profiles, models, and pipeline templates.</p>
+        </div>
+      </div>
+      <div class="semantic-block semantic-block--explanation">
+        <div class="block__label">Why this matters</div>
+        <p>
+          More specific layers extend or override shared choices without copying the
+          whole configuration tree. An experiment can select your project pipeline;
+          your project pipeline can select shared component fragments; and the resolved
+          config records the fully composed result that actually ran.
+        </p>
+      </div>
+    </div>
+
+    <div class="workshop-step">
+      <h3>Read the generated pipeline as an executable graph</h3>
+      <div class="semantic-block semantic-block--instruction">
+        <div class="block__label">Inspect this file</div>
+        <p>
+          Open
+          <code>configs/pipeline/inference/YOUR_PACKAGE/YOUR_PIPELINE.yaml</code>.
+          Trace every connection from the reserved <code>input</code> component through
+          your custom component, the shared preprocessing and retrieval components, and
+          finally the reserved <code>output</code> component.
+        </p>
       </div>
 
-      <div class="grid-4" style="margin-top:24px">
-        <article class="panel"><p class="kicker">Inputs</p><h3>Exact dependencies</h3><p>Dataset identity, index, mapping, and prior run references.</p></article>
-        <article class="panel"><p class="kicker">Config</p><h3>Resolved choices</h3><p>The effective tree and its SHA-256 hash.</p></article>
-        <article class="panel"><p class="kicker">Code</p><h3>Implementation state</h3><p>Git commit, Python, core, and component versions.</p></article>
-        <article class="panel"><p class="kicker">Outputs</p><h3>Produced evidence</h3><p>Canonical paths to predictions, metrics, or indexes.</p></article>
-      </div>
-      <div class="callout success"><strong>Evidence chain complete.</strong> You can move from a metric back to its predictions, resolved configuration, upstream index, package versions, and Git state without reconstructing a terminal session.</div>
-    </section>
+      <div class="command-card">
+        <div class="command-card__header"><span>Representative topology · abbreviated</span></div>
+        <pre><code>defaults:
+  - /selections@_global_.selections: index
+  - /selections/embedding_model@_global_.selections.embedding_model: ???
+  - /component/query_preprocessor@components.query_preprocessor: prefix_cleanup
+  - /component/query_embedder@components.query_embedder: sentence_transformers
+  - /component/retriever@components.retriever: persisted_in_memory
+  - _self_
 
-    <section class="section" id="next">
-      <div class="section-head">
-        <div class="section-num">07 / 07</div>
-        <div><h2>Choose your next path.</h2><p class="section-summary">You now know the common execution model. Continue at the repository layer that matches the work you intend to do.</p></div>
-      </div>
+components:
+  query_transformer:
+    type: YOUR_PACKAGE.components.YOUR_COMPONENT
 
-      <div class="next-paths">
-        <article class="path-card"><span class="path-num">PATH 01</span><h3>Experiment author</h3><p>Read the experiment card, shared base config, minimal run entrypoints, and analysis notebook.</p><a href="../projects/query-repetition/experiments/query-repetition-e5-small-toy/experiment.md">Open the toy experiment →</a></article>
-        <article class="path-card"><span class="path-num">PATH 02</span><h3>Component developer</h3><p>Browse the supported component inventory, then test behavior close to the implementation.</p><a href="../packages/retrieval-components/README.md">Open the component guide →</a></article>
-        <article class="path-card"><span class="path-num">PATH 03</span><h3>Framework developer</h3><p>Study stage contracts, artifact handling, configuration composition, and core regression tests.</p><a href="../packages/retrieval-core/README.md">Open the core guide →</a></article>
-      </div>
-
-      <div class="grid-2" style="margin-top:26px">
-        <details><summary>Run the complete SciFact comparison</summary><div class="details-body"><p>From <code>projects/query-repetition</code>, run <code>./scripts/run_experiment.ps1</code>. It downloads SciFact, creates one shared E5-small index, runs baseline and treatment inference, evaluates both, and prints deltas. This is intentionally outside the fast toy path.</p></div></details>
-        <details><summary>Configure CUDA 12.6</summary><div class="details-body"><p>Sync with <code>uv sync --extra dev --extra torch-cu126</code>, then use the <code>gpu</code> runtime. The main tutorial stays on CPU so hardware configuration is not a prerequisite.</p></div></details>
-        <details><summary>Create a new research project</summary><div class="details-body"><p>From the repository root, run <code>uvx cookiecutter templates/retrieval-project --output-dir projects</code>, sync the generated project, and run its tests before adding behavior.</p></div></details>
-        <details><summary>Create and launch explicit run files</summary><div class="details-body"><p>Use <code>interactive_create_run.py</code> to write a minimal YAML entrypoint that inherits a complete experiment base. On Linux, <code>interactive_run_in_parallel_screens.py</code> launches selected explicit runs under a concurrency cap.</p></div></details>
-      </div>
-    </section>
-
-    <section class="section" id="troubleshooting">
-      <div class="section-head">
-        <div class="section-num">REFERENCE</div>
-        <div><h2>Troubleshoot by symptom.</h2><p class="section-summary">Most onboarding failures come from the working directory, missing upstream artifacts, immutable IDs, or first-run downloads.</p></div>
+connections:
+  - sender: input.query
+    receiver: query_transformer.query
+  - sender: query_transformer.query
+    receiver: query_preprocessor.query
+  # ...embedding, retrieval, and output connections continue</code></pre>
       </div>
 
-      <details><summary>The builder does not show the query-repetition pipeline</summary><div class="details-body"><p>Run it from <code>projects/query-repetition</code>. The helper selects the nearest config tree; from the repository root it cannot infer that you intended this project. Alternatively, pass <code>--config-dir projects/query-repetition/configs</code> with the project environment selected explicitly.</p></div></details>
-      <details><summary>Inference says no completed indexes were found</summary><div class="details-body"><p>Run the indexing stage first. The builder deliberately lists only completed indexes under the project’s configured <code>artifacts/indexes</code> directory.</p></div></details>
-      <details><summary>Evaluation says no completed inference runs were found</summary><div class="details-body"><p>Complete inference for the selected dataset first. Evaluation will not guess “latest” and will not offer incomplete or other-dataset runs.</p></div></details>
-      <details><summary>An index or run ID already exists</summary><div class="details-body"><p>Artifacts are immutable. Accept the builder’s next available index suffix or choose a new run ID. Do not overwrite or silently reuse a folder from a different execution.</p></div></details>
-      <details><summary>The first model-backed stage appears slow</summary><div class="details-body"><p>E5-small weights may be downloading and initializing. Subsequent runs normally reuse the local cache. Check <code>run.log</code> and network access before assuming the pipeline is hung.</p></div></details>
-      <details><summary><code>build-command</code> is not recognized</summary><div class="details-body"><p>The short command is a Bash alias defined in <code>bash_aliases.sh</code>. Source that file in Bash, or invoke <code>uv run python ../../awesome-dev-tools/interactive_build_command.py</code> directly from the project on any supported shell.</p></div></details>
-      <details><summary>The command was printed but not copied</summary><div class="details-body"><p>Clipboard failure is non-fatal. Copy the printed command manually. Linux desktop sessions may need <code>xclip</code> or <code>xsel</code>.</p></div></details>
-      <details><summary>Git reports “dubious ownership”</summary><div class="details-body"><p>Add only this trusted checkout’s absolute path to Git’s <code>safe.directory</code> list using the quick-start command in the setup section.</p></div></details>
+      <div class="semantic-block semantic-block--explanation">
+        <div class="block__label">Hydra’s required value marker</div>
+        <p>
+          <code>???</code> marks a mandatory value or mandatory config-group choice.
+          It is not a string and it is not a TODO that the template forgot to fill.
+          Composition fails until the caller selects a concrete value—for example
+          <code>selections/embedding_model=e5/small_v2</code>. This keeps consequential
+          research choices visible at composition time instead of hiding defaults in
+          component code.
+        </p>
+      </div>
+    </div>
 
-      <article class="closing">
-        <p class="eyebrow">Onboarding complete</p>
-        <h2>Claim → executable difference → <span class="gradient-text">evidence.</span></h2>
-        <p>You configured an isolated project, used the repository’s command builder to compose valid Hydra invocations, ran two pipelines against one shared index, and followed the result back through immutable artifacts.</p>
-        <div class="hero-actions"><a class="button primary" href="#command-builder">Build another command</a><a class="button" href="research_workflows.md">Read the full research workflow</a></div>
-      </article>
-    </section>
-  </main>
-</div>
+    <div class="workshop-step">
+      <h3>Separate graph shape from experimental selection</h3>
+      <div class="prose">
+        <p>
+          The pipeline file owns component types, serializable initialization settings,
+          and socket connections. The command or experiment base config selects the
+          dataset, runtime, embedding model, index, input mapping, and run identity. A
+          reusable topology should not silently embed the one dataset or artifact ID
+          used during development.
+        </p>
+      </div>
+      <div class="semantic-block semantic-block--instruction">
+        <div class="block__label">Do this</div>
+        <p>
+          Make one intentional composition change appropriate to your intervention:
+          add its constructor setting in YAML, adjust a connection, or select another
+          existing shared component fragment. Then run <code>uv run pytest</code> again.
+        </p>
+      </div>
+    </div>
+
+    <div class="semantic-block semantic-block--checkpoint">
+      <div class="block__label">Checkpoint</div>
+      <label class="task-check"><input type="checkbox" data-check="pipeline-trace">I can trace a query from the inference input socket, through my component and shared components, to ranked documents at output.</label>
+      <label class="task-check"><input type="checkbox" data-check="pipeline-config">I can identify which choices belong to topology, project configuration, and an individual experiment.</label>
+    </div>
+  </section>
+
+  <section class="chapter" id="stages" data-title="04 · Build and execute all four stages">
+    <header class="chapter__header">
+      <div class="chapter__number">Chapter 04 · 32 minutes</div>
+      <h2>Build commands interactively, then execute the artifact chain</h2>
+      <p class="chapter__intro">
+        The command builder is the practical interface for discovering valid Hydra
+        choices. It finds the nearest config tree, asks for mandatory groups, discovers
+        existing immutable dependencies, validates composition, and prints a command
+        you can inspect before execution.
+      </p>
+    </header>
+
+    <div class="workshop-step">
+      <h3>Launch <code>build-command</code></h3>
+      <div class="semantic-block semantic-block--instruction">
+        <div class="block__label">Do this · project directory</div>
+        <div class="command-card">
+          <div class="command-card__header"><span>Terminal · Windows and Linux</span><button class="copy-button" type="button">Copy</button></div>
+          <pre><code><span class="code-note"># Windows · PowerShell</span>
+uv run python ../../awesome-dev-tools/interactive_build_command.py
+
+<span class="code-note"># Linux · Bash, after sourcing bash_aliases.sh</span>
+build-command
+
+<span class="code-note"># Linux · direct form also works</span>
+uv run python ../../awesome-dev-tools/interactive_build_command.py</code></pre>
+        </div>
+        <p>
+          Choose the stage requested by each exercise below. Review every selected config
+          and override; the generated command is a transparent artifact, not a hidden
+          execution plan.
+        </p>
+      </div>
+
+      <div class="semantic-block semantic-block--explanation">
+        <div class="block__label">What the helper is doing</div>
+        <p>
+          From a project it resolves project choices before shared core choices. From an
+          experiment it adds the experiment layer first. It also lists usable input
+          mappings, indexes, and inference runs from the active project, suggests
+          collision-safe IDs, validates Hydra composition, and copies the final command
+          when a clipboard backend is available.
+        </p>
+      </div>
+    </div>
+
+    <div class="workshop-step">
+      <h3>Stage 1 · Prepare a controlled input mapping</h3>
+      <div class="semantic-block semantic-block--instruction">
+        <div class="block__label">Do this</div>
+        <p>
+          Launch the builder, choose <code>prepare_mapping</code>, select
+          <code>dataset=toy</code> and <code>input_mapping_recipe=dev_tiny</code>, and use
+          <code>onboarding-dev-tiny</code> as the run ID. Execute the generated command.
+          The representative command below shows the expected shape.
+        </p>
+        <div class="command-card">
+          <div class="command-card__header"><span>Generated command shape · Windows and Linux</span><button class="copy-button" type="button">Copy</button></div>
+          <pre><code><span class="code-note"># Windows · PowerShell</span>
+uv run stage prepare_mapping `
+  dataset=toy `
+  input_mapping_recipe=dev_tiny `
+  stage.run_id=onboarding-dev-tiny
+
+<span class="code-note"># Linux · Bash</span>
+uv run stage prepare_mapping \
+  dataset=toy \
+  input_mapping_recipe=dev_tiny \
+  stage.run_id=onboarding-dev-tiny</code></pre>
+        </div>
+      </div>
+      <div class="semantic-block semantic-block--explanation">
+        <div class="block__label">Artifact produced</div>
+        <p>
+          <code>artifacts/input_mappings/onboarding-dev-tiny/input_mapping.json</code>
+          fixes the selected query-to-candidate mapping. Its neighboring
+          <code>meta.json</code> records the preparation recipe. The stage run itself also
+          receives a resolved config, manifest, result, and log under
+          <code>artifacts/runs/prepare_mapping/onboarding-dev-tiny/</code>.
+        </p>
+      </div>
+      <div class="semantic-block semantic-block--checkpoint">
+        <div class="block__label">Verify before continuing</div>
+        <label class="task-check"><input type="checkbox" data-check="stage-mapping">The mapping directory contains <code>input_mapping.json</code> and <code>meta.json</code>.</label>
+      </div>
+    </div>
+
+    <div class="workshop-step">
+      <h3>Stage 2 · Build an immutable index</h3>
+      <div class="semantic-block semantic-block--instruction">
+        <div class="block__label">Do this</div>
+        <p>
+          Launch the builder again and choose <code>indexing</code>. Select the toy
+          dataset, CPU runtime, the shared dense document pipeline, and E5 small. Name
+          the index <code>onboarding-toy-e5</code> and the stage run
+          <code>onboarding-indexing</code>.
+        </p>
+        <div class="command-card">
+          <div class="command-card__header"><span>Generated command shape · Windows and Linux</span><button class="copy-button" type="button">Copy</button></div>
+          <pre><code><span class="code-note"># Windows · PowerShell</span>
+uv run stage indexing `
+  dataset=toy `
+  runtime=cpu `
+  pipeline/indexing@pipeline=dense/documents_in_memory `
+  selections/embedding_model=e5/small_v2 `
+  selections.index_id=onboarding-toy-e5 `
+  stage.run_id=onboarding-indexing
+
+<span class="code-note"># Linux · Bash</span>
+uv run stage indexing \
+  dataset=toy \
+  runtime=cpu \
+  pipeline/indexing@pipeline=dense/documents_in_memory \
+  selections/embedding_model=e5/small_v2 \
+  selections.index_id=onboarding-toy-e5 \
+  stage.run_id=onboarding-indexing</code></pre>
+        </div>
+      </div>
+      <div class="semantic-block semantic-block--explanation">
+        <div class="block__label">Artifact produced</div>
+        <p>
+          The canonical index is
+          <code>artifacts/indexes/onboarding-toy-e5/index.json</code>. R4 refuses to
+          overwrite that path, so the index ID is a stable dependency rather than a
+          pointer to whichever run happened most recently.
+        </p>
+      </div>
+      <div class="semantic-block semantic-block--checkpoint">
+        <div class="block__label">Verify before continuing</div>
+        <label class="task-check"><input type="checkbox" data-check="stage-index">The index directory contains <code>index.json</code>, and the indexing manifest names it as the published artifact.</label>
+      </div>
+    </div>
+
+    <div class="workshop-step">
+      <h3>Stage 3 · Run your custom inference pipeline</h3>
+      <div class="semantic-block semantic-block--instruction">
+        <div class="block__label">Do this</div>
+        <p>
+          In the builder, choose <code>inference</code>. Select your project-owned
+          pipeline, the same toy dataset, CPU runtime, E5 small, the exact index you just
+          created, and the prepared input mapping. Use
+          <code>onboarding-treatment-inference</code> as the run ID.
+        </p>
+        <div class="command-card">
+          <div class="command-card__header"><span>Generated command shape · replace the pipeline choice</span><button class="copy-button" type="button">Copy</button></div>
+          <pre><code><span class="code-note"># Windows · PowerShell</span>
+uv run stage inference `
+  dataset=toy `
+  runtime=cpu `
+  pipeline/inference@pipeline=YOUR_PACKAGE/YOUR_PIPELINE `
+  selections/embedding_model=e5/small_v2 `
+  selections.index_id=onboarding-toy-e5 `
+  selections.input_mapping=onboarding-dev-tiny `
+  stage.run_id=onboarding-treatment-inference
+
+<span class="code-note"># Linux · Bash</span>
+uv run stage inference \
+  dataset=toy \
+  runtime=cpu \
+  pipeline/inference@pipeline=YOUR_PACKAGE/YOUR_PIPELINE \
+  selections/embedding_model=e5/small_v2 \
+  selections.index_id=onboarding-toy-e5 \
+  selections.input_mapping=onboarding-dev-tiny \
+  stage.run_id=onboarding-treatment-inference</code></pre>
+        </div>
+      </div>
+      <div class="semantic-block semantic-block--explanation">
+        <div class="block__label">Artifact produced</div>
+        <p>
+          <code>artifacts/runs/inference/onboarding-treatment-inference/predictions.json</code>
+          records ranked documents for each mapped query. The run manifest records the
+          exact index and input mapping dependencies; <code>resolved_config.yaml</code>
+          captures the complete pipeline after Hydra composition.
+        </p>
+      </div>
+      <div class="semantic-block semantic-block--checkpoint">
+        <div class="block__label">Verify before continuing</div>
+        <label class="task-check"><input type="checkbox" data-check="stage-inference">The inference run contains non-empty <code>predictions.json</code>, and its manifest points to both prepared dependencies.</label>
+      </div>
+    </div>
+
+    <div class="workshop-step">
+      <h3>Stage 4 · Evaluate the exact inference run</h3>
+      <div class="semantic-block semantic-block--instruction">
+        <div class="block__label">Do this</div>
+        <p>
+          Choose <code>evaluation</code> in the builder, select the toy dataset, and pick
+          <code>onboarding-treatment-inference</code> from the discovered inference
+          runs. Use <code>onboarding-treatment-evaluation</code> as the evaluation run ID.
+        </p>
+        <div class="command-card">
+          <div class="command-card__header"><span>Generated command shape · Windows and Linux</span><button class="copy-button" type="button">Copy</button></div>
+          <pre><code><span class="code-note"># Windows · PowerShell</span>
+uv run stage evaluation `
+  dataset=toy `
+  stage.inference_run_id=onboarding-treatment-inference `
+  stage.run_id=onboarding-treatment-evaluation
+
+<span class="code-note"># Linux · Bash</span>
+uv run stage evaluation \
+  dataset=toy \
+  stage.inference_run_id=onboarding-treatment-inference \
+  stage.run_id=onboarding-treatment-evaluation</code></pre>
+        </div>
+      </div>
+      <div class="semantic-block semantic-block--explanation">
+        <div class="block__label">Artifact produced</div>
+        <p>
+          <code>artifacts/runs/evaluation/onboarding-treatment-evaluation/metrics.json</code>
+          contains the configured aggregate metrics. Evaluation resolves predictions
+          from the named inference manifest, which makes the dependency explicit and
+          rejects ambiguous “latest run” behavior.
+        </p>
+      </div>
+      <div class="semantic-block semantic-block--checkpoint">
+        <div class="block__label">Verify the complete chain</div>
+        <label class="task-check"><input type="checkbox" data-check="stage-evaluation">The evaluation run contains <code>metrics.json</code>, and its manifest identifies the exact inference run.</label>
+      </div>
+    </div>
+
+    <div class="artifact-strip" aria-label="Completed workshop artifact chain">
+      <div class="artifact-item">
+        <strong>Prepared input mapping</strong>
+        <code>artifacts/input_mappings/onboarding-dev-tiny/input_mapping.json</code>
+      </div>
+      <div class="artifact-item">
+        <strong>Immutable index</strong>
+        <code>artifacts/indexes/onboarding-toy-e5/index.json</code>
+      </div>
+      <div class="artifact-item">
+        <strong>Inference predictions</strong>
+        <code>artifacts/runs/inference/onboarding-treatment-inference/predictions.json</code>
+      </div>
+      <div class="artifact-item">
+        <strong>Evaluation results</strong>
+        <code>artifacts/runs/evaluation/onboarding-treatment-evaluation/metrics.json</code>
+      </div>
+    </div>
+
+    <details class="reference">
+      <summary>If a stage fails, diagnose composition and immutability first</summary>
+      <div class="reference__body">
+        <ul>
+          <li>A remaining <code>???</code> means a required value or config group was not selected.</li>
+          <li>A missing index or mapping requires an exact completed artifact ID; prefix matching and implicit “latest” resolution are intentionally unsupported.</li>
+          <li>An existing run or index directory will not be overwritten. Choose a new ID and preserve the old evidence.</li>
+          <li>A dense pipeline on a machine without CUDA should use <code>runtime=cpu</code>.</li>
+          <li>A command run from the wrong directory changes the default project root. Return to the generated project before building commands.</li>
+        </ul>
+      </div>
+    </details>
+  </section>
+
+  <section class="chapter" id="experiment" data-title="05 · Package a controlled experiment">
+    <header class="chapter__header">
+      <div class="chapter__number">Chapter 05 · 18 minutes</div>
+      <h2>Promote the successful run into an explicit experiment</h2>
+      <p class="chapter__intro">
+        Ad hoc commands are useful while developing. A durable comparison belongs in an
+        experiment workspace: one concise experiment card, one complete shared base
+        config, and minimal run entrypoints that reveal only the intended differences.
+      </p>
+    </header>
+
+    <div class="workshop-step">
+      <h3>Scaffold the experiment</h3>
+      <div class="semantic-block semantic-block--instruction">
+        <div class="block__label">Do this · project directory</div>
+        <p>
+          Run the experiment Cookiecutter. Choose the toy dataset, E5 small, the exact
+          <code>onboarding-toy-e5</code> index, the shared
+          <code>retrieve/dense_in_memory</code> baseline, and your
+          <code>YOUR_PACKAGE/YOUR_PIPELINE</code> treatment.
+        </p>
+        <div class="command-card">
+          <div class="command-card__header"><span>Terminal · either platform</span><button class="copy-button" type="button">Copy</button></div>
+          <pre><code>uvx cookiecutter ../../templates/retrieval-experiment --output-dir experiments</code></pre>
+        </div>
+      </div>
+
+      <pre class="file-tree">experiments/YOUR_EXPERIMENT_SLUG/
+├── <span class="highlight">experiment.md</span>                              <span class="comment">description and hypothesis</span>
+├── analysis.ipynb                           <span class="comment">prediction-level analysis</span>
+└── configs/
+    ├── <span class="highlight">base-experiment-configs/inference.yaml</span>   <span class="comment">everything shared</span>
+    └── runs/
+        ├── <span class="highlight">baseline.yaml</span>                       <span class="comment">inherits the base unchanged</span>
+        └── <span class="highlight">treatment.yaml</span>                      <span class="comment">overrides only the pipeline</span></pre>
+    </div>
+
+    <div class="workshop-step">
+      <h3>Make the shared inputs explicit</h3>
+      <div class="semantic-block semantic-block--instruction">
+        <div class="block__label">Do this</div>
+        <p>
+          Open the generated base inference config. Confirm the dataset, runtime,
+          embedding model, baseline pipeline, exact index ID, and retrieval depth. Add
+          the prepared input mapping so both arms consume the same controlled candidates.
+        </p>
+        <div class="command-card">
+          <div class="command-card__header"><span>experiments/YOUR_EXPERIMENT_SLUG/configs/base-experiment-configs/inference.yaml · key excerpt</span></div>
+          <pre><code># @package _global_
+defaults:
+  - /stages/inference
+  - override /dataset: toy
+  - override /pipeline/inference@pipeline: retrieve/dense_in_memory
+  - override /selections/embedding_model@selections.embedding_model: e5/small_v2
+  - override /runtime: cpu
+  - _self_
+
+selections:
+  index_id: onboarding-toy-e5
+  input_mapping: onboarding-dev-tiny
+
+pipeline:
+  components:
+    retriever:
+      init_parameters:
+        top_k: 100</code></pre>
+        </div>
+      </div>
+
+      <div class="semantic-block semantic-block--explanation">
+        <div class="block__label">Why this matters</div>
+        <p>
+          Both entrypoints inherit the same data, model, artifact, runtime, and retrieval
+          depth. The treatment run changes only the selected pipeline. That makes the
+          intended comparison readable in version control and makes accidental
+          confounders easier to find in the resolved configs.
+        </p>
+      </div>
+    </div>
+
+    <div class="workshop-step">
+      <h3>Complete the experiment card and launch both runs</h3>
+      <div class="semantic-block semantic-block--instruction">
+        <div class="block__label">Do this</div>
+        <p>
+          Replace the generated experiment-card placeholders with the intervention and
+          hypothesis you wrote earlier. Then execute both explicit entrypoints. Use the
+          same command form on either platform; the paths use forward slashes.
+        </p>
+        <div class="command-card">
+          <div class="command-card__header"><span>Terminal · Windows and Linux</span><button class="copy-button" type="button">Copy</button></div>
+          <pre><code><span class="code-note"># Windows · PowerShell</span>
+uv run stage inference `
+  --entrypoint experiments/YOUR_EXPERIMENT_SLUG/configs/runs/baseline.yaml
+uv run stage inference `
+  --entrypoint experiments/YOUR_EXPERIMENT_SLUG/configs/runs/treatment.yaml
+
+<span class="code-note"># Linux · Bash</span>
+uv run stage inference \
+  --entrypoint experiments/YOUR_EXPERIMENT_SLUG/configs/runs/baseline.yaml
+uv run stage inference \
+  --entrypoint experiments/YOUR_EXPERIMENT_SLUG/configs/runs/treatment.yaml</code></pre>
+        </div>
+      </div>
+
+      <div class="semantic-block semantic-block--explanation">
+        <div class="block__label">Stable run identities</div>
+        <p>
+          The entrypoint path identifies the project and experiment. R4 derives stable
+          run IDs from the experiment and run filenames, while the generated YAML remains
+          a small declarative layer suitable for Git. Heavy outputs continue to live
+          below <code>artifacts/runs/</code>.
+        </p>
+      </div>
+    </div>
+
+    <div class="semantic-block semantic-block--checkpoint">
+      <div class="block__label">Checkpoint</div>
+      <label class="task-check"><input type="checkbox" data-check="experiment-base">The experiment contains one complete base config with the exact shared index and input mapping.</label>
+      <label class="task-check"><input type="checkbox" data-check="experiment-runs">Baseline and treatment run files are minimal, and the treatment changes only the intended pipeline choice.</label>
+      <label class="task-check"><input type="checkbox" data-check="experiment-output">Both explicit inference entrypoints completed and produced separate immutable runs.</label>
+    </div>
+  </section>
+
+  <section class="chapter" id="reproduce" data-title="06 · Leave reproducible research behind">
+    <header class="chapter__header">
+      <div class="chapter__number">Chapter 06 · 5 minutes</div>
+      <h2>Audit what another researcher will receive</h2>
+      <p class="chapter__intro">
+        Reproducibility is not a final documentation pass. It is the relationship
+        between versioned intent, resolved execution, immutable artifacts, and a dependency
+        boundary that another team member can reconstruct.
+      </p>
+    </header>
+
+    <div class="workshop-step">
+      <h3>Run the handoff audit</h3>
+      <div class="semantic-block semantic-block--instruction">
+        <div class="block__label">Confirm each statement</div>
+        <label class="task-check"><input type="checkbox" data-check="audit-code">The project contains the custom component, its project-owned pipeline config, and focused passing tests.</label>
+        <label class="task-check"><input type="checkbox" data-check="audit-deps">The project dependency declarations and <code>uv.lock</code> are coherent.</label>
+        <label class="task-check"><input type="checkbox" data-check="audit-artifacts">The mapping, index, predictions, and metrics have exact IDs and immutable paths.</label>
+        <label class="task-check"><input type="checkbox" data-check="audit-provenance">Every stage run contains <code>resolved_config.yaml</code>, <code>manifest.json</code>, <code>result.json</code>, and <code>run.log</code>.</label>
+        <label class="task-check"><input type="checkbox" data-check="audit-experiment">The experiment card states the research idea and hypothesis; its base and run configs expose the controlled comparison.</label>
+        <label class="task-check"><input type="checkbox" data-check="audit-diff">A final <code>git diff</code> contains research code and declarative configuration, not generated model or notebook output.</label>
+      </div>
+    </div>
+
+    <details class="reference">
+      <summary>Reference only · other agent skills</summary>
+      <div class="reference__body">
+        <ul>
+          <li><code>create-experiment-card</code> creates or reduces a concise experiment description and explicit hypothesis.</li>
+          <li><code>generate-experiment-report</code> produces an evidence-led report from completed configs, manifests, predictions, and metrics.</li>
+          <li><code>implement-new-stage</code> adds a new artifact-producing workflow stage when component behavior is not the right abstraction.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="reference">
+      <summary>Reference only · repository utilities and dev tools</summary>
+      <div class="reference__body">
+        <ul>
+          <li><code>interactive_create_run.py</code> writes one minimal run entrypoint inheriting an experiment base config.</li>
+          <li><code>visualize_pipeline.py</code> renders the Haystack graph recorded in a run’s resolved config.</li>
+          <li><code>interactive_run_in_parallel_screens.py</code> launches selected experiment runs through GNU Screen on Linux.</li>
+          <li><code>run_in_screen.py</code> launches one detached Linux command with a persistent session log.</li>
+          <li><code>kill-screens</code> closes GNU Screen sessions owned by the current Linux user.</li>
+          <li><code>retrieval_core.utils</code> contains the shared artifact, configuration, evaluation, I/O, logging, pipeline, hashing, and time helpers used by core orchestration.</li>
+        </ul>
+        <p>See <code>awesome-dev-tools/README.md</code> and the package documentation when a later task requires one of these tools.</p>
+      </div>
+    </details>
+  </section>
+
+  <section class="finish">
+    <div class="eyebrow">Workshop complete</div>
+    <h2>You now have a project, a pipeline, an artifact chain, and a reproducible experiment.</h2>
+    <p class="finish__lead">
+      The important skill is not memorizing a long Hydra command. It is knowing where
+      behavior belongs, how configuration layers compose it, how the command builder
+      exposes required choices, and how immutable artifacts make the research traceable.
+    </p>
+    <div class="semantic-block semantic-block--checkpoint">
+      <div class="block__label">Your durable outputs</div>
+      <p>
+        Keep the project code, tests, lockfile, experiment card, base config, and run
+        entrypoints in Git. Treat the artifact manifests and resolved configs as the
+        evidence that connects those declarations to the index, mapping, predictions,
+        and evaluation results you produced.
+      </p>
+    </div>
+  </section>
+</main>
 
 <script>
 (function () {
-  const root = document.documentElement;
-  const shellButtons = Array.from(document.querySelectorAll('[data-shell-select]'));
-  const storage = {
-    get(key) { try { return localStorage.getItem(key); } catch (_) { return null; } },
-    set(key, value) { try { localStorage.setItem(key, value); } catch (_) { /* page still works without persistence */ } }
-  };
-  const storedShell = storage.get('r4-onboarding-shell');
-  const initialShell = storedShell === 'bash' ? 'bash' : 'powershell';
+  "use strict";
 
-  function setShell(shell) {
-    root.dataset.shell = shell;
-    storage.set('r4-onboarding-shell', shell);
-    shellButtons.forEach(button => {
-      button.setAttribute('aria-pressed', String(button.dataset.shellSelect === shell));
+  var root = document.documentElement;
+  var progress = document.getElementById("progressFill");
+  var status = document.getElementById("chapterStatus");
+  var dialog = document.getElementById("tocDialog");
+  var openButton = document.getElementById("contentsButton");
+  var closeButton = document.getElementById("tocClose");
+  var themeButton = document.getElementById("themeButton");
+  var links = Array.prototype.slice.call(document.querySelectorAll("#tocLinks a"));
+  var sections = Array.prototype.slice.call(document.querySelectorAll(".chapter"));
+
+  function storageGet(key) {
+    try { return window.localStorage.getItem(key); } catch (error) { return null; }
+  }
+
+  function storageSet(key, value) {
+    try { window.localStorage.setItem(key, value); } catch (error) { /* no-op */ }
+  }
+
+  function updateProgress() {
+    var max = document.documentElement.scrollHeight - window.innerHeight;
+    var ratio = max > 0 ? window.scrollY / max : 0;
+    progress.style.width = Math.max(0, Math.min(100, ratio * 100)) + "%";
+  }
+
+  function setActive(section) {
+    if (!section) { return; }
+    status.textContent = section.getAttribute("data-title") || section.id;
+    links.forEach(function (link) {
+      link.classList.toggle("active", link.getAttribute("href") === "#" + section.id);
     });
   }
-  shellButtons.forEach(button => button.addEventListener('click', () => setShell(button.dataset.shellSelect)));
-  setShell(initialShell);
 
-  const progress = document.getElementById('readingProgress');
-  function updateReadingProgress() {
-    const doc = document.documentElement;
-    const available = Math.max(1, doc.scrollHeight - doc.clientHeight);
-    progress.style.width = Math.min(100, Math.max(0, (doc.scrollTop / available) * 100)) + '%';
-  }
-  addEventListener('scroll', updateReadingProgress, { passive: true });
-  addEventListener('resize', updateReadingProgress);
-  updateReadingProgress();
-
-  const toc = document.getElementById('toc');
-  const links = Array.from(toc.querySelectorAll('a[href^="#"]'));
-  const sections = links.map(link => ({ link, section: document.querySelector(link.getAttribute('href')) })).filter(item => item.section);
-  const observer = new IntersectionObserver(entries => {
-    entries.forEach(entry => {
-      if (!entry.isIntersecting) return;
-      links.forEach(link => link.classList.remove('active'));
-      const current = sections.find(item => item.section === entry.target);
-      if (current) {
-        current.link.classList.add('active');
-        current.link.setAttribute('aria-current', 'location');
-        links.filter(link => link !== current.link).forEach(link => link.removeAttribute('aria-current'));
-        if (innerWidth <= 1120) current.link.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-      }
+  function currentSection() {
+    var offset = 100;
+    var active = sections[0];
+    sections.forEach(function (section) {
+      if (section.getBoundingClientRect().top <= offset) { active = section; }
     });
-  }, { rootMargin: '-12% 0px -78% 0px' });
-  sections.forEach(item => observer.observe(item.section));
-  links.forEach(link => link.addEventListener('click', event => {
-    event.preventDefault();
-    const target = document.querySelector(link.getAttribute('href'));
-    if (target) {
-      target.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
-      history.replaceState(null, '', link.getAttribute('href'));
-    }
-  }));
+    return active;
+  }
 
-  document.querySelectorAll('.copy-button').forEach(button => {
-    button.addEventListener('click', async () => {
-      const terminal = button.closest('.terminal');
-      if (!terminal) return;
-      const visiblePres = Array.from(terminal.querySelectorAll('pre')).filter(pre => getComputedStyle(pre).display !== 'none');
-      const pre = visiblePres[0] || terminal.querySelector('pre');
-      if (!pre) return;
-      const original = button.textContent;
-      try {
-        await navigator.clipboard.writeText(pre.innerText.replace(/^\s*(?:PS>|[$>])\s?/gm, ''));
-        button.textContent = 'Copied';
-      } catch (_) {
-        const range = document.createRange();
-        range.selectNodeContents(pre);
-        const selection = getSelection();
-        selection.removeAllRanges();
-        selection.addRange(range);
-        button.textContent = 'Selected';
-      }
-      setTimeout(() => { button.textContent = original; }, 1600);
+  function handleScroll() {
+    updateProgress();
+    setActive(currentSection());
+  }
+
+  openButton.addEventListener("click", function () {
+    if (typeof dialog.showModal === "function") { dialog.showModal(); }
+    else { dialog.setAttribute("open", ""); }
+  });
+
+  closeButton.addEventListener("click", function () { dialog.close(); });
+
+  dialog.addEventListener("click", function (event) {
+    if (event.target === dialog) { dialog.close(); }
+  });
+
+  links.forEach(function (link) {
+    link.addEventListener("click", function () {
+      if (dialog.open) { dialog.close(); }
     });
   });
 
-  const checkpoints = Array.from(document.querySelectorAll('[data-checkpoint]'));
-  const count = document.getElementById('checkCount');
-  const total = document.getElementById('checkTotal');
-  function updateCheckpoints() {
-    count.textContent = String(checkpoints.filter(input => input.checked).length);
-    total.textContent = String(checkpoints.length);
+  var savedTheme = storageGet("r4-onboarding-theme");
+  if (savedTheme === "light" || savedTheme === "dark") {
+    root.setAttribute("data-theme", savedTheme);
   }
-  checkpoints.forEach((input, index) => {
-    const key = 'r4-onboarding-check-' + index;
-    input.checked = storage.get(key) === '1';
-    input.addEventListener('change', () => {
-      storage.set(key, input.checked ? '1' : '0');
-      updateCheckpoints();
+
+  themeButton.addEventListener("click", function () {
+    var next = root.getAttribute("data-theme") === "light" ? "dark" : "light";
+    root.setAttribute("data-theme", next);
+    storageSet("r4-onboarding-theme", next);
+  });
+
+  document.querySelectorAll(".copy-button").forEach(function (button) {
+    button.addEventListener("click", function () {
+      var card = button.closest(".command-card");
+      var code = card ? card.querySelector("code") : null;
+      if (!code || !navigator.clipboard) { return; }
+      navigator.clipboard.writeText(code.textContent).then(function () {
+        var prior = button.textContent;
+        button.textContent = "Copied";
+        window.setTimeout(function () { button.textContent = prior; }, 1200);
+      });
     });
   });
-  updateCheckpoints();
-})();
+
+  document.querySelectorAll("input[data-check]").forEach(function (input) {
+    var key = "r4-onboarding-check-" + input.getAttribute("data-check");
+    input.checked = storageGet(key) === "1";
+    input.addEventListener("change", function () {
+      storageSet(key, input.checked ? "1" : "0");
+    });
+  });
+
+  window.addEventListener("scroll", handleScroll, { passive: true });
+  window.addEventListener("resize", handleScroll);
+  handleScroll();
+}());
 </script>
 </body>
 </html>
