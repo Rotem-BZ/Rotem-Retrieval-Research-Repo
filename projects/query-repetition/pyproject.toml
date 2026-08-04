@@ -30,26 +30,46 @@ torch-cu126 = [
   "torchvision==0.26.0",
   "torchaudio==2.11.0",
 ]
+torch-cu124-legacy = [
+  "torch==2.5.1",
+  "torchvision==0.20.1",
+  "torchaudio==2.5.1",
+]
 
 [tool.uv]
 package = true
+required-version = ">=0.5.14"
+conflicts = [
+  [
+    { extra = "torch-cu126" },
+    { extra = "torch-cu124-legacy" },
+  ],
+]
 
 [tool.uv.sources]
 retrieval-core = { path = "../../packages/retrieval-core", editable = true }
 retrieval-components = { path = "../../packages/retrieval-components", editable = true }
 torch = [
   { index = "pytorch-cu126", extra = "torch-cu126", marker = "sys_platform == 'win32' or sys_platform == 'linux'" },
+  { index = "pytorch-cu124", extra = "torch-cu124-legacy", marker = "sys_platform == 'win32' or sys_platform == 'linux'" },
 ]
 torchvision = [
   { index = "pytorch-cu126", extra = "torch-cu126", marker = "sys_platform == 'win32' or sys_platform == 'linux'" },
+  { index = "pytorch-cu124", extra = "torch-cu124-legacy", marker = "sys_platform == 'win32' or sys_platform == 'linux'" },
 ]
 torchaudio = [
   { index = "pytorch-cu126", extra = "torch-cu126", marker = "sys_platform == 'win32' or sys_platform == 'linux'" },
+  { index = "pytorch-cu124", extra = "torch-cu124-legacy", marker = "sys_platform == 'win32' or sys_platform == 'linux'" },
 ]
 
 [[tool.uv.index]]
 name = "pytorch-cu126"
 url = "https://download.pytorch.org/whl/cu126"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu124"
+url = "https://download.pytorch.org/whl/cu124"
 explicit = true
 
 [tool.hatch.build.targets.wheel]

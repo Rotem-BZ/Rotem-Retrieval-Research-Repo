@@ -41,8 +41,12 @@ uv sync --extra dev
 ```
 
 For a CUDA 12.6 PyTorch environment, use `uv sync --extra dev --extra torch-cu126`.
-The experiment defaults to CPU; run `./scripts/run_experiment.ps1 -Device cuda` to
-use a configured CUDA environment.
+On an older NVIDIA driver that requires PyTorch 2.5.1 with CUDA 12.4, use
+`uv sync --extra dev --extra torch-cu124-legacy`. These PyTorch extras are mutually
+exclusive. Use the legacy extra with a Python version supported by PyTorch 2.5.1,
+such as Python 3.12; PyTorch 2.5.1 does not provide Python 3.14 wheels. The experiment
+defaults to CPU; run
+`./scripts/run_experiment.ps1 -Device cuda` to use a configured CUDA environment.
 The script downloads and converts BEIR SciFact, validates both pipeline graphs,
 creates one shared E5-small index, runs baseline and repeated-query inference against
 that exact index, evaluates both runs, and prints per-metric deltas.

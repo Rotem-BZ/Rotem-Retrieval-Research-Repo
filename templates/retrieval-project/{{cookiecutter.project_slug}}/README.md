@@ -27,6 +27,13 @@ uv run pre-commit install --install-hooks
 uv run pytest
 ```
 
+For a CUDA 12.6 PyTorch environment, sync with
+`uv sync --extra dev --extra torch-cu126`. On an older NVIDIA driver that requires
+PyTorch 2.5.1 with CUDA 12.4, use
+`uv sync --extra dev --extra torch-cu124-legacy` instead. The two PyTorch extras are
+mutually exclusive. Use the legacy extra with a Python version supported by PyTorch
+2.5.1, such as Python 3.12; PyTorch 2.5.1 does not provide Python 3.14 wheels.
+
 The project owns its environment and lockfile. It declares
 `retrieval-components=={{ cookiecutter.retrieval_components_version }}` while
 resolving both monorepo packages locally and editably during development.
