@@ -18,7 +18,6 @@ from retrieval_core.input_mapping import (
     discover_input_mapping_ids,
     validate_input_mapping_id,
 )
-from retrieval_core.stages import STAGES
 from retrieval_core.utils.artifacts import (
     discover_index_ids,
     discover_inference_run_ids,
@@ -34,6 +33,9 @@ from retrieval_core.utils.io import project_path, read_yaml_mapping
 InputFn = Callable[[str], str]
 OutputFn = Callable[[str], None]
 ClipboardCopyFn = Callable[[str], None]
+
+# Keep in sync with retrieval_core.stages.STAGES without importing stage runtimes.
+STAGE_NAMES = ("evaluation", "indexing", "inference", "prepare_mapping")
 
 
 @dataclass(frozen=True)
@@ -137,7 +139,7 @@ def run_configure(
 
     stage_name = _prompt_menu(
         "Choose stage:",
-        sorted(STAGES),
+        STAGE_NAMES,
         input_fn=input_fn,
         output_fn=output_fn,
         format_item=lambda stage: stage,
