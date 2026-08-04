@@ -5,17 +5,22 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-from contextlib import AbstractAsyncContextManager
+from contextlib import AbstractAsyncContextManager, AsyncExitStack
+from pathlib import Path
 from typing import Protocol, runtime_checkable
 
 from haystack import Document
 from omegaconf import DictConfig
+from tqdm import tqdm
 
 from retrieval_core.data_schema import EVALUATION_DATA_SCHEMA
 from retrieval_core.stages.base import Stage
 from retrieval_core.utils.artifacts import index_artifact_path
 from retrieval_core.utils.io import project_path
-from retrieval_core.utils.pipelines import load_async_pipeline, to_container
+from retrieval_core.utils.pipelines import (
+    load_async_pipeline,
+    without_component_progress_bars,
+)
 
 INDEXING_INPUT_COMPONENT = "input"
 INDEXING_WRITER_COMPONENT = "indexer"
@@ -67,7 +72,7 @@ class IndexingStage(Stage):
             index_id,
             batch_size,
         )
-        pipeline_config = to_container(cfg.pipeline)
+        pipeline_config = without_component_progress_bars(cfg.pipeline)
         pipeline = load_async_pipeline(pipeline_config)
         index_writer = pipeline.get_component(INDEXING_WRITER_COMPONENT)
         if not isinstance(index_writer, IndexWriter):
@@ -104,7 +109,18 @@ class IndexingStage(Stage):
                 raise RuntimeError(f"Indexing pipeline returned invalid indexed_count: {count!r}")
             return count
 
-        async with index_writer.write_session():
+        source_document_total = _count_nonempty_lines(documents_path)
+        show_progress = bool(cfg.runtime.get("progress_bar", True))
+        async with AsyncExitStack() as stack:
+            await stack.enter_async_context(index_writer.write_session())
+            progress = stack.enter_context(
+                tqdm(
+                    total=source_document_total,
+                    desc="Indexing",
+                    unit="doc",
+                    disable=not show_progress,
+                )
+            )
             with documents_path.open("rb") as handle:
                 for line_number, raw_line in enumerate(handle, start=1):
                     documents_sha256.update(raw_line)
@@ -140,8 +156,10 @@ class IndexingStage(Stage):
 
                     if len(batch) < batch_size:
                         continue
+                    completed_batch_size = len(batch)
                     indexed_count += await index_batch(batch)
                     batch_count += 1
+                    progress.update(completed_batch_size)
                     logger.debug(
                         "Indexed batch: batch=%d source_documents=%d indexed_documents=%d",
                         batch_count,
@@ -151,8 +169,10 @@ class IndexingStage(Stage):
                     batch = []
 
             if batch:
+                completed_batch_size = len(batch)
                 indexed_count += await index_batch(batch)
                 batch_count += 1
+                progress.update(completed_batch_size)
                 logger.debug(
                     "Indexed final batch: batch=%d source_documents=%d indexed_documents=%d",
                     batch_count,
@@ -205,3 +225,10 @@ def _configured_indexer_output_path(cfg: DictConfig) -> str:
             f"The reserved {INDEXING_WRITER_COMPONENT!r} component must declare output_path."
         )
     return str(init_parameters.output_path)
+
+
+def _count_nonempty_lines(path: Path) -> int:
+    """Count source documents for one stage-level progress total."""
+
+    with path.open("rb") as handle:
+        return sum(bool(line.strip()) for line in handle)

@@ -3,7 +3,31 @@ from pathlib import Path
 from omegaconf import OmegaConf
 
 from retrieval_core.utils.config import compose_stage_config
-from retrieval_core.utils.pipelines import load_async_pipeline, to_container
+from retrieval_core.utils.pipelines import (
+    load_async_pipeline,
+    to_container,
+    without_component_progress_bars,
+)
+
+
+def test_stage_pipeline_copy_disables_component_progress_bars() -> None:
+    pipeline_config = {
+        "components": {
+            "first": {"init_parameters": {"progress_bar": True}},
+            "second": {"init_parameters": {"show_progress_bar": True}},
+            "third": {"init_parameters": {"unrelated": True}},
+        }
+    }
+
+    stage_config = without_component_progress_bars(pipeline_config)
+
+    assert stage_config["components"]["first"]["init_parameters"]["progress_bar"] is False
+    assert (
+        stage_config["components"]["second"]["init_parameters"]["show_progress_bar"]
+        is False
+    )
+    assert stage_config["components"]["third"]["init_parameters"] == {"unrelated": True}
+    assert pipeline_config["components"]["first"]["init_parameters"]["progress_bar"] is True
 
 
 def test_abstract_dense_e5_indexing_config_keeps_pipeline_haystack_shaped() -> None:

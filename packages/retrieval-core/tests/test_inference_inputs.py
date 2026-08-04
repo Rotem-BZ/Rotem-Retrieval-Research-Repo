@@ -9,7 +9,26 @@ from retrieval_core.input_mapping import InferenceMapping
 from retrieval_core.stages.inference import _run_queries, _run_query
 
 
-def test_run_queries_concurrently_and_preserve_input_order() -> None:
+def test_run_queries_concurrently_and_preserve_input_order(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class RecordingProgress:
+        instances = []
+
+        def __init__(self, **kwargs) -> None:
+            self.kwargs = kwargs
+            self.updates = 0
+            self.instances.append(self)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args) -> None:
+            pass
+
+        def update(self) -> None:
+            self.updates += 1
+
     class TrackingPipeline:
         def __init__(self) -> None:
             self.active_runs = 0
@@ -39,6 +58,7 @@ def test_run_queries_concurrently_and_preserve_input_order() -> None:
             }
 
     pipeline = TrackingPipeline()
+    monkeypatch.setattr("retrieval_core.stages.inference.tqdm", RecordingProgress)
     inference_mapping = InferenceMapping(
         queries=[
             {
@@ -94,6 +114,15 @@ def test_run_queries_concurrently_and_preserve_input_order() -> None:
         "q2",
         "q3",
     ]
+    assert len(RecordingProgress.instances) == 1
+    progress = RecordingProgress.instances[0]
+    assert progress.kwargs == {
+        "total": 3,
+        "desc": "Inference",
+        "unit": "query",
+        "disable": False,
+    }
+    assert progress.updates == 3
 
 
 def test_run_queries_rejects_missing_canonical_query_content() -> None:

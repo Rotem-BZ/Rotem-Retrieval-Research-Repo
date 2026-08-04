@@ -199,6 +199,53 @@ def test_indexing_stage_streams_multiple_batches_and_hashes_during_read(
     assert manifest["inputs"]["batch_count"] == 3
 
 
+def test_indexing_stage_uses_one_progress_bar_across_batches(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class RecordingProgress:
+        instances = []
+
+        def __init__(self, **kwargs) -> None:
+            self.kwargs = kwargs
+            self.updates = []
+            self.closed = False
+            self.instances.append(self)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args) -> None:
+            self.closed = True
+
+        def update(self, amount: int) -> None:
+            self.updates.append(amount)
+
+    documents_path = write_jsonl(
+        tmp_path / "documents.jsonl",
+        [{"doc_id": f"d{number}", "text": str(number)} for number in range(5)],
+    )
+    pipeline = CapturingPipeline()
+    monkeypatch.setattr(
+        "retrieval_core.stages.indexing.load_async_pipeline",
+        _capture_pipeline(pipeline),
+    )
+    monkeypatch.setattr("retrieval_core.stages.indexing.tqdm", RecordingProgress)
+
+    _run_stage(_config(tmp_path, documents_path))
+
+    assert len(RecordingProgress.instances) == 1
+    progress = RecordingProgress.instances[0]
+    assert progress.kwargs == {
+        "total": 5,
+        "desc": "Indexing",
+        "unit": "doc",
+        "disable": False,
+    }
+    assert progress.updates == [2, 2, 1]
+    assert progress.closed is True
+
+
 def test_indexing_stage_removes_temporary_index_when_a_later_batch_fails(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

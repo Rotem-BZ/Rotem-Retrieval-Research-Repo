@@ -20,7 +20,7 @@ from retrieval_core.input_mapping import (
 from retrieval_core.stages.base import Stage
 from retrieval_core.utils.artifacts import index_artifact_path
 from retrieval_core.utils.io import project_path, write_predictions
-from retrieval_core.utils.pipelines import load_async_pipeline
+from retrieval_core.utils.pipelines import load_async_pipeline, without_component_progress_bars
 
 INFERENCE_INPUT_COMPONENT = "input"
 INFERENCE_OUTPUT_COMPONENT = "output"
@@ -63,7 +63,7 @@ class InferenceStage(Stage):
             )
 
     async def run(self) -> list[dict[str, Any]]:
-        pipeline = load_async_pipeline(self.cfg.pipeline)
+        pipeline = load_async_pipeline(without_component_progress_bars(self.cfg.pipeline))
 
         inference_mapping = resolve_inference_mapping(self.cfg)
         pipeline_concurrency_limit = int(self.cfg.runtime.concurrency_limit)
@@ -150,7 +150,12 @@ async def _run_queries(
         progress.update()
         return prediction
 
-    with tqdm(total=len(queries), desc="queries", disable=not show_progress) as progress:
+    with tqdm(
+        total=len(queries),
+        desc="Inference",
+        unit="query",
+        disable=not show_progress,
+    ) as progress:
         async with asyncio.TaskGroup() as group:
             tasks = [group.create_task(run_query(query, progress)) for query in queries]
 

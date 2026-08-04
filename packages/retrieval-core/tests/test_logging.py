@@ -19,6 +19,46 @@ def test_console_logging_is_idempotent() -> None:
     assert first.level == CONSOLE_LOG_LEVEL
 
 
+def test_console_logging_formats_event_fields_on_separate_lines() -> None:
+    handler = configure_console_logging()
+    record = logging.LogRecord(
+        name="retrieval_core.tests.logging",
+        level=logging.INFO,
+        pathname=__file__,
+        lineno=1,
+        msg="Stage started: stage=indexing run_id=test-run output_dir=C:/some path",
+        args=(),
+        exc_info=None,
+    )
+
+    rendered = handler.format(record)
+
+    assert "INFO     retrieval_core.tests.logging\n" in rendered
+    assert "  Stage started:\n" in rendered
+    assert "    stage=indexing\n" in rendered
+    assert "    run_id=test-run\n" in rendered
+    assert "    output_dir=C:/some path" in rendered
+
+
+def test_console_logging_colors_level_labels_only_for_terminals() -> None:
+    handler = configure_console_logging()
+    record = logging.LogRecord(
+        name="retrieval_core.tests.logging",
+        level=logging.WARNING,
+        pathname=__file__,
+        lineno=1,
+        msg="Something needs attention",
+        args=(),
+        exc_info=None,
+    )
+    record.terminal_colors = True
+
+    rendered = handler.format(record)
+
+    assert "\033[33mWARNING \033[0m" in rendered
+    assert "\033[33mSomething needs attention" not in rendered
+
+
 def test_run_file_logging_captures_debug_and_removes_handler(tmp_path: Path) -> None:
     logger = logging.getLogger("retrieval_core.tests.logging")
     path = tmp_path / "run.log"
