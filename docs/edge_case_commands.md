@@ -356,7 +356,7 @@ uv run --project packages/retrieval-core python -c 'from retrieval_core import E
 Chunk cascade must select by score regardless of input order:
 
 ```powershell
-uv run --project packages/retrieval-components python -c 'from haystack import Document; from retrieval_components.cascade import ChunkCascade; docs=[Document(id="first",score=.1,meta={"source_document_id":"d1"}),Document(id="second",score=.9,meta={"source_document_id":"d1"})]; print([d.id for d in ChunkCascade(top_k=1).run(docs)["documents"]])'
+uv run --project packages/retrieval-components python -c 'from haystack import Document; from retrieval_components.cascade.chunk_cascade import ChunkCascade; docs=[Document(id="first",score=.1,meta={"source_document_id":"d1"}),Document(id="second",score=.9,meta={"source_document_id":"d1"})]; print([d.id for d in ChunkCascade(top_k=1).run(docs)["documents"]])'
 ```
 
 Expected output: `['second']`.
@@ -364,13 +364,13 @@ Expected output: `['second']`.
 Reject `top_k=0`:
 
 ```powershell
-uv run --project packages/retrieval-components python -c 'from retrieval_components.cascade import ChunkCascade; ChunkCascade(top_k=0)'
+uv run --project packages/retrieval-components python -c 'from retrieval_components.cascade.chunk_cascade import ChunkCascade; ChunkCascade(top_k=0)'
 ```
 
 Z-normalization with constant scores:
 
 ```powershell
-uv run --project packages/retrieval-components python -c 'from haystack import Document; from retrieval_components.fusion import ZScoreFusion; result=ZScoreFusion(weights={"only":2}).run(only=[Document(id="d1",score=3),Document(id="d2",score=3)]); print([(d.id,d.score) for d in result["documents"]])'
+uv run --project packages/retrieval-components python -c 'from haystack import Document; from retrieval_components.fusion.normalized_score_fusion import ZScoreFusion; result=ZScoreFusion(weights={"only":2}).run(only=[Document(id="d1",score=3),Document(id="d2",score=3)]); print([(d.id,d.score) for d in result["documents"]])'
 ```
 
 Both scores should be `0.0`.
@@ -378,7 +378,7 @@ Both scores should be `0.0`.
 Linear normalization with one document:
 
 ```powershell
-uv run --project packages/retrieval-components python -c 'from haystack import Document; from retrieval_components.fusion import LinearScoreFusion; result=LinearScoreFusion(weights={"only":1}).run(only=[Document(id="d1",score=42)]); print([(d.id,d.score) for d in result["documents"]])'
+uv run --project packages/retrieval-components python -c 'from haystack import Document; from retrieval_components.fusion.normalized_score_fusion import LinearScoreFusion; result=LinearScoreFusion(weights={"only":1}).run(only=[Document(id="d1",score=42)]); print([(d.id,d.score) for d in result["documents"]])'
 ```
 
 The only document should receive `1.0`.
@@ -386,7 +386,7 @@ The only document should receive `1.0`.
 Empty fusion sources:
 
 ```powershell
-uv run --project packages/retrieval-components python -c 'from retrieval_components.fusion import LinearScoreFusion,ZScoreFusion; print(LinearScoreFusion(weights={"a":1}).run(a=[])); print(ZScoreFusion(weights={"a":1}).run(a=[]))'
+uv run --project packages/retrieval-components python -c 'from retrieval_components.fusion.normalized_score_fusion import LinearScoreFusion,ZScoreFusion; print(LinearScoreFusion(weights={"a":1}).run(a=[])); print(ZScoreFusion(weights={"a":1}).run(a=[]))'
 ```
 
 Both should return an empty document list.

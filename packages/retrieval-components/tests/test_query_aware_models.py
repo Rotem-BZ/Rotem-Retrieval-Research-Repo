@@ -14,12 +14,14 @@ from haystack.components.rankers import (
     TransformersSimilarityRanker as HaystackTransformersSimilarityRanker,
 )
 
-from retrieval_components.dataclasses import Query
-from retrieval_components.models import (
+from retrieval_components.dataclasses.query import Query
+from retrieval_components.models.sentence_transformers_similarity_ranker import (
     SentenceTransformersSimilarityRanker,
-    SentenceTransformersTextEmbedder,
-    TransformersSimilarityRanker,
 )
+from retrieval_components.models.sentence_transformers_text_embedder import (
+    SentenceTransformersTextEmbedder,
+)
+from retrieval_components.models.transformers_similarity_ranker import TransformersSimilarityRanker
 
 
 def test_sentence_transformers_text_embedder_accepts_query(monkeypatch) -> None:

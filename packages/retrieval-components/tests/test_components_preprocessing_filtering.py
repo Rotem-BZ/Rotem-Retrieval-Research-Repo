@@ -1,14 +1,12 @@
 import pytest
 from haystack import Document
 
-from retrieval_components.dataclasses import Query
-from retrieval_components.filtering import DocumentContentFilter
-from retrieval_components.preprocessing import (
-    DocumentTextPrefixer,
-    IdentityParser,
-    QueryTextPreprocessor,
-    QueryToString,
-)
+from retrieval_components.dataclasses.query import Query
+from retrieval_components.filtering.document_content_filter import DocumentContentFilter
+from retrieval_components.preprocessing.document_text_prefixer import DocumentTextPrefixer
+from retrieval_components.preprocessing.identity_parser import IdentityParser
+from retrieval_components.preprocessing.query_text_preprocessor import QueryTextPreprocessor
+from retrieval_components.preprocessing.query_to_string import QueryToString
 
 
 def test_document_text_prefixer_preserves_metadata() -> None:

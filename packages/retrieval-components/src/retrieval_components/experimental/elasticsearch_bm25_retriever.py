@@ -7,7 +7,7 @@ from typing import Any
 from haystack import Document, component
 from haystack.lazy_imports import LazyImport
 
-from retrieval_components.dataclasses import Query
+from retrieval_components.dataclasses.query import Query
 
 with LazyImport(
     "Run 'pip install \"retrieval-components[elasticsearch]\"' to use Elasticsearch components"

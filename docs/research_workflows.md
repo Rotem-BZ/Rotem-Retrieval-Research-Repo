@@ -782,7 +782,8 @@ Query JSONL records should look like:
 ```
 
 `query_id`, `IN`, and `query_content` are required by the dataset schema. The inference stage
-creates a `Query` (importable with `from retrieval_components.dataclasses import Query`) whose
+creates a `Query` (importable with
+`from retrieval_components.dataclasses.query import Query`) whose
 `id` is `query_id`, whose `content` is `query_content`, and whose `meta` preserves
 the other query fields, including nested dictionaries. Query preprocessors,
 retrievers, and query-aware model subclasses consume or return

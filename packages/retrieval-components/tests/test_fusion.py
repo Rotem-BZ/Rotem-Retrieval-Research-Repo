@@ -1,13 +1,11 @@
 import pytest
 from haystack import Document
 
-from retrieval_components.cascade import ChunkCascade, TopKDocuments
-from retrieval_components.fusion import (
-    LinearScoreFusion,
-    ReciprocalRankFusion,
-    ScoreFusion,
-    ZScoreFusion,
-)
+from retrieval_components.cascade.chunk_cascade import ChunkCascade
+from retrieval_components.cascade.top_k_documents import TopKDocuments
+from retrieval_components.fusion.normalized_score_fusion import LinearScoreFusion, ZScoreFusion
+from retrieval_components.fusion.reciprocal_rank_fusion import ReciprocalRankFusion
+from retrieval_components.fusion.score_fusion import ScoreFusion
 
 
 def test_reciprocal_rank_fusion_uses_named_source_weights() -> None:

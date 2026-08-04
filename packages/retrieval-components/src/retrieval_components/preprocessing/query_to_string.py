@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from haystack import component
 
-from retrieval_components.dataclasses import Query
+from retrieval_components.dataclasses.query import Query
 
 
 @component

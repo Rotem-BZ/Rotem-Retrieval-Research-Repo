@@ -3,12 +3,14 @@ from haystack import Document, Pipeline
 
 import retrieval_components.experimental.elasticsearch_bm25_retriever as retriever_module
 import retrieval_components.experimental.elasticsearch_document_indexer as indexer_module
-from retrieval_components.dataclasses import Query
-from retrieval_components.experimental import (
+from retrieval_components.dataclasses.query import Query
+from retrieval_components.experimental.elasticsearch_bm25_retriever import (
     ElasticsearchBM25Retriever,
+)
+from retrieval_components.experimental.elasticsearch_document_indexer import (
     ElasticsearchDocumentIndexer,
 )
-from retrieval_components.ranking import EmbeddingSimilarityRanker
+from retrieval_components.ranking.embedding_similarity_ranker import EmbeddingSimilarityRanker
 
 
 class FakeElasticsearchClient:

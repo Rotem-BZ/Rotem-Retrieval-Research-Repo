@@ -9,7 +9,7 @@ from haystack.components.embedders import (
     SentenceTransformersTextEmbedder as HaystackSentenceTransformersTextEmbedder,
 )
 
-from retrieval_components.dataclasses import Query
+from retrieval_components.dataclasses.query import Query
 
 
 @component

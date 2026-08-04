@@ -1,9 +1,9 @@
 from haystack import Document
 
-from retrieval_components.chunking import LangChainDocumentSplitter
-from retrieval_components.chunking import langchain_document_splitter as splitter_module
-from retrieval_components.dataclasses import Query
-from retrieval_components.reformulation import HttpQueryReformulator
+import retrieval_components.chunking.langchain_document_splitter as splitter_module
+from retrieval_components.chunking.langchain_document_splitter import LangChainDocumentSplitter
+from retrieval_components.dataclasses.query import Query
+from retrieval_components.reformulation.http_query_reformulator import HttpQueryReformulator
 
 
 def test_langchain_document_splitter_uses_recursive_splitter_and_drops_empty_chunks(

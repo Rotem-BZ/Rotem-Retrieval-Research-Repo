@@ -20,6 +20,7 @@ def test_haystack_imports_component_defining_module_on_demand() -> None:
         from haystack import Pipeline, component
 
         import retrieval_components
+        import retrieval_components.chunking
 
         module_path = (
             "retrieval_components.chunking.langchain_document_splitter"

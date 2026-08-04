@@ -10,7 +10,7 @@ from haystack import AsyncPipeline
 from omegaconf import DictConfig, OmegaConf
 from tqdm import tqdm
 
-from retrieval_components.dataclasses import Query
+from retrieval_components.dataclasses.query import Query
 from retrieval_core.data_schema import EVALUATION_DATA_SCHEMA
 from retrieval_core.input_mapping import (
     InferenceMapping,

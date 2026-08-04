@@ -5,8 +5,12 @@ import pytest
 from haystack import Document, Pipeline
 from haystack.document_stores.in_memory import InMemoryDocumentStore
 
-from retrieval_components.indexing import PersistedInMemoryDocumentIndexer
-from retrieval_components.retrieval import PersistedInMemoryEmbeddingRetriever
+from retrieval_components.indexing.persisted_in_memory_document_indexer import (
+    PersistedInMemoryDocumentIndexer,
+)
+from retrieval_components.retrieval.persisted_in_memory_embedding_retriever import (
+    PersistedInMemoryEmbeddingRetriever,
+)
 
 
 def test_persisted_indexer_commits_batches(tmp_path: Path) -> None:

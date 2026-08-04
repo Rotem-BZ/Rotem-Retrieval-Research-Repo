@@ -9,7 +9,7 @@ from typing import Any
 import requests
 from haystack import component
 
-from retrieval_components.dataclasses import Query
+from retrieval_components.dataclasses.query import Query
 
 logger = logging.getLogger(__name__)
 

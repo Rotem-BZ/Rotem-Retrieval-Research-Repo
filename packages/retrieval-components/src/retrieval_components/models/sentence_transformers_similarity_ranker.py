@@ -7,7 +7,7 @@ from haystack.components.rankers import (
     SentenceTransformersSimilarityRanker as HaystackSentenceTransformersSimilarityRanker,
 )
 
-from retrieval_components.dataclasses import Query
+from retrieval_components.dataclasses.query import Query
 
 
 @component

@@ -2,10 +2,10 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from retrieval_components.dataclasses import Query
+from retrieval_components.dataclasses.query import Query
 
 
-def test_query_is_available_from_the_dataclasses_package_and_preserves_nested_meta() -> None:
+def test_query_preserves_nested_meta() -> None:
     source_meta = {"filters": {"language": "en"}, "weights": [1, 2]}
 
     query = Query(id="q1", meta=source_meta)
