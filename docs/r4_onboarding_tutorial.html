@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="A two-hour, hands-on onboarding workshop for the R4 Retrieval Research Repository.">
-<title>R4 Repository Onboarding Workshop</title>
+<meta name="description" content="A two-hour, hands-on onboarding tutorial for the R4 Retrieval Research Repository.">
+<title>R4 Onboarding Tutorial</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=Manrope:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@600;700;800&amp;display=swap" rel="stylesheet">
@@ -234,6 +234,25 @@ h1 {
   font-size: clamp(42px, 8vw, 78px);
   line-height: 0.98;
   letter-spacing: -0.045em;
+}
+
+.hero__title-row {
+  max-width: 900px;
+  display: flex;
+  align-items: center;
+  gap: clamp(18px, 3vw, 30px);
+}
+
+.hero__title-row h1 { min-width: 0; }
+
+.hero__title-logo {
+  width: clamp(62px, 8vw, 94px);
+  height: clamp(62px, 8vw, 94px);
+  flex: 0 0 auto;
+  border: 1px solid var(--border-bright);
+  border-radius: 20px;
+  object-fit: cover;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.22);
 }
 
 .hero__lead {
@@ -671,6 +690,34 @@ details.reference[open] summary::before { transform: rotate(90deg); }
 .reference__body ul { padding-left: 2em; }
 .reference__body li + li { margin-top: 0.6em; }
 
+.pipeline-preview {
+  margin: 30px 0 24px;
+}
+
+.pipeline-preview__frame {
+  padding: 16px;
+  overflow-x: auto;
+  border: 1px solid var(--border-bright);
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.16);
+}
+
+.pipeline-preview img {
+  display: block;
+  width: 100%;
+  min-width: 680px;
+  height: auto;
+}
+
+.pipeline-preview figcaption {
+  margin-top: 11px;
+  color: var(--text-dim);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
 .finish {
   padding: 112px 0 126px;
 }
@@ -771,6 +818,8 @@ details.reference[open] summary::before { transform: rotate(90deg); }
   .topbar__button .optional-label { display: none; }
   .page { width: min(100% - 24px, 920px); }
   .hero { min-height: auto; padding: 74px 0 70px; }
+  .hero__title-row { align-items: flex-start; gap: 14px; }
+  .hero__title-logo { width: 56px; height: 56px; border-radius: 14px; }
   .hero__contract { padding: 20px; }
   .chapter { padding: 82px 0 90px; }
   .chapter__header { margin-bottom: 44px; }
@@ -804,7 +853,7 @@ details.reference[open] summary::before { transform: rotate(90deg); }
       <img src="assets/r4-logo.png" alt="">
       <span>R4 Onboarding</span>
     </a>
-    <div class="chapter-status" id="chapterStatus">Start · Your first reproducible retrieval project</div>
+    <div class="chapter-status" id="chapterStatus">Onboarding tutorial</div>
     <button class="topbar__button" id="themeButton" type="button" aria-label="Switch color theme">
       Theme
     </button>
@@ -817,38 +866,43 @@ details.reference[open] summary::before { transform: rotate(90deg); }
 
 <dialog class="toc-dialog" id="tocDialog" aria-labelledby="tocTitle">
   <div class="toc-dialog__head">
-    <strong id="tocTitle">Workshop contents</strong>
+    <strong id="tocTitle">Tutorial contents</strong>
     <button class="toc-dialog__close" id="tocClose" type="button" aria-label="Close contents">×</button>
   </div>
   <nav class="toc-links" id="tocLinks">
-    <a href="#environment"><span>00 · 8 minutes</span>Choose the working environment</a>
-    <a href="#project"><span>01 · 12 minutes</span>Open a research project</a>
-    <a href="#component"><span>02 · 25 minutes</span>Implement one research idea</a>
-    <a href="#pipeline"><span>03 · 20 minutes</span>Compose a complex pipeline</a>
-    <a href="#stages"><span>04 · 32 minutes</span>Build and execute all four stages</a>
-    <a href="#experiment"><span>05 · 18 minutes</span>Package a controlled experiment</a>
-    <a href="#reproduce"><span>06 · 5 minutes</span>Leave reproducible research behind</a>
+    <a href="#overview"><span>Read first · 5 minutes</span>Repository structure</a>
+    <a href="#environment"><span>Step 1 · 8 minutes</span>Choose OS and clone the repository</a>
+    <a href="#project"><span>Step 2 · 12 minutes</span>Open a new project</a>
+    <a href="#component"><span>Step 3 · 25 minutes</span>Implement a project component</a>
+    <a href="#pipeline"><span>Step 4 · 20 minutes</span>Configure an inference pipeline</a>
+    <a href="#stages"><span>Step 5 · 32 minutes</span>Run the four stages</a>
+    <a href="#experiment"><span>Step 6 · 18 minutes</span>Create an experiment</a>
+    <a href="#reproduce"><span>Step 7 · 5 minutes</span>Check reproducibility</a>
+    <a href="#visualize"><span>Extra tip · 3 minutes</span>Visualize a resolved pipeline</a>
   </nav>
 </dialog>
 
 <main class="page" id="top">
   <section class="hero">
-    <div class="eyebrow">R4 · team research monorepo · hands-on workshop</div>
-    <h1>Your first reproducible retrieval project</h1>
+    <div class="eyebrow">R4 · team research monorepo</div>
+    <div class="hero__title-row">
+      <img class="hero__title-logo" src="assets/r4-logo.png" alt="R4 logo">
+      <h1>onboarding tutorial</h1>
+    </div>
     <p class="hero__lead">
-      Over roughly two hours, you will open an isolated project, implement a component,
-      compose it into a Haystack pipeline, execute every R4 stage, and package the work
-      as a baseline-versus-treatment experiment that another researcher can rerun.
+      This two-hour tutorial covers project creation, component implementation,
+      Haystack pipeline configuration, the four R4 stages, and a
+      baseline-versus-treatment experiment.
     </p>
     <div class="hero__contract">
-      <strong>Your finish line</strong>
+      <strong>Outputs produced</strong>
       <p>
-        You will leave with an index, a prepared input mapping, inference predictions,
-        evaluation metrics, and a project-local experiment containing a shared base
+        The tutorial produces an index, a prepared input mapping, inference predictions,
+        evaluation metrics, and a project-local experiment with a shared base
         configuration and explicit run entrypoints.
       </p>
     </div>
-    <div class="hero__meta" aria-label="Workshop assumptions">
+    <div class="hero__meta" aria-label="Tutorial assumptions">
       <span class="meta-pill">About 2 hours</span>
       <span class="meta-pill">Expert Python · uv · Git</span>
       <span class="meta-pill">Hydra and Haystack basics assumed</span>
@@ -856,34 +910,85 @@ details.reference[open] summary::before { transform: rotate(90deg); }
     </div>
   </section>
 
-  <section class="chapter" id="environment" data-title="00 · Choose the working environment">
+  <section class="chapter" id="overview" data-title="Read first · Repository structure">
     <header class="chapter__header">
-      <div class="chapter__number">Chapter 00 · 8 minutes</div>
-      <h2>Choose the machine that fits the research</h2>
+      <div class="chapter__number">Reading material · 5 minutes</div>
+      <h2>Repository structure</h2>
       <p class="chapter__intro">
-        R4 supports Windows and Linux. Make this choice before installing the project
-        because local model execution, remote storage, and long-running jobs will shape
-        the environment you want to keep for the duration of the research.
+        R4 is a monorepo for retrieval research projects. The repository separates
+        project-specific research, reusable Haystack components, and shared workflow
+        orchestration into different directories.
+      </p>
+    </header>
+
+    <div class="prose">
+      <p>
+        Research projects are stored under <code>projects/</code>. Each project has its
+        own Python package, dependency lock, pipeline configuration, experiments, and
+        generated artifacts. A project can use the shared repository configuration as-is
+        or add components and pipeline choices for a specific research question.
+      </p>
+      <p>
+        R4 provides inference and evaluation workflows around Haystack pipelines. The
+        reusable Haystack components are implemented in
+        <code>packages/retrieval-components</code>, which is the production-level code
+        package. Components that are specific to one project, or not expected to be
+        reused, stay inside that project’s Python package.
+      </p>
+      <p>
+        <code>packages/retrieval-core</code> contains the stage runners, artifact handling,
+        evaluation logic, and shared Hydra configuration. It composes the selected
+        configuration, loads the Haystack pipeline, executes the run, and records the
+        resolved configuration and manifest beside the run outputs.
+      </p>
+    </div>
+
+    <pre class="file-tree">R4/
+├── packages/
+│   ├── <span class="highlight">retrieval-components/</span>                 <span class="comment">reusable production-level Haystack components</span>
+│   └── <span class="highlight">retrieval-core/</span>                       <span class="comment">stage logic, evaluation, artifacts, and shared config</span>
+└── <span class="highlight">projects/</span>
+    └── PROJECT_NAME/                         <span class="comment">project code, config, experiments, and artifacts</span></pre>
+
+    <div class="semantic-block semantic-block--explanation">
+      <div class="block__label">How a run uses these packages</div>
+      <p>
+        A stage command selects configuration from the experiment, project, and core
+        config trees. <code>retrieval-core</code> uses the resolved configuration to run a
+        Haystack pipeline assembled from shared or project-local components. Inference
+        writes predictions; evaluation reads a specific prediction artifact and writes
+        metrics.
+      </p>
+    </div>
+  </section>
+
+  <section class="chapter" id="environment" data-title="Step 1 · Choose OS">
+    <header class="chapter__header">
+      <div class="chapter__number">Step 1 · 8 minutes</div>
+      <h2>Step 1: choose OS</h2>
+      <p class="chapter__intro">
+        R4 supports Windows and Linux. Commands in this tutorial show PowerShell and
+        Bash forms. Choose one platform and use it throughout the tutorial.
       </p>
     </header>
 
     <div class="semantic-block semantic-block--explanation">
-      <div class="block__label">Why this matters</div>
+      <div class="block__label">Project context</div>
       <p>
         Shared configuration templates can be composed and run directly through
         <code>packages/retrieval-core</code>; creating a project is not a prerequisite
-        when you only need existing behavior. This workshop deliberately opens a project
-        early because your component, dependency lock, artifacts, and experiments need a
-        durable owner.
+        when a run uses only existing behavior. This tutorial opens a project in the
+        next step so the component, dependency lock, artifacts, and experiments are
+        stored together.
       </p>
     </div>
 
     <div class="semantic-block semantic-block--warning">
-      <div class="block__label">Choose deliberately</div>
+      <div class="block__label">Platform note</div>
       <p>
         Use a Linux remote server when this project will run local transformer models
         that benefit from a GPU. Windows is fully supported for CPU work and for Windows
-        GPU environments you already operate. The tutorial always shows PowerShell first
+        GPU environments that are already configured. The tutorial shows PowerShell first
         and Bash second; follow one platform consistently.
       </p>
     </div>
@@ -920,8 +1025,7 @@ source ./bash_aliases.sh</code></pre>
       <div class="reference__body">
         <p>
           From the repository root, the core package can own the active environment and
-          artifact root. This is useful for shared smoke tests, but it is not the workspace
-          used in the rest of this tutorial.
+          artifact root. The rest of this tutorial uses a generated project instead.
         </p>
         <div class="command-card">
           <div class="command-card__header"><span>Terminal · either platform</span><button class="copy-button" type="button">Copy</button></div>
@@ -934,31 +1038,30 @@ uv run --project packages/retrieval-core stage --help</code></pre>
     <div class="semantic-block semantic-block--checkpoint">
       <div class="block__label">Checkpoint</div>
       <label class="task-check"><input type="checkbox" data-check="environment-clone">The repository root contains <code>packages</code>, <code>projects</code>, <code>templates</code>, and <code>awesome-dev-tools</code>.</label>
-      <label class="task-check"><input type="checkbox" data-check="environment-platform">I have chosen Windows or Linux for this workshop, and I know when the Linux GPU server is the better long-term home.</label>
+      <label class="task-check"><input type="checkbox" data-check="environment-platform">I have chosen Windows or Linux and know when to use the Linux GPU server.</label>
     </div>
   </section>
 
-  <section class="chapter" id="project" data-title="01 · Open a research project">
+  <section class="chapter" id="project" data-title="Step 2 · Open a new project">
     <header class="chapter__header">
-      <div class="chapter__number">Chapter 01 · 12 minutes</div>
-      <h2>Give the research a durable project home</h2>
+      <div class="chapter__number">Step 2 · 12 minutes</div>
+      <h2>Opening a new project</h2>
       <p class="chapter__intro">
-        A project is the boundary for treatment code, project-wide pipeline choices,
-        an independently resolved environment, generated artifacts, and one or more
-        experiments. The template provides that boundary without copying another
-        project’s dependency graph.
+        A project contains treatment code, project-wide pipeline choices, an independent
+        environment, generated artifacts, and one or more experiments. The project
+        template creates this structure without copying another project’s lockfile.
       </p>
     </header>
 
     <div class="workshop-step">
-      <h3>Choose a project identity</h3>
+      <h3>Set the project template values</h3>
       <div class="semantic-block semantic-block--instruction">
-        <div class="block__label">Decide before typing</div>
+        <div class="block__label">Template values</div>
         <p>
-          Pick a short research theme. The project name can outlive this first workshop
-          experiment, while the component and pipeline names should describe the starter
-          treatment. Keep the generated identity implementation: it is a useful parity
-          test until you replace its behavior.
+          Use a short research-area name for the project. The component and pipeline
+          names should describe the initial treatment. The generated component starts as
+          an identity transformation and can be used for a parity test before its
+          implementation is changed.
         </p>
         <ul>
           <li><code>project_name</code>: a readable research area, such as “Metadata-aware retrieval”.</li>
@@ -971,7 +1074,7 @@ uv run --project packages/retrieval-core stage --help</code></pre>
     </div>
 
     <div class="workshop-step">
-      <h3>Scaffold and initialize the project</h3>
+      <h3>Create and initialize the project</h3>
       <div class="semantic-block semantic-block--instruction">
         <div class="block__label">Do this · repository root</div>
         <p>
@@ -1002,7 +1105,7 @@ uv run pytest</code></pre>
       </div>
 
       <div class="semantic-block semantic-block--explanation">
-        <div class="block__label">Why this matters</div>
+        <div class="block__label">Dependency behavior</div>
         <p>
           The project receives its own <code>pyproject.toml</code> and
           <code>uv.lock</code>. During monorepo development, <code>retrieval-core</code>
@@ -1014,7 +1117,7 @@ uv run pytest</code></pre>
     </div>
 
     <div class="workshop-step">
-      <h3>Orient yourself by ownership</h3>
+      <h3>Review the project structure</h3>
       <pre class="file-tree">projects/YOUR_PROJECT_SLUG/
 ├── <span class="highlight">pyproject.toml + uv.lock</span>                  <span class="comment">project environment</span>
 ├── src/YOUR_PACKAGE/
@@ -1025,14 +1128,14 @@ uv run pytest</code></pre>
 ├── <span class="highlight">experiments/</span>                                <span class="comment">controlled comparisons</span>
 └── artifacts/                                  <span class="comment">immutable stage products</span></pre>
       <div class="semantic-block semantic-block--explanation">
-        <div class="block__label">Read the structure as a decision rule</div>
+        <div class="block__label">Ownership rules</div>
         <p>
           Hypothesis-specific behavior belongs here. A component that has become
           generally reusable across projects belongs in
           <code>packages/retrieval-components</code>. Stage orchestration and artifact
           lifecycle belong in <code>packages/retrieval-core</code>. Keeping those
-          responsibilities separate is what lets new research start quickly without
-          turning one experiment into shared infrastructure prematurely.
+          responsibilities separate prevents experiment-specific behavior from becoming
+          shared infrastructure before it is reused by another project.
         </p>
       </div>
     </div>
@@ -1044,15 +1147,15 @@ uv run pytest</code></pre>
     </div>
   </section>
 
-  <section class="chapter" id="component" data-title="02 · Implement one research idea">
+  <section class="chapter" id="component" data-title="Step 3 · Implement a project component">
     <header class="chapter__header">
-      <div class="chapter__number">Chapter 02 · 25 minutes</div>
-      <h2>Turn one research idea into a component contract</h2>
+      <div class="chapter__number">Step 3 · 25 minutes</div>
+      <h2>Implementing a project component</h2>
       <p class="chapter__intro">
         The generated component is intentionally an identity transform. Choose a small
-        intervention that can be expressed with explicit input and output sockets, then
-        use the repository’s component implementation skill to place, configure, test,
-        and document it consistently.
+        intervention with explicit input and output sockets. The component implementation
+        skill applies the repository’s placement, configuration, test, and documentation
+        conventions.
       </p>
     </header>
 
@@ -1061,8 +1164,8 @@ uv run pytest</code></pre>
       <div class="prose">
         <p>
           Keep the first implementation small enough to complete today. The suggestions
-          below are starting points, not a prescribed menu. A more interesting idea is
-          welcome when you can state its contract and test it without external services.
+          below are starting points rather than required choices. Another idea is suitable
+          when its contract can be stated explicitly and tested without external services.
         </p>
       </div>
       <ul class="idea-list">
@@ -1070,7 +1173,7 @@ uv run pytest</code></pre>
         <li><strong>Candidate handling:</strong> filter candidates from metadata, preserve a controlled subset, or reorder candidates before ranking.</li>
         <li><strong>Document transformation:</strong> clean a field, prepare chunks, or enrich metadata without losing source identity.</li>
         <li><strong>Retrieval composition:</strong> introduce fusion, a reranking step, or a small adapter around an existing Haystack component.</li>
-        <li><strong>Your own idea:</strong> define the smallest component that makes the research question executable.</li>
+        <li><strong>Another intervention:</strong> define the smallest component that makes the research question executable.</li>
       </ul>
 
       <div class="semantic-block semantic-block--instruction">
@@ -1089,12 +1192,12 @@ uv run pytest</code></pre>
     <div class="workshop-step">
       <h3>Use the component implementation skill</h3>
       <div class="semantic-block semantic-block--explanation">
-        <div class="block__label">What the skill contributes</div>
+        <div class="block__label">Checks performed by the skill</div>
         <p>
           <code>implement-new-component</code> applies the repository’s ownership rules,
           Haystack v2 socket conventions, serialization shape, Hydra placement, exports,
-          focused tests, and documentation checks. You remain responsible for a clear
-          research contract; the skill makes the resulting repository change coherent.
+          focused tests, and documentation checks. The prompt must still provide an
+          explicit research contract and expected test cases.
         </p>
       </div>
 
@@ -1133,8 +1236,8 @@ and report the exact verification that was run.</code></pre>
       <div class="semantic-block semantic-block--warning">
         <div class="block__label">Review before accepting</div>
         <p>
-          Confirm that the component stayed in the project unless it is genuinely
-          reusable, uses Haystack’s <code>@component</code> API with explicit outputs,
+          Confirm that the component stayed in the project unless it is intended for
+          reuse across projects, uses Haystack’s <code>@component</code> API with explicit outputs,
           preserves relevant <code>Query</code> or <code>Document</code> fields, and has
           no hidden filesystem or network work outside its declared purpose.
         </p>
@@ -1142,7 +1245,7 @@ and report the exact verification that was run.</code></pre>
     </div>
 
     <div class="workshop-step">
-      <h3>Prove the component in isolation</h3>
+      <h3>Run the component and composition tests</h3>
       <div class="semantic-block semantic-block--instruction">
         <div class="block__label">Do this · project directory</div>
         <div class="command-card">
@@ -1151,9 +1254,8 @@ and report the exact verification that was run.</code></pre>
 uv run ruff check .</code></pre>
         </div>
         <p>
-          Read the component test and the pipeline-composition test. They should prove
-          both the socket-level behavior and that the serialized pipeline can actually
-          be loaded.
+          Read the component test and the pipeline-composition test. They should cover
+          the socket-level behavior and verify that the serialized pipeline loads.
         </p>
       </div>
     </div>
@@ -1165,13 +1267,13 @@ uv run ruff check .</code></pre>
     </div>
   </section>
 
-  <section class="chapter" id="pipeline" data-title="03 · Compose a complex pipeline">
+  <section class="chapter" id="pipeline" data-title="Step 4 · Configure an inference pipeline">
     <header class="chapter__header">
-      <div class="chapter__number">Chapter 03 · 20 minutes</div>
-      <h2>Compose behavior from ownership layers</h2>
+      <div class="chapter__number">Step 4 · 20 minutes</div>
+      <h2>Configuring an inference pipeline</h2>
       <p class="chapter__intro">
         R4 uses Hydra as the experiment interface and Haystack as the executable graph.
-        Complex pipelines emerge from small config choices: shared component fragments,
+        A pipeline combines shared component fragments,
         project-owned topology, model selections, runtime settings, and a few intentional
         overrides.
       </p>
@@ -1187,7 +1289,7 @@ uv run ruff check .</code></pre>
         <div class="path-flow__connector" aria-hidden="true"></div>
         <div class="path-flow__item">
           <strong>Project configuration</strong>
-          <p>Your project pipeline and durable research-area defaults.</p>
+          <p>The project pipeline and project-wide defaults.</p>
         </div>
         <div class="path-flow__connector" aria-hidden="true"></div>
         <div class="path-flow__item">
@@ -1196,7 +1298,7 @@ uv run ruff check .</code></pre>
         </div>
       </div>
       <div class="semantic-block semantic-block--explanation">
-        <div class="block__label">Why this matters</div>
+        <div class="block__label">Configuration behavior</div>
         <p>
           More specific layers extend or override shared choices without copying the
           whole configuration tree. An experiment can select your project pipeline;
@@ -1207,7 +1309,7 @@ uv run ruff check .</code></pre>
     </div>
 
     <div class="workshop-step">
-      <h3>Read the generated pipeline as an executable graph</h3>
+      <h3>Inspect the generated pipeline graph</h3>
       <div class="semantic-block semantic-block--instruction">
         <div class="block__label">Inspect this file</div>
         <p>
@@ -1255,7 +1357,7 @@ connections:
     </div>
 
     <div class="workshop-step">
-      <h3>Separate graph shape from experimental selection</h3>
+      <h3>Separate topology from experiment selections</h3>
       <div class="prose">
         <p>
           The pipeline file owns component types, serializable initialization settings,
@@ -1282,20 +1384,20 @@ connections:
     </div>
   </section>
 
-  <section class="chapter" id="stages" data-title="04 · Build and execute all four stages">
+  <section class="chapter" id="stages" data-title="Step 5 · Run the four stages">
     <header class="chapter__header">
-      <div class="chapter__number">Chapter 04 · 32 minutes</div>
-      <h2>Build commands interactively, then execute the artifact chain</h2>
+      <div class="chapter__number">Step 5 · 32 minutes</div>
+      <h2>Running the four stages</h2>
       <p class="chapter__intro">
-        The command builder is the practical interface for discovering valid Hydra
+        The command builder provides an interactive interface for discovering valid Hydra
         choices. It finds the nearest config tree, asks for mandatory groups, discovers
         existing immutable dependencies, validates composition, and prints a command
-        you can inspect before execution.
+        for review before execution.
       </p>
     </header>
 
     <div class="workshop-step">
-      <h3>Launch <code>build-command</code></h3>
+      <h3>Start <code>build-command</code></h3>
       <div class="semantic-block semantic-block--instruction">
         <div class="block__label">Do this · project directory</div>
         <div class="command-card">
@@ -1317,7 +1419,7 @@ uv run python ../../awesome-dev-tools/interactive_build_command.py</code></pre>
       </div>
 
       <div class="semantic-block semantic-block--explanation">
-        <div class="block__label">What the helper is doing</div>
+        <div class="block__label">Command builder behavior</div>
         <p>
           From a project it resolves project choices before shared core choices. From an
           experiment it adds the experiment layer first. It also lists usable input
@@ -1502,7 +1604,7 @@ uv run stage evaluation \
       </div>
     </div>
 
-    <div class="artifact-strip" aria-label="Completed workshop artifact chain">
+    <div class="artifact-strip" aria-label="Completed tutorial artifact chain">
       <div class="artifact-item">
         <strong>Prepared input mapping</strong>
         <code>artifacts/input_mappings/onboarding-dev-tiny/input_mapping.json</code>
@@ -1535,14 +1637,14 @@ uv run stage evaluation \
     </details>
   </section>
 
-  <section class="chapter" id="experiment" data-title="05 · Package a controlled experiment">
+  <section class="chapter" id="experiment" data-title="Step 6 · Create an experiment">
     <header class="chapter__header">
-      <div class="chapter__number">Chapter 05 · 18 minutes</div>
-      <h2>Promote the successful run into an explicit experiment</h2>
+      <div class="chapter__number">Step 6 · 18 minutes</div>
+      <h2>Creating an experiment</h2>
       <p class="chapter__intro">
-        Ad hoc commands are useful while developing. A durable comparison belongs in an
-        experiment workspace: one concise experiment card, one complete shared base
-        config, and minimal run entrypoints that reveal only the intended differences.
+        An experiment workspace contains a concise experiment card, one complete shared
+        base config, and minimal run entrypoints. Use it to record a comparison after
+        developing the component and pipeline with direct commands.
       </p>
     </header>
 
@@ -1605,7 +1707,7 @@ pipeline:
       </div>
 
       <div class="semantic-block semantic-block--explanation">
-        <div class="block__label">Why this matters</div>
+        <div class="block__label">Comparison structure</div>
         <p>
           Both entrypoints inherit the same data, model, artifact, runtime, and retrieval
           depth. The treatment run changes only the selected pipeline. That makes the
@@ -1659,23 +1761,23 @@ uv run stage inference \
     </div>
   </section>
 
-  <section class="chapter" id="reproduce" data-title="06 · Leave reproducible research behind">
+  <section class="chapter" id="reproduce" data-title="Step 7 · Check reproducibility">
     <header class="chapter__header">
-      <div class="chapter__number">Chapter 06 · 5 minutes</div>
-      <h2>Audit what another researcher will receive</h2>
+      <div class="chapter__number">Step 7 · 5 minutes</div>
+      <h2>Checking reproducibility</h2>
       <p class="chapter__intro">
-        Reproducibility is not a final documentation pass. It is the relationship
-        between versioned intent, resolved execution, immutable artifacts, and a dependency
-        boundary that another team member can reconstruct.
+        Check the versioned experiment files, resolved stage configuration, immutable
+        artifacts, and project dependency boundary before handing the work to another
+        team member.
       </p>
     </header>
 
     <div class="workshop-step">
-      <h3>Run the handoff audit</h3>
+      <h3>Review the project and run outputs</h3>
       <div class="semantic-block semantic-block--instruction">
         <div class="block__label">Confirm each statement</div>
         <label class="task-check"><input type="checkbox" data-check="audit-code">The project contains the custom component, its project-owned pipeline config, and focused passing tests.</label>
-        <label class="task-check"><input type="checkbox" data-check="audit-deps">The project dependency declarations and <code>uv.lock</code> are coherent.</label>
+        <label class="task-check"><input type="checkbox" data-check="audit-deps">The project dependency declarations and <code>uv.lock</code> are consistent.</label>
         <label class="task-check"><input type="checkbox" data-check="audit-artifacts">The mapping, index, predictions, and metrics have exact IDs and immutable paths.</label>
         <label class="task-check"><input type="checkbox" data-check="audit-provenance">Every stage run contains <code>resolved_config.yaml</code>, <code>manifest.json</code>, <code>result.json</code>, and <code>run.log</code>.</label>
         <label class="task-check"><input type="checkbox" data-check="audit-experiment">The experiment card states the research idea and hypothesis; its base and run configs expose the controlled comparison.</label>
@@ -1710,16 +1812,59 @@ uv run stage inference \
     </details>
   </section>
 
+  <section class="chapter" id="visualize" data-title="Extra tip · Visualize a pipeline">
+    <header class="chapter__header">
+      <div class="chapter__number">Extra tip · 3 minutes</div>
+      <h2>Visualizing a resolved pipeline</h2>
+      <p class="chapter__intro">
+        <code>visualize_pipeline.py</code> reads the pipeline stored in a stage run’s
+        <code>resolved_config.yaml</code> and renders its component graph. This can be used
+        to review the final topology after Hydra composition.
+      </p>
+    </header>
+
+    <figure class="pipeline-preview">
+      <a href="assets/r4-query-repetition-inference-pipeline.svg" target="_blank" rel="noopener">
+        <div class="pipeline-preview__frame">
+          <img src="assets/r4-query-repetition-inference-pipeline.svg" alt="Query-repetition inference pipeline showing the stage input, query repeater, preprocessing, embedding, retrieval, and stage output components">
+        </div>
+      </a>
+      <figcaption>
+        Query-repetition inference run <code>20260803-211140-074539</code>. Open the
+        image to inspect the published SVG at full size.
+      </figcaption>
+    </figure>
+
+    <div class="semantic-block semantic-block--instruction">
+      <div class="block__label">Create this visualization · query-repetition project</div>
+      <p>
+        Run the command from <code>projects/query-repetition</code>. By default, the tool
+        writes the SVG below <code>artifacts/visualizations/pipelines/</code> using the
+        stage name and run ID from the resolved configuration.
+      </p>
+      <div class="command-card">
+        <div class="command-card__header"><span>Terminal · Windows and Linux</span><button class="copy-button" type="button">Copy</button></div>
+        <pre><code><span class="code-note"># Windows · PowerShell</span>
+uv run python ../../awesome-dev-tools/visualize_pipeline.py `
+  artifacts/runs/inference/20260803-211140-074539/resolved_config.yaml
+
+<span class="code-note"># Linux · Bash</span>
+uv run python ../../awesome-dev-tools/visualize_pipeline.py \
+  artifacts/runs/inference/20260803-211140-074539/resolved_config.yaml</code></pre>
+      </div>
+    </div>
+  </section>
+
   <section class="finish">
-    <div class="eyebrow">Workshop complete</div>
-    <h2>You now have a project, a pipeline, an artifact chain, and a reproducible experiment.</h2>
+    <div class="eyebrow">Tutorial complete</div>
+    <h2>Files and artifacts created by the tutorial</h2>
     <p class="finish__lead">
-      The important skill is not memorizing a long Hydra command. It is knowing where
-      behavior belongs, how configuration layers compose it, how the command builder
-      exposes required choices, and how immutable artifacts make the research traceable.
+      The completed project contains a component, a pipeline configuration, a dependency
+      lock, four stage artifacts, and an experiment with baseline and treatment
+      entrypoints.
     </p>
     <div class="semantic-block semantic-block--checkpoint">
-      <div class="block__label">Your durable outputs</div>
+      <div class="block__label">Files to retain</div>
       <p>
         Keep the project code, tests, lockfile, experiment card, base config, and run
         entrypoints in Git. Treat the artifact manifests and resolved configs as the
