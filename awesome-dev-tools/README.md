@@ -33,11 +33,14 @@ The exposed scripts are:
 - `visualize_pipeline.py`: render the Haystack pipeline in a stage run's
   `resolved_config.yaml`. SVG output defaults to
   `artifacts/visualizations/pipelines/<stage>/<run-id>.svg`, outside the immutable
-  run directory. Use `--output` to select another location, or `--format` to render
-  PNG, JPEG, WebP, or PDF. Rendering uses `https://mermaid.ink` by default; point
-  `--server-url` at a private Mermaid server when required. Stage boundary
-  components named `input` and `output` are labeled `stage_input` and
-  `stage_output` in the diagram to avoid names reserved by Haystack's renderer.
+  run directory. The default NetworkX renderer reads the resolved YAML directly
+  and uses headless Matplotlib, so it needs no network service and does not
+  initialize pipeline components. Use `--output` to select another location, or
+  `--format` to render PNG, JPEG, WebP, or PDF. The optional `--renderer mermaid`
+  mode uses `https://mermaid.ink` by default; point `--server-url` at a private
+  Mermaid server when required. In Mermaid diagrams, stage boundary components
+  named `input` and `output` are labeled `stage_input` and `stage_output` to avoid
+  names reserved by Haystack's renderer.
 - `interactive_run_in_parallel_screens.py`: choose run definitions and launch them through GNU
   Screen on Linux.
 - `run_in_screen.py`: launch one arbitrary command in a detached GNU Screen session
