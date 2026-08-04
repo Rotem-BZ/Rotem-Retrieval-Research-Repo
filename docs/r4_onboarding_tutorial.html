@@ -200,10 +200,17 @@ code {
 .hero {
   min-height: calc(92vh - 58px);
   padding: clamp(76px, 11vh, 126px) 0 84px;
+  position: relative;
   display: flex;
   flex-direction: column;
   justify-content: center;
   border-bottom: 1px solid var(--border);
+}
+
+.hero__content {
+  position: relative;
+  z-index: 1;
+  width: 100%;
 }
 
 .eyebrow,
@@ -236,23 +243,51 @@ h1 {
   letter-spacing: -0.045em;
 }
 
-.hero__title-row {
-  max-width: 900px;
+.hero__title-composition {
+  max-width: 850px;
   display: flex;
   align-items: center;
-  gap: clamp(18px, 3vw, 30px);
+  gap: clamp(12px, 2.5vw, 28px);
 }
 
-.hero__title-row h1 { min-width: 0; }
+.hero__wordmark {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.hero__wordline {
+  color: var(--text-bright);
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: clamp(38px, 6vw, 61px);
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  line-height: 0.98;
+  white-space: nowrap;
+}
+
+.hero__wordmark-r {
+  color: var(--accent);
+  text-shadow: 0 0 28px var(--accent-dim);
+}
 
 .hero__title-logo {
-  width: clamp(62px, 8vw, 94px);
-  height: clamp(62px, 8vw, 94px);
+  width: clamp(190px, 25vw, 250px);
+  height: clamp(190px, 25vw, 250px);
   flex: 0 0 auto;
   border: 1px solid var(--border-bright);
-  border-radius: 20px;
+  border-radius: 42px;
   object-fit: cover;
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.22);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.3);
+}
+
+.hero__tutorial-title {
+  max-width: 850px;
+  margin: 32px 0 0;
+  color: var(--text-bright);
+  font-size: clamp(30px, 4vw, 43px);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.12;
 }
 
 .hero__lead {
@@ -818,8 +853,10 @@ details.reference[open] summary::before { transform: rotate(90deg); }
   .topbar__button .optional-label { display: none; }
   .page { width: min(100% - 24px, 920px); }
   .hero { min-height: auto; padding: 74px 0 70px; }
-  .hero__title-row { align-items: flex-start; gap: 14px; }
-  .hero__title-logo { width: 56px; height: 56px; border-radius: 14px; }
+  .hero__title-composition { gap: 9px; }
+  .hero__wordline { font-size: clamp(27px, 8.3vw, 38px); }
+  .hero__title-logo { width: 105px; height: 105px; border-radius: 24px; }
+  .hero__tutorial-title { margin-top: 24px; font-size: 30px; }
   .hero__contract { padding: 20px; }
   .chapter { padding: 82px 0 90px; }
   .chapter__header { margin-bottom: 44px; }
@@ -853,7 +890,7 @@ details.reference[open] summary::before { transform: rotate(90deg); }
       <img src="assets/r4-logo.png" alt="">
       <span>R4 Onboarding</span>
     </a>
-    <div class="chapter-status" id="chapterStatus">Onboarding tutorial</div>
+    <div class="chapter-status" id="chapterStatus">R4 onboarding tutorial</div>
     <button class="topbar__button" id="themeButton" type="button" aria-label="Switch color theme">
       Theme
     </button>
@@ -884,29 +921,37 @@ details.reference[open] summary::before { transform: rotate(90deg); }
 
 <main class="page" id="top">
   <section class="hero">
-    <div class="eyebrow">R4 · team research monorepo</div>
-    <div class="hero__title-row">
-      <img class="hero__title-logo" src="assets/r4-logo.png" alt="R4 logo">
-      <h1>onboarding tutorial</h1>
-    </div>
-    <p class="hero__lead">
-      This two-hour tutorial covers project creation, component implementation,
-      Haystack pipeline configuration, the four R4 stages, and a
-      baseline-versus-treatment experiment.
-    </p>
-    <div class="hero__contract">
-      <strong>Outputs produced</strong>
-      <p>
-        The tutorial produces an index, a prepared input mapping, inference predictions,
-        evaluation metrics, and a project-local experiment with a shared base
-        configuration and explicit run entrypoints.
+    <div class="hero__content">
+      <div class="eyebrow">team research monorepo</div>
+      <div class="hero__title-composition">
+        <div class="hero__wordmark" role="img" aria-label="Retrieval Research Repo Re-mastered">
+          <div class="hero__wordline" aria-hidden="true"><span class="hero__wordmark-r">R</span>etrieval</div>
+          <div class="hero__wordline" aria-hidden="true"><span class="hero__wordmark-r">R</span>esearch</div>
+          <div class="hero__wordline" aria-hidden="true"><span class="hero__wordmark-r">R</span>epo</div>
+          <div class="hero__wordline" aria-hidden="true"><span class="hero__wordmark-r">R</span>e-mastered</div>
+        </div>
+        <img class="hero__title-logo" src="assets/r4-logo.png" alt="R4 logo">
+      </div>
+      <h1 class="hero__tutorial-title">onboarding tutorial</h1>
+      <p class="hero__lead">
+        This two-hour tutorial covers project creation, component implementation,
+        Haystack pipeline configuration, the four R4 stages, and a
+        baseline-versus-treatment experiment.
       </p>
-    </div>
-    <div class="hero__meta" aria-label="Tutorial assumptions">
-      <span class="meta-pill">About 2 hours</span>
-      <span class="meta-pill">Expert Python · uv · Git</span>
-      <span class="meta-pill">Hydra and Haystack basics assumed</span>
-      <span class="meta-pill">Windows or Linux</span>
+      <div class="hero__contract">
+        <strong>Outputs produced</strong>
+        <p>
+          The tutorial produces an index, a prepared input mapping, inference predictions,
+          evaluation metrics, and a project-local experiment with a shared base
+          configuration and explicit run entrypoints.
+        </p>
+      </div>
+      <div class="hero__meta" aria-label="Tutorial assumptions">
+        <span class="meta-pill">About 2 hours</span>
+        <span class="meta-pill">Expert Python · uv · Git</span>
+        <span class="meta-pill">Hydra and Haystack basics assumed</span>
+        <span class="meta-pill">Windows or Linux</span>
+      </div>
     </div>
   </section>
 
