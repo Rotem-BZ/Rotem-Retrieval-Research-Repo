@@ -1,0 +1,4 @@
+interface:
+  display_name: "Create Experiment"
+  short_description: "Interview and scaffold a retrieval experiment"
+  default_prompt: "Use $create-experiment to interview me and create a complete retrieval experiment workspace."
