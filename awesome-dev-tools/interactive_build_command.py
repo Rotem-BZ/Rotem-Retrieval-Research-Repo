@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import json
+import os
 import re
-from collections.abc import Callable, Iterable, Sequence
+import sys
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, TextIO
 
 import pyperclip
 from omegaconf import OmegaConf
@@ -204,15 +207,52 @@ def _copy_command_to_clipboard(
     *,
     copy_fn: ClipboardCopyFn,
     output_fn: OutputFn,
+    terminal_copy_fn: ClipboardCopyFn | None = None,
 ) -> None:
-    """Copy a command without turning clipboard errors into builder failures."""
+    """Copy a command, falling back to the local terminal over remote sessions."""
 
+    terminal_copy_fn = terminal_copy_fn or _copy_command_via_terminal
     try:
         copy_fn(command)
     except pyperclip.PyperclipException as exc:
-        output_fn(f"Could not copy command to clipboard: {exc}")
+        try:
+            terminal_copy_fn(command)
+        except (OSError, RuntimeError) as terminal_exc:
+            output_fn(
+                "Could not copy command to clipboard: "
+                f"{exc} Terminal fallback unavailable: {terminal_exc}"
+            )
+        else:
+            output_fn("Command copied to clipboard via terminal.")
     else:
         output_fn("Command copied to clipboard.")
+
+
+def _copy_command_via_terminal(
+    command: str,
+    *,
+    stream: TextIO | None = None,
+    environment: Mapping[str, str] | None = None,
+) -> None:
+    """Ask the terminal emulator to copy text with the OSC 52 escape sequence."""
+
+    stream = stream or sys.stdout
+    if not stream.isatty():
+        raise RuntimeError("standard output is not an interactive terminal")
+
+    environment = os.environ if environment is None else environment
+    encoded = base64.b64encode(command.encode("utf-8")).decode("ascii")
+    osc52 = f"\x1b]52;c;{encoded}\x07"
+
+    if environment.get("TMUX"):
+        sequence = f"\x1bPtmux;\x1b{osc52}\x1b\\"
+    elif environment.get("STY") or environment.get("TERM", "").startswith("screen"):
+        sequence = f"\x1bP{osc52}\x1b\\"
+    else:
+        sequence = osc52
+
+    stream.write(sequence)
+    stream.flush()
 
 
 def main(argv: Sequence[str] | None = None) -> None:

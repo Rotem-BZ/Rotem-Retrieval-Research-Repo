@@ -26,8 +26,10 @@ The exposed scripts are:
   an experiment, choices are resolved from experiment configs, then project
   configs, then the configs packaged by `retrieval-core`. Pass `--config-dir
   <path>` to select a config tree explicitly. The final command is copied to the
-  clipboard. On Linux, install an `xclip` or `xsel` system package to provide a
-  clipboard backend when the desktop environment does not already provide one.
+  clipboard. It first uses the operating system clipboard through `pyperclip`. In
+  a headless SSH session, where tools such as `xclip` cannot work without an X
+  display, it falls back to the OSC 52 terminal protocol so the clipboard belongs
+  to the local terminal. The terminal emulator must permit OSC 52 clipboard access.
 - `interactive_create_run.py`: write one minimal Hydra `configs/runs/<name>.yaml` entrypoint
   that inherits a complete config below `configs/base-experiment-configs/`.
 - `visualize_pipeline.py`: render the Haystack pipeline in a stage run's
