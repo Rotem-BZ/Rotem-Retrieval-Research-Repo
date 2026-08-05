@@ -1687,46 +1687,94 @@ uv run stage evaluation \
       <div class="chapter__number">Step 6 · 18 minutes</div>
       <h2>Creating an experiment</h2>
       <p class="chapter__intro">
-        An experiment workspace contains a concise experiment card, one complete shared
-        base config, and minimal run entrypoints. Use it to record a comparison after
-        developing the component and pipeline with direct commands.
+        An experiment workspace contains a concise experiment card, complete shared
+        inference and evaluation configs, minimal run entrypoints, and an analysis
+        notebook. The repository’s <code>create-experiment</code> skill interviews for
+        the required choices and validates the generated configuration.
       </p>
     </header>
 
     <div class="workshop-step">
-      <h3>Scaffold the experiment</h3>
+      <h3>Create the experiment with the agent skill</h3>
       <div class="semantic-block semantic-block--instruction">
-        <div class="block__label">Do this · project directory</div>
+        <div class="block__label">Do this · Codex task from the project directory</div>
         <p>
-          Run the experiment Cookiecutter. Choose the toy dataset, E5 small, the exact
-          <code>onboarding-toy-e5</code> index, the shared
-          <code>retrieve/dense_in_memory</code> baseline, and your
-          <code>YOUR_PACKAGE/YOUR_PIPELINE</code> treatment.
+          Start a Codex task in the generated project and invoke the skill. The skill
+          asks one decision at a time, so provide the hypothesis in your own words when
+          prompted rather than placing an inferred hypothesis in the initial request.
         </p>
         <div class="command-card">
-          <div class="command-card__header"><span>Terminal · either platform</span><button class="copy-button" type="button">Copy</button></div>
-          <pre><code>uvx cookiecutter ../../templates/retrieval-experiment --output-dir experiments</code></pre>
+          <div class="command-card__header"><span>Codex prompt · not a terminal command</span><button class="copy-button" type="button">Copy</button></div>
+          <pre><code>$create-experiment
+
+Create a paired baseline-and-treatment experiment in the current project.
+Use the onboarding-toy-e5 index, reuse the onboarding-dev-tiny input
+mapping, and use the project pipeline implemented in this tutorial as
+the treatment. Interview me for every remaining choice, then scaffold
+and validate the experiment without running its stages.</code></pre>
         </div>
       </div>
 
+      <div class="semantic-block semantic-block--explanation">
+        <div class="block__label">What the skill does</div>
+        <p>
+          The skill discovers the available datasets, runtimes, pipelines, models, and
+          artifact IDs before making recommendations. It interviews for the experiment
+          description and hypothesis, run shape, exact index, retrieval depth, target
+          metrics, and run-specific overrides. After confirmation, it renders the
+          experiment template and composes every entrypoint to check for unresolved
+          <code>???</code> values or placeholders.
+        </p>
+        <p>
+          The skill creates version-controlled files only. It does not execute inference,
+          evaluation, indexing, or other stages.
+        </p>
+      </div>
+
+      <details class="reference">
+        <summary>Alternative · scaffold directly with Cookiecutter</summary>
+        <div class="reference__body">
+          <p>
+            From the project directory, the template can be used without an agent. Answer
+            every prompt with the same dataset, runtime, index, pipeline, retrieval-depth,
+            metric, and hypothesis choices. Then inspect and compose the generated files
+            manually before running them.
+          </p>
+          <div class="command-card">
+            <div class="command-card__header"><span>Terminal · either platform</span><button class="copy-button" type="button">Copy</button></div>
+            <pre><code>uvx cookiecutter ../../templates/retrieval-experiment --output-dir experiments</code></pre>
+          </div>
+          <p>
+            The template is also what the skill renders after the interview; the
+            difference is that the skill discovers valid choices and validates the
+            completed entrypoints.
+          </p>
+        </div>
+      </details>
+
       <pre class="file-tree">experiments/YOUR_EXPERIMENT_SLUG/
-├── <span class="highlight">experiment.md</span>                              <span class="comment">description and hypothesis</span>
-├── analysis.ipynb                           <span class="comment">prediction-level analysis</span>
-└── configs/
-    ├── <span class="highlight">base-experiment-configs/inference.yaml</span>   <span class="comment">everything shared</span>
-    └── runs/
-        ├── <span class="highlight">baseline.yaml</span>                       <span class="comment">inherits the base unchanged</span>
-        └── <span class="highlight">treatment.yaml</span>                      <span class="comment">overrides only the pipeline</span></pre>
+|-- <span class="highlight">experiment.md</span>                              <span class="comment">description, hypothesis, and run differences</span>
+|-- analysis.ipynb                           <span class="comment">prediction-level analysis</span>
++-- configs/
+    |-- base-experiment-configs/
+    |   |-- <span class="highlight">inference.yaml</span>                      <span class="comment">shared inference configuration</span>
+    |   +-- <span class="highlight">evaluation.yaml</span>                     <span class="comment">shared dataset and metrics</span>
+    +-- runs/
+        |-- <span class="highlight">baseline.yaml</span>                       <span class="comment">inherits the inference base</span>
+        |-- <span class="highlight">treatment.yaml</span>                      <span class="comment">overrides only the treatment differences</span>
+        |-- <span class="highlight">baseline-evaluation.yaml</span>            <span class="comment">evaluates the exact baseline run</span>
+        +-- <span class="highlight">treatment-evaluation.yaml</span>           <span class="comment">evaluates the exact treatment run</span></pre>
     </div>
 
     <div class="workshop-step">
-      <h3>Make the shared inputs explicit</h3>
+      <h3>Review the generated base configs and entrypoints</h3>
       <div class="semantic-block semantic-block--instruction">
-        <div class="block__label">Do this</div>
+        <div class="block__label">Inspect the generated files</div>
         <p>
-          Open the generated base inference config. Confirm the dataset, runtime,
-          embedding model, baseline pipeline, exact index ID, and retrieval depth. Add
-          the prepared input mapping so both arms consume the same controlled candidates.
+          Confirm that the inference base contains the shared dataset, runtime, embedding
+          model, baseline pipeline, exact index, input mapping, and retrieval depth.
+          Confirm that the evaluation base contains the same dataset and the target
+          metrics selected during the interview.
         </p>
         <div class="command-card">
           <div class="command-card__header"><span>experiments/YOUR_EXPERIMENT_SLUG/configs/base-experiment-configs/inference.yaml · key excerpt</span></div>
@@ -1755,35 +1803,34 @@ pipeline:
         <div class="block__label">Comparison structure</div>
         <p>
           Both entrypoints inherit the same data, model, artifact, runtime, and retrieval
-          depth. The treatment run changes only the selected pipeline. That makes the
-          intended comparison readable in version control and makes accidental
-          confounders easier to find in the resolved configs.
+          depth. The treatment run changes only the selected pipeline. The evaluation
+          entrypoints reference the exact stable inference run IDs, so each metric file
+          is paired with one declared upstream run.
         </p>
       </div>
     </div>
 
     <div class="workshop-step">
-      <h3>Complete the experiment card and launch both runs</h3>
+      <h3>Run the paired inference and evaluation entrypoints</h3>
       <div class="semantic-block semantic-block--instruction">
         <div class="block__label">Do this</div>
         <p>
-          Replace the generated experiment-card placeholders with the intervention and
-          hypothesis you wrote earlier. Then execute both explicit entrypoints. Use the
-          same command form on either platform; the paths use forward slashes.
+          The skill stops after validation. Run the two inference entrypoints first, then
+          run the two evaluation entrypoints that refer to their stable run IDs.
         </p>
         <div class="command-card">
           <div class="command-card__header"><span>Terminal · Windows and Linux</span><button class="copy-button" type="button">Copy</button></div>
           <pre><code><span class="code-note"># Windows · PowerShell</span>
-uv run stage inference `
-  --entrypoint experiments/YOUR_EXPERIMENT_SLUG/configs/runs/baseline.yaml
-uv run stage inference `
-  --entrypoint experiments/YOUR_EXPERIMENT_SLUG/configs/runs/treatment.yaml
+uv run stage inference --entrypoint experiments/YOUR_EXPERIMENT_SLUG/configs/runs/baseline.yaml
+uv run stage inference --entrypoint experiments/YOUR_EXPERIMENT_SLUG/configs/runs/treatment.yaml
+uv run stage evaluation --entrypoint experiments/YOUR_EXPERIMENT_SLUG/configs/runs/baseline-evaluation.yaml
+uv run stage evaluation --entrypoint experiments/YOUR_EXPERIMENT_SLUG/configs/runs/treatment-evaluation.yaml
 
 <span class="code-note"># Linux · Bash</span>
-uv run stage inference \
-  --entrypoint experiments/YOUR_EXPERIMENT_SLUG/configs/runs/baseline.yaml
-uv run stage inference \
-  --entrypoint experiments/YOUR_EXPERIMENT_SLUG/configs/runs/treatment.yaml</code></pre>
+uv run stage inference --entrypoint experiments/YOUR_EXPERIMENT_SLUG/configs/runs/baseline.yaml
+uv run stage inference --entrypoint experiments/YOUR_EXPERIMENT_SLUG/configs/runs/treatment.yaml
+uv run stage evaluation --entrypoint experiments/YOUR_EXPERIMENT_SLUG/configs/runs/baseline-evaluation.yaml
+uv run stage evaluation --entrypoint experiments/YOUR_EXPERIMENT_SLUG/configs/runs/treatment-evaluation.yaml</code></pre>
         </div>
       </div>
 
@@ -1800,9 +1847,9 @@ uv run stage inference \
 
     <div class="semantic-block semantic-block--checkpoint">
       <div class="block__label">Checkpoint</div>
-      <label class="task-check"><input type="checkbox" data-check="experiment-base">The experiment contains one complete base config with the exact shared index and input mapping.</label>
-      <label class="task-check"><input type="checkbox" data-check="experiment-runs">Baseline and treatment run files are minimal, and the treatment changes only the intended pipeline choice.</label>
-      <label class="task-check"><input type="checkbox" data-check="experiment-output">Both explicit inference entrypoints completed and produced separate immutable runs.</label>
+      <label class="task-check"><input type="checkbox" data-check="experiment-base">The experiment contains complete inference and evaluation base configs with no mandatory values or placeholders left unresolved.</label>
+      <label class="task-check"><input type="checkbox" data-check="experiment-runs">Inference and evaluation run files are minimal, and evaluation entries name the exact upstream inference run IDs.</label>
+      <label class="task-check"><input type="checkbox" data-check="experiment-output">Both inference and both evaluation entrypoints completed and produced separate immutable runs.</label>
     </div>
   </section>
 
@@ -1834,7 +1881,7 @@ uv run stage inference \
       <summary>Reference only · other agent skills</summary>
       <div class="reference__body">
         <ul>
-          <li><code>create-experiment-card</code> creates or reduces a concise experiment description and explicit hypothesis.</li>
+          <li><code>create-experiment</code> interviews for exact choices and scaffolds a complete experiment workspace.</li>
           <li><code>generate-experiment-report</code> produces an evidence-led report from completed configs, manifests, predictions, and metrics.</li>
           <li><code>implement-new-stage</code> adds a new artifact-producing workflow stage when component behavior is not the right abstraction.</li>
         </ul>
