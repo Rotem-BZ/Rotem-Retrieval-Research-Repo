@@ -12,6 +12,11 @@ stage:
   run_id: ${now:%Y%m%d-%H%M%S-%f}
   output_dir: ${paths.runs_dir}/${stage.name}/${stage.run_id}
   predictions_path: ${stage.output_dir}/predictions.json
+  visualization:
+    enabled: true
+    format: svg
+    theme: neutral
+    background: null
 
 selections:
   # Null means every dataset document is a candidate for every query.

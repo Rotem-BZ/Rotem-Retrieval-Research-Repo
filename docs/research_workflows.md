@@ -643,8 +643,8 @@ Every stage has a narrow contract:
 | Stage | Required inputs | Durable artifact names |
 | --- | --- | --- |
 | `prepare_mapping` | Dataset plus an `input_mapping_recipe` and run id | `input_mapping`, `input_mapping_metadata` |
-| `indexing` | Dataset plus an indexing pipeline | `index` |
-| `inference` | Dataset, inference pipeline, mapping, and any required exact index | `predictions` |
+| `indexing` | Dataset plus an indexing pipeline | `index`, `pipeline_visualization` |
+| `inference` | Dataset, inference pipeline, mapping, and any required exact index | `predictions`, `pipeline_visualization` |
 | `evaluation` | Qrels plus an exact inference run or explicit predictions path | `metrics` |
 
 Generated input mappings are stored under the prepare-mapping run id. Leaving
@@ -668,8 +668,8 @@ The artifact locations are:
 
 ```text
 artifacts/indexes/<index-id>/index.json
-artifacts/runs/indexing/<indexing-run-id>/{resolved_config.yaml,result.json,manifest.json,run.log}
-artifacts/runs/inference/<inference-run-id>/predictions.json
+artifacts/runs/indexing/<indexing-run-id>/{resolved_config.yaml,pipeline.svg,result.json,manifest.json,run.log}
+artifacts/runs/inference/<inference-run-id>/{pipeline.svg,predictions.json}
 artifacts/runs/evaluation/<evaluation-run-id>/metrics.json
 ```
 
@@ -678,6 +678,12 @@ Each saved run contains its outputs, `resolved_config.yaml`, `result.json`, a
 hash, package/Python versions, and Git commit when available, and a standard-library
 `run.log` with UTC-timestamped first-party diagnostics. Logging policy is fixed in
 code rather than stored in the experiment configuration.
+
+Indexing and inference render `pipeline.svg` offline from the resolved pipeline
+configuration before their workload starts. Successful manifests publish it as
+`pipeline_visualization`. Rendering failures are logged but do not fail the retrieval
+workload. Set `stage.visualization.enabled=false` to skip generation; `format`, `theme`,
+and `background` configure the shared renderer.
 
 `stage.run_id` is the single identifier for a stage run. It defaults to a unique,
 Hydra-override-safe timestamp such as `20260723-011220-179277` and may be set

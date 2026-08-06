@@ -11,3 +11,8 @@ stage:
   name: indexing
   run_id: ${now:%Y%m%d-%H%M%S-%f}
   output_dir: ${paths.runs_dir}/${stage.name}/${stage.run_id}
+  visualization:
+    enabled: true
+    format: svg
+    theme: neutral
+    background: null

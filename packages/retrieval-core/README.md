@@ -19,6 +19,7 @@ content is materialized when stage inputs are constructed. Shared infrastructure
 - `console`: compatibility wrappers for stage lifecycle messages
 - `evaluation`: ranking metrics
 - `io`: paths, JSON/JSONL, prediction artifacts, text, and YAML serialization
+- `pipeline_visualization`: offline run-owned pipeline diagrams
 - `logging.py`: fixed standard-library logging policy and run-file handlers
 - `pipelines`: Haystack pipeline loading
 - `hashing.py` and `time.py`: small cross-cutting primitives

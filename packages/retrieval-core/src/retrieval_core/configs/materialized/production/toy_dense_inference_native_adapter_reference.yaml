@@ -86,6 +86,11 @@ stage:
   run_id: native-adapter-reference
   output_dir: ./artifacts/runs/inference/native-adapter-reference
   predictions_path: ./artifacts/runs/inference/native-adapter-reference/predictions.json
+  visualization:
+    enabled: true
+    format: svg
+    theme: neutral
+    background: null
 runtime:
   progress_bar: false
   device:

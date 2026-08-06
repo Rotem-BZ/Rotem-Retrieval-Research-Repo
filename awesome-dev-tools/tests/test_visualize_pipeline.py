@@ -35,12 +35,7 @@ def test_visualizes_resolved_pipeline_offline_by_default(
     visualizer.main([str(config_path)])
 
     output_path = (
-        tmp_path
-        / "artifacts"
-        / "visualizations"
-        / "pipelines"
-        / "inference"
-        / "baseline.svg"
+        tmp_path / "artifacts" / "runs" / "inference" / "baseline" / "pipeline.svg"
     ).resolve()
     assert len(render_calls) == 1
     assert render_calls[0]["destination"] == output_path
@@ -60,10 +55,7 @@ def test_builds_multigraph_directly_from_pipeline_yaml() -> None:
         "label": "retriever\nDense Retriever",
     }
     assert graph.number_of_edges("input", "retriever") == 2
-    labels = {
-        data["label"]
-        for _, _, data in graph.edges("input", data=True)
-    }
+    labels = {data["label"] for _, _, data in graph.edges("input", data=True)}
     assert labels == {
         "query",
         "candidate_document_ids",

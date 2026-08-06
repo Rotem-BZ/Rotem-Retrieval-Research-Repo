@@ -174,9 +174,13 @@ def test_indexing_publishes_an_immutable_selected_index(tmp_path: Path) -> None:
     main(["indexing", *common_overrides, "stage.run_id=indexing-one"])
 
     index_path = tmp_path / "artifacts" / "indexes" / "toy-index" / "index.json"
-    manifest_path = tmp_path / "artifacts" / "runs" / "indexing" / "indexing-one" / "manifest.json"
+    run_dir = tmp_path / "artifacts" / "runs" / "indexing" / "indexing-one"
+    manifest_path = run_dir / "manifest.json"
     assert index_path.is_file()
-    manifest_inputs = read_json(manifest_path)["inputs"]
+    manifest = read_json(manifest_path)
+    manifest_inputs = manifest["inputs"]
+    assert (run_dir / "pipeline.svg").is_file()
+    assert Path(manifest["artifacts"]["pipeline_visualization"]) == run_dir / "pipeline.svg"
     assert manifest_inputs["index_id"] == "toy-index"
     assert manifest_inputs["dataset"] == "toy"
     assert manifest_inputs["documents_path"] == str(dataset_dir / "documents.jsonl")

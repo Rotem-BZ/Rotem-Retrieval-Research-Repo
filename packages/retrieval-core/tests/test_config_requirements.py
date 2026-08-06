@@ -107,10 +107,22 @@ def test_explicit_stage_selections_compose() -> None:
 
     assert indexing_cfg.dataset.name == "toy"
     assert "indexer" in indexing_cfg.pipeline.components
+    assert indexing_cfg.stage.visualization == {
+        "enabled": True,
+        "format": "svg",
+        "theme": "neutral",
+        "background": None,
+    }
     assert inference_cfg.dataset.name == "toy"
     assert "input_mapping" not in inference_cfg
     assert inference_cfg.selections.input_mapping is None
     assert "retriever" in inference_cfg.pipeline.components
+    assert inference_cfg.stage.visualization == {
+        "enabled": True,
+        "format": "svg",
+        "theme": "neutral",
+        "background": None,
+    }
     assert mapping_cfg.input_mapping_recipe.type == "generated"
     assert mapping_cfg.input_mapping_recipe.name == "dev_tiny"
     assert mapping_cfg.stage.run_id == "toy_dev_tiny"

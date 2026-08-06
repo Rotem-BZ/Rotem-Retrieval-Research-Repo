@@ -78,6 +78,11 @@ stage:
   name: indexing
   run_id: '20260705_231537'
   output_dir: ./artifacts/runs/indexing/20260705_231537
+  visualization:
+    enabled: true
+    format: svg
+    theme: neutral
+    background: null
   preserve_run_config: true
 runtime:
   progress_bar: true

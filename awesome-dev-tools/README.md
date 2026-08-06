@@ -34,10 +34,12 @@ The exposed scripts are:
   that inherits a complete config below `configs/base-experiment-configs/`.
 - `visualize_pipeline.py`: render the Haystack pipeline in a stage run's
   `resolved_config.yaml`. SVG output defaults to
-  `artifacts/visualizations/pipelines/<stage>/<run-id>.svg`, outside the immutable
-  run directory. The default NetworkX renderer reads the resolved YAML directly
-  and uses headless Matplotlib, so it needs no network service and does not
-  initialize pipeline components. Use `--output` to select another location, or
+  `artifacts/runs/<stage>/<run-id>/pipeline.svg`, alongside the immutable run's
+  config and outputs. Indexing and inference generate that SVG automatically; this
+  tool remains useful for alternate formats, themes, and explicit destinations. Its
+  default renderer is shared with `retrieval-core`, reads resolved YAML directly, and
+  uses headless Matplotlib, so it needs no network service and does not initialize
+  pipeline components. Use `--output` to select another location, or
   `--format` to render PNG, JPEG, WebP, or PDF. The optional `--renderer mermaid`
   mode uses `https://mermaid.ink` by default; point `--server-url` at a private
   Mermaid server when required. In Mermaid diagrams, stage boundary components

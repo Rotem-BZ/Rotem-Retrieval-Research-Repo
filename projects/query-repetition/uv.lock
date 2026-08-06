@@ -3725,6 +3725,8 @@ source = { editable = "../../packages/retrieval-core" }
 dependencies = [
     { name = "haystack-ai" },
     { name = "hydra-core" },
+    { name = "matplotlib" },
+    { name = "networkx" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12' or (extra == 'extra-16-query-repetition-torch-cu124-legacy' and extra == 'extra-16-query-repetition-torch-cu126')" },
     { name = "numpy", version = "2.5.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12' or (extra == 'extra-16-query-repetition-torch-cu124-legacy' and extra == 'extra-16-query-repetition-torch-cu126')" },
     { name = "omegaconf" },
@@ -3737,7 +3739,8 @@ dependencies = [
 requires-dist = [
     { name = "haystack-ai", specifier = ">=2.30,<3" },
     { name = "hydra-core", specifier = ">=1.3,<2" },
-    { name = "matplotlib", marker = "extra == 'dev'", specifier = ">=3.10,<4" },
+    { name = "matplotlib", specifier = ">=3.10,<4" },
+    { name = "networkx", specifier = ">=3.4,<4" },
     { name = "numpy", specifier = ">=2,<3" },
     { name = "omegaconf", specifier = ">=2.3,<3" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8,<9" },

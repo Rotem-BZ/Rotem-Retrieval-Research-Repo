@@ -1893,7 +1893,7 @@ uv run stage evaluation --entrypoint experiments/YOUR_EXPERIMENT_SLUG/configs/ru
       <div class="reference__body">
         <ul>
           <li><code>interactive_create_run.py</code> writes one minimal run entrypoint inheriting an experiment base config.</li>
-          <li><code>visualize_pipeline.py</code> renders the Haystack graph recorded in a run’s resolved config.</li>
+          <li><code>visualize_pipeline.py</code> re-renders the Haystack graph recorded in a run’s resolved config with optional format and theme overrides.</li>
           <li><code>interactive_run_in_parallel_screens.py</code> launches selected experiment runs through GNU Screen on Linux.</li>
           <li><code>run_in_screen.py</code> launches one detached Linux command with a persistent session log.</li>
           <li><code>kill-screens</code> closes GNU Screen sessions owned by the current Linux user.</li>
@@ -1909,9 +1909,9 @@ uv run stage evaluation --entrypoint experiments/YOUR_EXPERIMENT_SLUG/configs/ru
       <div class="chapter__number">Extra tip · 3 minutes</div>
       <h2>Visualizing a resolved pipeline</h2>
       <p class="chapter__intro">
-        <code>visualize_pipeline.py</code> reads the pipeline stored in a stage run’s
-        <code>resolved_config.yaml</code> and renders its component graph. This can be used
-        to review the final topology after Hydra composition.
+        Indexing and inference automatically render <code>pipeline.svg</code> from the
+        pipeline stored in <code>resolved_config.yaml</code>. The dev tool uses the same
+        offline renderer when you want another format, theme, or destination.
       </p>
     </header>
 
@@ -1930,9 +1930,9 @@ uv run stage evaluation --entrypoint experiments/YOUR_EXPERIMENT_SLUG/configs/ru
     <div class="semantic-block semantic-block--instruction">
       <div class="block__label">Create this visualization · query-repetition project</div>
       <p>
-        Run the command from <code>projects/query-repetition</code>. By default, the tool
-        writes the SVG below <code>artifacts/visualizations/pipelines/</code> using the
-        stage name and run ID from the resolved configuration.
+        The stage has already written <code>pipeline.svg</code> in its run folder. Run this
+        command from <code>projects/query-repetition</code> to regenerate it, or add
+        <code>--format png</code>, <code>--theme dark</code>, or <code>--output</code> for a variant.
       </p>
       <div class="command-card">
         <div class="command-card__header"><span>Terminal · Windows and Linux</span><button class="copy-button" type="button">Copy</button></div>
