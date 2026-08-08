@@ -24,3 +24,9 @@ multirun/
 .env
 .env.*
 !.env.example
+
+.pytest-tmp/
+.pytest-env*/
+.frontend-slides/
+skill-drafts/
+codex-desktop-migration*

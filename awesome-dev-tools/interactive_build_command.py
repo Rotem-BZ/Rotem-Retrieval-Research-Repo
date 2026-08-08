@@ -3,15 +3,15 @@
 from __future__ import annotations
 
 import argparse
-import base64
 import json
 import os
+import platform
 import re
-import sys
+import shutil
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, TextIO
+from typing import Any
 
 import pyperclip
 from omegaconf import OmegaConf
@@ -36,6 +36,8 @@ from retrieval_core.utils.io import project_path, read_yaml_mapping
 InputFn = Callable[[str], str]
 OutputFn = Callable[[str], None]
 ClipboardCopyFn = Callable[[str], None]
+ClipboardGuidanceFn = Callable[[], Sequence[str]]
+ExecutableLookupFn = Callable[[str], str | None]
 
 # Keep in sync with retrieval_core.stages.STAGES without importing stage runtimes.
 STAGE_NAMES = ("evaluation", "indexing", "inference", "prepare_mapping")
@@ -207,52 +209,77 @@ def _copy_command_to_clipboard(
     *,
     copy_fn: ClipboardCopyFn,
     output_fn: OutputFn,
-    terminal_copy_fn: ClipboardCopyFn | None = None,
+    guidance_fn: ClipboardGuidanceFn | None = None,
 ) -> None:
-    """Copy a command, falling back to the local terminal over remote sessions."""
+    """Copy a command with pyperclip and explain unavailable Linux backends."""
 
-    terminal_copy_fn = terminal_copy_fn or _copy_command_via_terminal
     try:
         copy_fn(command)
     except pyperclip.PyperclipException as exc:
-        try:
-            terminal_copy_fn(command)
-        except (OSError, RuntimeError) as terminal_exc:
-            output_fn(
-                "Could not copy command to clipboard: "
-                f"{exc} Terminal fallback unavailable: {terminal_exc}"
-            )
-        else:
-            output_fn("Command copied to clipboard via terminal.")
+        output_fn(f"Could not copy command to clipboard: {exc}")
+        guidance_fn = guidance_fn or _clipboard_setup_guidance
+        for line in guidance_fn():
+            output_fn(f"  {line}")
     else:
         output_fn("Command copied to clipboard.")
 
 
-def _copy_command_via_terminal(
-    command: str,
+def _clipboard_setup_guidance(
     *,
-    stream: TextIO | None = None,
+    system_name: str | None = None,
     environment: Mapping[str, str] | None = None,
-) -> None:
-    """Ask the terminal emulator to copy text with the OSC 52 escape sequence."""
+    executable_lookup: ExecutableLookupFn = shutil.which,
+) -> tuple[str, ...]:
+    """Return actionable diagnostics for pyperclip on Linux."""
 
-    stream = stream or sys.stdout
-    if not stream.isatty():
-        raise RuntimeError("standard output is not an interactive terminal")
+    system_name = platform.system() if system_name is None else system_name
+    if system_name != "Linux":
+        return ()
 
     environment = os.environ if environment is None else environment
-    encoded = base64.b64encode(command.encode("utf-8")).decode("ascii")
-    osc52 = f"\x1b]52;c;{encoded}\x07"
+    display = bool(environment.get("DISPLAY"))
+    wayland_display = bool(environment.get("WAYLAND_DISPLAY"))
+    installed = {
+        name: executable_lookup(name) is not None
+        for name in ("xclip", "xsel", "wl-copy", "wl-paste")
+    }
+    backend_summary = ", ".join(
+        f"{name}={'installed' if available else 'missing'}"
+        for name, available in installed.items()
+    )
+    diagnostics = [
+        "Linux clipboard diagnostics: "
+        f"DISPLAY={'set' if display else 'unset'}, "
+        f"WAYLAND_DISPLAY={'set' if wayland_display else 'unset'}; "
+        f"{backend_summary}."
+    ]
 
-    if environment.get("TMUX"):
-        sequence = f"\x1bPtmux;\x1b{osc52}\x1b\\"
-    elif environment.get("STY") or environment.get("TERM", "").startswith("screen"):
-        sequence = f"\x1bP{osc52}\x1b\\"
+    if not display and not wayland_display:
+        diagnostics.extend(
+            [
+                "No graphical clipboard session is available. Installing xclip alone "
+                "is insufficient because pyperclip cannot copy through a plain SSH terminal.",
+                "To use xclip remotely, run an X server locally, install xauth and xclip "
+                "on the server, and reconnect with `ssh -X` so DISPLAY is set.",
+                "Verify the session with `printf test | xclip -selection clipboard`.",
+            ]
+        )
+    elif wayland_display and not (installed["wl-copy"] and installed["wl-paste"]):
+        diagnostics.append(
+            "WAYLAND_DISPLAY is set; install the wl-clipboard package to provide "
+            "both wl-copy and wl-paste."
+        )
+    elif display and not (installed["xclip"] or installed["xsel"]):
+        diagnostics.append(
+            "DISPLAY is set; install xclip (recommended) or xsel on the server."
+        )
     else:
-        sequence = osc52
+        diagnostics.append(
+            "A clipboard backend appears available; test it directly and verify that "
+            "the DISPLAY or WAYLAND_DISPLAY socket is reachable from this shell."
+        )
 
-    stream.write(sequence)
-    stream.flush()
+    return tuple(diagnostics)
 
 
 def main(argv: Sequence[str] | None = None) -> None:

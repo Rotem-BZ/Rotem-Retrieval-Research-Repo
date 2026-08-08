@@ -9,6 +9,18 @@ description = "Internal Hydra-driven orchestration for retrieval experiments."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
+authors = [{ name = "Rotem-BZ" }]
+keywords = ["haystack", "hydra", "retrieval", "experiment-orchestration", "nlp"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 dependencies = [
   "haystack-ai>=2.30,<3",
   "hydra-core>=1.3,<2",
@@ -21,8 +33,14 @@ dependencies = [
   "tqdm>=4.66,<5",
 ]
 
+[project.urls]
+Repository = "https://github.com/Rotem-BZ/Rotem-Retrieval-Research-Repo"
+Issues = "https://github.com/Rotem-BZ/Rotem-Retrieval-Research-Repo/issues"
+
 [project.optional-dependencies]
 dev = [
+  "pandas>=2.2,<4",
+  "pyperclip>=1.8,<2",
   "pytest>=8,<9",
   "retrieval-components==0.1.0",
   "ruff>=0.8,<1",

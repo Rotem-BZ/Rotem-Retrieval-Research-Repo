@@ -15,7 +15,7 @@ from _internal.experiment_models import (
     write_run_definition,
 )
 from _internal.experiment_worker import wait_for_predecessor
-from interactive_create_run import split_run_overrides
+from interactive_create_run import create_run, split_run_overrides
 from omegaconf import OmegaConf
 from retrieval_core.utils.artifacts import run_manifest
 
@@ -25,6 +25,7 @@ def test_run_definitions_are_minimal_hydra_configs_and_compose(tmp_path: Path) -
     definition = write_run_definition(
         experiment / "configs" / "runs" / "baseline.yaml",
         base_config="base-experiment-configs/indexing",
+        stage_run_id="explicit-indexing-baseline",
     )
 
     plan = load_plan(experiment)
@@ -33,14 +34,15 @@ def test_run_definitions_are_minimal_hydra_configs_and_compose(tmp_path: Path) -
     assert definition.read_text(encoding="utf-8") == (
         "# @package _global_\ndefaults:\n"
         "- /base-experiment-configs/indexing\n- _self_\n"
+        "stage:\n  run_id: explicit-indexing-baseline\n"
     )
     assert run.name == "baseline"
     assert run.stage_name == "indexing"
-    assert run.stage_run_id == "example--baseline"
+    assert run.stage_run_id == "explicit-indexing-baseline"
     assert (
         run.output_dir
         == (
-            tmp_path / "artifacts" / "runs" / "indexing" / "example--baseline"
+            tmp_path / "artifacts" / "runs" / "indexing" / "explicit-indexing-baseline"
         ).resolve()
     )
     command = render_hydra_command(run)
@@ -55,12 +57,26 @@ def test_run_definition_can_override_only_changed_fields(tmp_path: Path) -> None
     write_run_definition(
         experiment / "configs" / "runs" / "smaller.yaml",
         base_config="base-experiment-configs/indexing",
+        stage_run_id="custom-smaller",
         fields={"runtime": {"concurrency_limit": 2}},
     )
 
     run = load_plan(experiment).runs[0]
     assert run.name == "smaller"
-    assert run.stage_run_id == "example--smaller"
+    assert run.stage_run_id == "custom-smaller"
+
+
+def test_plan_rejects_duplicate_run_ids_within_one_stage(tmp_path: Path) -> None:
+    experiment = _experiment(tmp_path)
+    for name in ("one", "two"):
+        write_run_definition(
+            experiment / "configs" / "runs" / f"{name}.yaml",
+            base_config="base-experiment-configs/indexing",
+            stage_run_id="duplicate-indexing-id",
+        )
+
+    with pytest.raises(ValueError, match="unique stage.run_id"):
+        load_plan(experiment)
 
 
 def test_create_run_splits_group_selections_from_value_fields(tmp_path: Path) -> None:
@@ -84,11 +100,25 @@ def test_create_run_splits_group_selections_from_value_fields(tmp_path: Path) ->
     )
     assert fields == {"runtime": {"concurrency_limit": 2}}
 
-    with pytest.raises(ValueError, match="launcher-controlled"):
+    with pytest.raises(ValueError, match="dedicated run-id prompt"):
         split_run_overrides(
             ("stage.run_id=manual",),
             config_dir=experiment / "configs",
         )
+
+
+def test_create_run_records_suggested_stage_run_id(tmp_path: Path) -> None:
+    experiment = _experiment(tmp_path)
+    answers = iter(("1", "baseline", "", ""))
+
+    definition = create_run(
+        experiment_dir=experiment,
+        input_fn=lambda _prompt: next(answers),
+        output_fn=lambda _message: None,
+    )
+
+    assert "run_id: example--baseline" in definition.read_text(encoding="utf-8")
+    assert load_plan(experiment).runs[0].stage_run_id == "example--baseline"
 
 
 def test_parse_selection_supports_numbers_ranges_and_status_aliases(
@@ -270,6 +300,7 @@ def _write_indexing_run(experiment: Path, name: str) -> Path:
     return write_run_definition(
         experiment / "configs" / "runs" / f"{name}.yaml",
         base_config="base-experiment-configs/indexing",
+        stage_run_id=f"{experiment.name}--{name}",
     )
 
 

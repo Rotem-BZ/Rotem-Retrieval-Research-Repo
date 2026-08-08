@@ -3,3 +3,6 @@ defaults:
   - /base-experiment-configs/inference
   - override /pipeline/inference@pipeline: query_repetition/dense_query_repetition
   - _self_
+
+stage:
+  run_id: query-repetition-e5-small-toy--repeated

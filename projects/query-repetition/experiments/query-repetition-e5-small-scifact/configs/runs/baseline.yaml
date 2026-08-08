@@ -2,3 +2,6 @@
 defaults:
   - /base-experiment-configs/inference
   - _self_
+
+stage:
+  run_id: query-repetition-e5-small-scifact--baseline

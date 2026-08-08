@@ -1,4 +1,4 @@
 interface:
   display_name: "Generate Experiment Report"
-  short_description: "Turn run artifacts into an evidence-led report"
-  default_prompt: "Use $generate-experiment-report to report the results of completed experiment runs."
+  short_description: "Export concise results from saved run artifacts"
+  default_prompt: "Use $generate-experiment-report to export a concise HTML report for this completed experiment."

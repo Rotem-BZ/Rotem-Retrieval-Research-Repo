@@ -3,3 +3,6 @@ defaults:
   - /base-experiment-configs/inference
   - override /pipeline/inference@pipeline: {{ cookiecutter.treatment_pipeline }}
   - _self_
+
+stage:
+  run_id: {{ cookiecutter.experiment_slug }}--treatment

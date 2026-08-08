@@ -33,7 +33,10 @@ def write_json(path: Path, payload: object) -> None:
     path.write_text(json.dumps(payload), encoding="utf-8")
 
 
-def test_analysis_notebook_joins_qrels_and_summarizes_queries(tmp_path: Path) -> None:
+def test_analysis_notebook_joins_qrels_and_summarizes_queries(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.chdir(NOTEBOOK_PATH.parents[2])
     namespace = load_notebook_namespace(NOTEBOOK_PATH)
     runs_dir = tmp_path / "artifacts" / "runs" / "inference"
     predictions_path = runs_dir / "run-1" / "predictions.json"

@@ -13,8 +13,10 @@ from hydra.core.global_hydra import GlobalHydra
 from omegaconf import DictConfig
 from omegaconf import OmegaConf
 
+from retrieval_core.utils.artifacts import validate_run_id
 from retrieval_core.utils.config.searchpath import use_config_fallbacks
 from retrieval_core.utils.io.paths import find_git_root
+from retrieval_core.utils.io.yaml import read_yaml_mapping
 
 
 @dataclass(frozen=True)
@@ -109,12 +111,14 @@ def compose_stage_config(
     )
     resolved_config_name = _resolve_entry_config_name(config_name, roots)
     run_name = _experiment_run_name(resolved_config_name)
+    declared_run_id: str | None = None
     if run_name is not None:
         if experiment is None:
             raise ValueError("Run configs require experiment_dir.")
         run_file = experiment / "configs" / "runs" / f"{run_name}.yaml"
         if not run_file.is_file():
             raise FileNotFoundError(f"Experiment run config does not exist: {run_file}")
+        declared_run_id = _declared_experiment_run_id(run_file)
     fallbacks = [
         (f"retrieval-config-{index}", _config_uri(path))
         for index, path in enumerate(roots[1:], start=1)
@@ -132,7 +136,13 @@ def compose_stage_config(
 
     if run_name is not None:
         assert experiment is not None
-        _apply_experiment_run_identity(cfg, experiment=experiment, run_name=run_name)
+        assert declared_run_id is not None
+        _apply_experiment_run_metadata(
+            cfg,
+            experiment=experiment,
+            run_name=run_name,
+            declared_run_id=declared_run_id,
+        )
     return cfg
 
 
@@ -272,27 +282,43 @@ def _resolve_entry_config_name(config_name: str, roots: Sequence[Path]) -> str:
     return normalized
 
 
-def _apply_experiment_run_identity(
+def _declared_experiment_run_id(run_file: Path) -> str:
+    run_config = read_yaml_mapping(run_file)
+    stage = run_config.get("stage")
+    if not isinstance(stage, dict) or "run_id" not in stage:
+        raise ValueError(
+            "Experiment run configs must define stage.run_id directly in the run file: "
+            f"{run_file}"
+        )
+    run_id = stage["run_id"]
+    if not isinstance(run_id, str):
+        raise ValueError(
+            f"Experiment stage.run_id must be a string in {run_file}, got {run_id!r}."
+        )
+    return validate_run_id(run_id)
+
+
+def _apply_experiment_run_metadata(
     cfg: DictConfig,
     *,
     experiment: Path,
     run_name: str,
+    declared_run_id: str,
 ) -> None:
     project_root = _project_root_for_experiment(experiment)
     experiment_id = _slugify(experiment.name, fallback="experiment")
     normalized_run_name = _slugify(run_name, fallback="run")
+    composed_run_id = validate_run_id(OmegaConf.select(cfg, "stage.run_id"))
+    if composed_run_id != declared_run_id:
+        raise ValueError(
+            "Experiment stage.run_id may not be overridden at composition time: "
+            f"declared {declared_run_id!r}, composed {composed_run_id!r}."
+        )
     parameters = OmegaConf.select(cfg, "experiment.parameters", default={})
     OmegaConf.update(
         cfg,
         "paths.project_root",
         project_root.as_posix(),
-        merge=False,
-        force_add=True,
-    )
-    OmegaConf.update(
-        cfg,
-        "stage.run_id",
-        f"{experiment_id}--{normalized_run_name}",
         merge=False,
         force_add=True,
     )

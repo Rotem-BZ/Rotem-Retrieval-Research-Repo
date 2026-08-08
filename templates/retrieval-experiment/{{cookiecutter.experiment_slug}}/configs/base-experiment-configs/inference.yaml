@@ -4,7 +4,7 @@ defaults:
   - override /dataset: {{ cookiecutter.dataset_config }}
   - override /pipeline/inference@pipeline: {{ cookiecutter.baseline_pipeline }}
   - override /selections/embedding_model@selections.embedding_model: {{ cookiecutter.embedding_model }}
-  - override /runtime: cpu
+  - override /runtime: {{ cookiecutter.runtime_config }}
   - _self_
 
 selections:
@@ -14,4 +14,4 @@ pipeline:
   components:
     retriever:
       init_parameters:
-        top_k: 100
+        top_k: {{ cookiecutter.retrieval_top_k }}

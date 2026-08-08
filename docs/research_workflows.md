@@ -30,17 +30,16 @@ of isolated commands:
    `configs/runs/` directory.
 7. Run inference and evaluation with immutable, exact run ids. Large stage artifacts
    remain below `artifacts/runs/`; their manifests link back to the experiment.
-8. Inspect aggregate and query-level behavior in the experiment's `analysis.ipynb`,
-   then write `report.md` beside the card from manifests, resolved configs, results,
-   predictions, and metrics—not from remembered commands.
+8. Inspect saved metrics and predictions in the experiment's `analysis.ipynb`, then
+   export `report.html` beside it with `awesome-dev-tools/export_experiment_report.py`.
 
 Repository-local agent skills support the same lifecycle:
 
-- `create-experiment-card` records a concise experiment description and a
-  user-supplied hypothesis.
+- `create-experiment` interviews for exact choices and scaffolds the card, shared
+  configs, run entrypoints, and analysis notebook.
 - `implement-new-component` adds reusable Haystack behavior.
 - `implement-new-stage` adds a new artifact-producing workflow phase.
-- `generate-experiment-report` checks provenance and reports completed results.
+- `generate-experiment-report` exports concise completed results from saved artifacts.
 
 ## Repository Structure
 
@@ -714,19 +713,18 @@ labels; Recall, Precision, HitRate, MAP, and MRR use binary relevance. Record
 the exact metric list in versioned experiment configuration before inspecting
 results, and use the same list for every run in a comparison.
 
-For query-level analysis, open the experiment's `analysis.ipynb`, configure readable
-labels and exact inference run ids, and run the cells. The notebook resolves
-predictions through each run manifest, joins qrels, and creates:
+For analysis, open the experiment's `analysis.ipynb`, configure readable labels and
+exact inference and evaluation run ids, and run the cells. Shared helpers in
+`retrieval_core.utils.analysis` resolve artifacts through manifests and create:
 
 - `predictions_df`: one row per retrieved result, including run, query, rank,
   score, content, metadata, source document id, and relevance;
 - `query_summary_df`: one row per run and query, including retrieval depth,
   relevant counts, first relevant rank, reciprocal rank, recall, and query lengths.
 
-Add plots below the preparation cells so plot selection remains specific to the
-research question while loading and joining stay reproducible. Do not save large
-cell outputs in Git; the repository's `nbstripout` configuration removes them
-from commits.
+The helpers also provide aggregate metric tables, grouped metric bars, and paired
+per-query plots. Keep experiment-specific narrative and diagnostics in the notebook.
+The repository's `nbstripout` configuration removes notebook outputs from commits.
 
 Before interpreting a baseline-versus-treatment delta, verify:
 
@@ -737,12 +735,16 @@ Before interpreting a baseline-versus-treatment delta, verify:
 - the intended resolved-config difference after ignoring dynamic run/output fields;
 - Git commit, Python version, and installed package versions from each manifest.
 
-Reports belong beside their experiment card as
-`projects/<project>/experiments/<experiment-slug>/report.md`. Link exact stage run
-directories, calculate deltas as treatment minus baseline, distinguish observations
-from interpretations, and report provenance mismatches or missing artifacts. A
-single run on one dataset supports an exploratory result, not a claim of statistical
-significance or broad generalization.
+Export the executed notebook from the project root without modifying its stripped
+source:
+
+```shell
+uv run python ../../awesome-dev-tools/export_experiment_report.py experiments/<experiment-slug>
+```
+
+This writes `report.html` beside `analysis.ipynb`. A single run on one dataset
+supports an exploratory result, not a claim of statistical significance or broad
+generalization.
 
 ## Mixing Configs
 
@@ -905,7 +907,7 @@ hyperparameter sweep, or a single run. Its layout is:
 projects/<project>/experiments/<experiment-slug>/
 ├── experiment.md
 ├── analysis.ipynb
-├── report.md                    # added after results exist
+├── report.html                  # exported after results exist
 └── configs/
     ├── base-experiment-configs/
     │   └── inference.yaml       # complete shared experiment configuration
@@ -939,6 +941,9 @@ The baseline run is only an entry layer:
 defaults:
   - /base-experiment-configs/inference
   - _self_
+
+stage:
+  run_id: <experiment-slug>--baseline
 ```
 
 The treatment adds only its differing Hydra selection:
@@ -949,6 +954,9 @@ defaults:
   - /base-experiment-configs/inference
   - override /pipeline/inference@pipeline: my_project/treatment_pipeline
   - _self_
+
+stage:
+  run_id: <experiment-slug>--treatment
 ```
 
 Create these files directly or use the interactive command builder:
@@ -957,7 +965,9 @@ Create these files directly or use the interactive command builder:
 uv run python ../../awesome-dev-tools/interactive_create_run.py experiments/<experiment-slug>
 ```
 
-The filename becomes the run name. Run definitions must be direct YAML children of
+The filename becomes the experiment run name. Each run file must also declare its
+exact, immutable `stage.run_id`; the interactive creator suggests
+`<experiment-slug>--<run-name>`. Run definitions must be direct YAML children of
 `configs/runs/`. Their defaults are composed with this search order:
 `<experiment>/configs/`, `<project>/configs/`, then the configs packaged by
 `retrieval-core`. Launch a selected run by passing its YAML file as the entrypoint:
@@ -966,8 +976,9 @@ The filename becomes the run name. Run definitions must be direct YAML children 
 uv run stage inference --entrypoint experiments/<experiment-slug>/configs/runs/baseline.yaml
 ```
 
-The runtime derives the project root, stable run ID, and experiment manifest metadata
-from the entrypoint path and run filename; run files may not override those fields.
+The runtime preserves the declared run ID and derives the project root and experiment
+manifest metadata from the entrypoint path and run filename. Ordinary stage commands
+outside experiments retain their timestamp-based run ID default.
 Resolved configs and heavy outputs remain under `artifacts/runs/<stage>/<run-id>/`.
 Launcher status and Screen logs live under
 `artifacts/experiments/<experiment>/<run>/`, keeping the experiment workspace

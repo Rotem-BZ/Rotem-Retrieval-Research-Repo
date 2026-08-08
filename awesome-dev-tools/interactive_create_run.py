@@ -15,6 +15,7 @@ from _internal.experiment_models import (
     slugify,
     write_run_definition,
 )
+from retrieval_core.utils.artifacts import validate_run_id
 from retrieval_core.utils.config import config_roots
 
 InputFn = Callable[[str], str]
@@ -68,6 +69,9 @@ def create_run(
     entered_name = input_fn("Run name: ").strip()
     run_name = slugify(entered_name, fallback="run")
     path = runs_dir / f"{run_name}.yaml"
+    suggested_run_id = f"{slugify(directory.name, fallback='experiment')}--{run_name}"
+    entered_run_id = input_fn(f"Stage run id [{suggested_run_id}]: ").strip()
+    stage_run_id = validate_run_id(entered_run_id or suggested_run_id)
     output_fn(
         "Add only differences from the base as Hydra overrides. Press Enter when done."
     )
@@ -81,6 +85,7 @@ def create_run(
     write_run_definition(
         path,
         base_config=base_config,
+        stage_run_id=stage_run_id,
         group_overrides=group_overrides,
         fields=fields,
     )
@@ -112,6 +117,10 @@ def split_run_overrides(
             raise ValueError(f"Hydra override must contain '=': {override!r}")
         key, value = override.split("=", 1)
         normalized_key = key.lstrip("+~")
+        if normalized_key == "stage.run_id":
+            raise ValueError(
+                "Set stage.run_id through the dedicated run-id prompt, not as an override."
+            )
         if _is_launcher_controlled(normalized_key):
             raise ValueError(
                 f"Run config cannot set launcher-controlled field {key!r}."
@@ -138,7 +147,6 @@ def _is_config_group_choice(key: str, value: str, *, config_dir: Path) -> bool:
 def _is_launcher_controlled(key: str) -> bool:
     return key in {
         "paths.project_root",
-        "stage.run_id",
         "experiment",
     } or key.startswith("experiment.")
 

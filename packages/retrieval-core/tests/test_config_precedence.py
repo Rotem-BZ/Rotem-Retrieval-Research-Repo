@@ -1,4 +1,7 @@
+import re
 from pathlib import Path
+
+import pytest
 
 from retrieval_core.utils.config import (
     compose_entrypoint_config,
@@ -24,6 +27,17 @@ def test_bare_stage_name_resolves_to_stages_group() -> None:
     assert explicit.stage.name == bare.stage.name
     assert explicit.dataset == bare.dataset
     assert explicit.pipeline == bare.pipeline
+
+
+def test_non_experiment_stage_keeps_timestamp_default_and_allows_override() -> None:
+    generated = compose_stage_config("evaluation", ["dataset=toy"])
+    explicit = compose_stage_config(
+        "evaluation",
+        ["dataset=toy", "stage.run_id=manual-evaluation"],
+    )
+
+    assert re.fullmatch(r"\d{8}-\d{6}-\d{6}", str(generated.stage.run_id))
+    assert explicit.stage.run_id == "manual-evaluation"
 
 
 def test_paths_expose_git_root_and_use_its_data_directory(
@@ -146,6 +160,9 @@ selections:
 defaults:
   - /base-experiment-configs/inference
   - _self_
+
+stage:
+  run_id: explicit-baseline
 """,
         encoding="utf-8",
     )
@@ -161,9 +178,29 @@ defaults:
     assert cfg.stage.name == "inference"
     assert cfg.dataset.name == "toy"
     assert cfg.runtime.device.device == "cpu"
-    assert cfg.stage.run_id == "example--baseline"
+    assert cfg.stage.run_id == "explicit-baseline"
     assert cfg.experiment.run_name == "baseline"
     assert Path(cfg.paths.project_root) == project.resolve()
+
+    with pytest.raises(ValueError, match="may not be overridden"):
+        compose_entrypoint_config(entrypoint, ["stage.run_id=other-id"])
+
+
+def test_experiment_run_config_requires_direct_stage_run_id(tmp_path: Path) -> None:
+    run_file = (
+        tmp_path
+        / "project"
+        / "experiments"
+        / "example"
+        / "configs"
+        / "runs"
+        / "missing.yaml"
+    )
+    run_file.parent.mkdir(parents=True)
+    run_file.write_text("defaults:\n  - _self_\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="must define stage.run_id directly"):
+        compose_entrypoint_config(run_file)
 
 
 def test_entrypoint_must_be_yaml_below_configs(tmp_path: Path) -> None:

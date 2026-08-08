@@ -1837,10 +1837,10 @@ uv run stage evaluation --entrypoint experiments/YOUR_EXPERIMENT_SLUG/configs/ru
       <div class="semantic-block semantic-block--explanation">
         <div class="block__label">Stable run identities</div>
         <p>
-          The entrypoint path identifies the project and experiment. R4 derives stable
-          run IDs from the experiment and run filenames, while the generated YAML remains
-          a small declarative layer suitable for Git. Heavy outputs continue to live
-          below <code>artifacts/runs/</code>.
+          The entrypoint path identifies the project and experiment. Each checked-in run
+          YAML declares its stable <code>stage.run_id</code> explicitly, while remaining
+          a small declarative layer suitable for Git. Heavy outputs continue to live below
+          <code>artifacts/runs/</code>.
         </p>
       </div>
     </div>

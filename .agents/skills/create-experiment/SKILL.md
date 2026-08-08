@@ -41,7 +41,8 @@ Render `templates/retrieval-experiment` with the confirmed values. Prefer Cookie
 
 - Make base configs complete and directly composable.
 - Keep run entrypoints minimal: they contain only their base include and true differences.
-- Do not put launcher-controlled `stage.run_id`, `paths.project_root`, or `experiment.*` values in run files.
+- Put an explicit, unique `stage.run_id` directly in every run file. Keep
+  launcher-controlled `paths.project_root` and `experiment.*` values out of run files.
 - Make evaluation entries reference the exact upstream inference run IDs.
 - Limit `experiment.md` to the short description, user-supplied hypothesis, and a run-difference table derived from the files created.
 - Copy the analysis notebook and align its run labels and target metrics with the confirmed design.
@@ -49,6 +50,6 @@ Render `templates/retrieval-experiment` with the confirmed values. Prefer Cookie
 
 ## Validate and report
 
-Compose every run entrypoint with `retrieval_core.utils.config.compose_entrypoint_config`. Verify that no mandatory value is missing, evaluation inputs use exact run IDs, and no placeholder such as `REPLACE_WITH_EXACT_INDEX_ID` remains.
+Compose every run entrypoint with `retrieval_core.utils.config.compose_entrypoint_config`. Verify that each run file directly declares its composed `stage.run_id`, no mandatory value is missing, evaluation inputs use exact run IDs, and no placeholder such as `REPLACE_WITH_EXACT_INDEX_ID` remains.
 
 Report the created paths and the selected choices. Do not launch the experiment.

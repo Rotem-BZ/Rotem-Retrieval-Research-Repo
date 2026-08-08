@@ -10,6 +10,7 @@ from retrieval_core.utils.artifacts.runs import (
     artifact_for_run,
     discover_inference_run_ids,
     run_manifest,
+    validate_run_id,
 )
 
 __all__ = [
@@ -20,4 +21,5 @@ __all__ = [
     "index_artifact_path",
     "run_manifest",
     "validate_index_id",
+    "validate_run_id",
 ]

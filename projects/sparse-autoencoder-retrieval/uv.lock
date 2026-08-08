@@ -1658,6 +1658,7 @@ requires-dist = [
     { name = "networkx", specifier = ">=3.4,<4" },
     { name = "numpy", specifier = ">=2,<3" },
     { name = "omegaconf", specifier = ">=2.3,<3" },
+    { name = "pandas", marker = "extra == 'dev'", specifier = ">=2.2,<4" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8,<9" },
     { name = "pyyaml", specifier = ">=6,<7" },
     { name = "retrieval-components", marker = "extra == 'dev'", editable = "../../packages/retrieval-components" },

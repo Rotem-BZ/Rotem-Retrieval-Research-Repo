@@ -57,7 +57,7 @@ def discover_inference_run_ids(
         if _inference_run_dataset(directory, manifest) != str(dataset_name):
             continue
         try:
-            run_ids.append(_validate_run_id(directory.name))
+            run_ids.append(validate_run_id(directory.name))
         except ValueError:
             continue
     return sorted(run_ids)
@@ -81,7 +81,9 @@ def _inference_run_dataset(directory: Path, manifest: dict[str, Any]) -> str | N
     return str(dataset["name"])
 
 
-def _validate_run_id(run_id: object) -> str:
+def validate_run_id(run_id: object) -> str:
+    """Return a normalized run id that is safe as one directory name."""
+
     normalized = str(run_id).strip()
     if (
         not normalized
@@ -102,7 +104,7 @@ def artifact_for_run(
 ) -> Path:
     """Resolve an artifact from an exact upstream run manifest."""
 
-    normalized = _validate_run_id(run_id)
+    normalized = validate_run_id(run_id)
     directory = project_path(cfg.paths.runs_dir) / stage_name / normalized
     if not directory.is_dir():
         raise FileNotFoundError(f"No {stage_name} run exists with id {run_id!r}: {directory}")

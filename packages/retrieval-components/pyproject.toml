@@ -9,12 +9,29 @@ description = "Reusable Haystack components for retrieval research projects."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
+authors = [{ name = "Rotem-BZ" }]
+keywords = ["haystack", "retrieval", "information-retrieval", "search", "nlp"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 dependencies = [
   "haystack-ai>=2.30,<3",
   "langchain-text-splitters>=0.3,<1",
   "numpy>=2,<3",
   "sentence-transformers>=4.1,<5",
 ]
+
+[project.urls]
+Repository = "https://github.com/Rotem-BZ/Rotem-Retrieval-Research-Repo"
+Issues = "https://github.com/Rotem-BZ/Rotem-Retrieval-Research-Repo/issues"
+
 
 [project.optional-dependencies]
 elasticsearch = [

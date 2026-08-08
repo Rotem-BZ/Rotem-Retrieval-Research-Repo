@@ -12,6 +12,7 @@ import yaml
 from omegaconf import OmegaConf
 
 from retrieval_core.stages import STAGES
+from retrieval_core.utils.artifacts import validate_run_id
 from retrieval_core.utils.config import compose_entrypoint_config
 from retrieval_core.utils.io import read_json, write_json_atomic
 
@@ -59,6 +60,17 @@ def load_plan(experiment_dir: str | Path) -> ExperimentPlan:
         )
         for index, path in enumerate(definition_files, start=1)
     )
+    seen_run_ids: dict[tuple[str, str], Path] = {}
+    for run in runs:
+        key = (run.stage_name, run.stage_run_id)
+        previous = seen_run_ids.get(key)
+        if previous is not None:
+            raise ValueError(
+                f"Experiment runs must use unique stage.run_id values per stage: "
+                f"{previous} and {run.definition_file} both select "
+                f"{run.stage_name}/{run.stage_run_id}."
+            )
+        seen_run_ids[key] = run.definition_file
     return ExperimentPlan(
         experiment_id=experiment_id,
         name=directory.name,
@@ -102,6 +114,7 @@ def write_run_definition(
     path: Path,
     *,
     base_config: str,
+    stage_run_id: str,
     group_overrides: tuple[tuple[str, str], ...] = (),
     fields: dict[str, Any] | None = None,
 ) -> Path:
@@ -122,6 +135,10 @@ def write_run_definition(
     defaults.append("_self_")
     payload: dict[str, Any] = {"defaults": defaults}
     payload.update(fields or {})
+    stage = payload.setdefault("stage", {})
+    if not isinstance(stage, dict):
+        raise ValueError("Run fields must keep stage as a YAML mapping.")
+    stage["run_id"] = validate_run_id(stage_run_id)
     contents = "# @package _global_\n" + yaml.safe_dump(payload, sort_keys=False)
     path.write_text(contents, encoding="utf-8")
     return path

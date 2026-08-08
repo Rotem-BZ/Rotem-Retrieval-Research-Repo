@@ -6,6 +6,7 @@ runtime package. Run them through the active research project's `uv` environment
 ```shell
 uv run python ../../awesome-dev-tools/interactive_build_command.py
 uv run python ../../awesome-dev-tools/interactive_create_run.py experiments/<experiment-slug>
+uv run python ../../awesome-dev-tools/export_experiment_report.py experiments/<experiment-slug>
 uv run python ../../awesome-dev-tools/visualize_pipeline.py artifacts/runs/inference/<run-id>/resolved_config.yaml
 uv run python ../../awesome-dev-tools/run_in_screen.py --name toy-index -- uv run stage indexing dataset=toy
 uv run python ../../awesome-dev-tools/interactive_run_in_parallel_screens.py
@@ -26,12 +27,18 @@ The exposed scripts are:
   an experiment, choices are resolved from experiment configs, then project
   configs, then the configs packaged by `retrieval-core`. Pass `--config-dir
   <path>` to select a config tree explicitly. The final command is copied to the
-  clipboard. It first uses the operating system clipboard through `pyperclip`. In
-  a headless SSH session, where tools such as `xclip` cannot work without an X
-  display, it falls back to the OSC 52 terminal protocol so the clipboard belongs
-  to the local terminal. The terminal emulator must permit OSC 52 clipboard access.
+  clipboard through `pyperclip`. On Linux, pyperclip needs either a Wayland session
+  with `wl-clipboard`, or an X11 session with `xclip`/`xsel`. A plain SSH terminal
+  has no graphical clipboard even when `xclip` is installed. To use the local
+  clipboard over SSH, run an X server locally, install `xauth` and `xclip` on the
+  server, and connect with `ssh -X`; verify that `$DISPLAY` is set before running
+  the builder. Clipboard failures print diagnostics for the active session.
 - `interactive_create_run.py`: write one minimal Hydra `configs/runs/<name>.yaml` entrypoint
-  that inherits a complete config below `configs/base-experiment-configs/`.
+  that inherits a complete config below `configs/base-experiment-configs/`. It suggests
+  `<experiment>--<run-name>` and records the confirmed `stage.run_id` directly in YAML.
+- `export_experiment_report.py`: execute an experiment's `analysis.ipynb` against saved
+  artifacts and atomically export `report.html` without adding outputs to the source
+  notebook. Execution uses the project root as its working directory.
 - `visualize_pipeline.py`: render the Haystack pipeline in a stage run's
   `resolved_config.yaml`. SVG output defaults to
   `artifacts/runs/<stage>/<run-id>/pipeline.svg`, alongside the immutable run's

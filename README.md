@@ -86,14 +86,15 @@ The repository is split into independently installable units:
 Passing `--entrypoint experiments/<experiment>/configs/runs/<run>.yaml` makes the
 stage CLI infer the experiment and project from that path. Hydra then searches the
 experiment's `configs/`, the project's `configs/`, and finally the config package
-shipped by `retrieval-core`.
+shipped by `retrieval-core`. Each experiment run YAML declares its exact
+`stage.run_id`; ordinary stage commands still receive a timestamp ID unless overridden.
 
 ## Research workflow
 
 See [the research workflow guide](docs/research_workflows.md) for the complete
 experiment lifecycle: preregistering an experiment card, composing Hydra configs,
 testing and running immutable stages, reusing exact artifacts, analyzing
-predictions in a notebook, generating an evidence-led report, and launching
+predictions in a notebook, exporting a concise HTML report, and launching
 explicit experiment runs.
 
 For copy-ready stage invocations that use only the checked-in toy dataset, see
@@ -112,7 +113,8 @@ component, and includes a reproducible E5-small/SciFact baseline comparison.
 ```powershell
 Set-Location projects/query-repetition
 uv sync --extra dev
-./scripts/run_experiment.ps1
+uv run stage inference --entrypoint experiments/query-repetition-e5-small-scifact/configs/runs/baseline.yaml
+uv run stage inference --entrypoint experiments/query-repetition-e5-small-scifact/configs/runs/repeated.yaml
 ```
 
 Every run writes immutable outputs, `resolved_config.yaml`, `result.json`,

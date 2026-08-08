@@ -31,13 +31,12 @@ The run manifest records the installed versions of both distributions. When the
 component library is published, remove its `tool.uv.sources` entry to test the same
 declared version from the package index.
 
-## Run the comparison
+## Run the experiment
 
 From this directory:
 
 ```powershell
 uv sync --extra dev
-./scripts/run_experiment.ps1
 ```
 
 For a CUDA 12.6 PyTorch environment, use `uv sync --extra dev --extra torch-cu126`.
@@ -45,11 +44,8 @@ On an older NVIDIA driver that requires PyTorch 2.5.1 with CUDA 12.4, use
 `uv sync --extra dev --extra torch-cu124-legacy`. These PyTorch extras are mutually
 exclusive. Use the legacy extra with a Python version supported by PyTorch 2.5.1,
 such as Python 3.12; PyTorch 2.5.1 does not provide Python 3.14 wheels. The experiment
-defaults to CPU; run
-`./scripts/run_experiment.ps1 -Device cuda` to use a configured CUDA environment.
-The script downloads and converts BEIR SciFact, validates both pipeline graphs,
-creates one shared E5-small index, runs baseline and repeated-query inference against
-that exact index, evaluates both runs, and prints per-metric deltas.
+defaults to CPU. Use checked-in experiment entrypoints for canonical result runs;
+ad hoc terminal overrides are for development only.
 
 The durable experiment workspace is
 [`experiments/query-repetition-e5-small-scifact`](experiments/query-repetition-e5-small-scifact).
@@ -64,11 +60,14 @@ experiment and the subset of runs to launch in GNU Screen. Use
 `uv run python ../../awesome-dev-tools/interactive_create_run.py experiments/query-repetition-e5-small-scifact`
 to add another run interactively.
 
-On Windows or Linux, launch either checked-in run directly with its YAML entrypoint:
+After preparing the dataset and shared index described by the experiment card, launch
+the checked-in inference runs, then their checked-in evaluation runs:
 
 ```powershell
 uv run stage inference --entrypoint experiments/query-repetition-e5-small-scifact/configs/runs/baseline.yaml
 uv run stage inference --entrypoint experiments/query-repetition-e5-small-scifact/configs/runs/repeated.yaml
+uv run stage evaluation --entrypoint experiments/query-repetition-e5-small-scifact/configs/runs/baseline-evaluation.yaml
+uv run stage evaluation --entrypoint experiments/query-repetition-e5-small-scifact/configs/runs/repeated-evaluation.yaml
 ```
 
 To run only the repeated-query pipeline directly on Windows or Linux, prepare the
@@ -91,15 +90,20 @@ small differences as a prompt for broader evaluation rather than a general resul
 
 Open the experiment's
 [`analysis.ipynb`](experiments/query-repetition-e5-small-scifact/analysis.ipynb).
-Add readable labels and exact inference run IDs to `RUNS`, then run the cells. The
-notebook resolves each run's prediction artifact through its manifest and builds:
+Add exact IDs to `INFERENCE_RUNS` and `EVALUATION_RUNS`, then run the cells. Shared
+`retrieval_core.utils.analysis` helpers resolve artifacts and build:
 
 - `predictions_df`, one row per retrieved result with rank, score, content, metadata,
   and matched qrel relevance; and
 - `query_summary_df`, one row per run and query with retrieval depth, relevant counts,
   first relevant rank, reciprocal rank, recall, and query-length fields.
 
-Use these DataFrames directly for project-specific plots below the final notebook cell.
+The notebook also presents the target metric comparison and common aggregate and
+per-query plots. Export the readable final report without modifying notebook outputs:
+
+```powershell
+uv run python ../../awesome-dev-tools/export_experiment_report.py experiments/query-repetition-e5-small-scifact
+```
 
 For a small executable project run over the checked-in toy fixture, see
 [`query-repetition-e5-small-toy`](experiments/query-repetition-e5-small-toy/experiment.md)

@@ -2,9 +2,13 @@
   "experiment_name": "My Retrieval Experiment",
   "experiment_slug": "{{ cookiecutter.experiment_name.lower().replace(' ', '-').replace('_', '-') }}",
   "experiment_short_description": "Compare one retrieval treatment with a controlled baseline.",
+  "hypothesis": "The treatment will improve the target retrieval metrics relative to the baseline.",
   "dataset_config": "toy",
+  "runtime_config": "cpu",
   "embedding_model": "e5/small_v2",
   "index_id": "REPLACE_WITH_EXACT_INDEX_ID",
   "baseline_pipeline": "retrieve/dense_in_memory",
-  "treatment_pipeline": "my_project/dense_experiment"
+  "treatment_pipeline": "my_project/dense_experiment",
+  "retrieval_top_k": 100,
+  "evaluation_metrics": "[\"NDCG@10\", \"Recall@10\", \"MRR@50\"]"
 }

@@ -1,5 +1,3 @@
-import base64
-import io
 from pathlib import Path
 
 import interactive_build_command as build_command
@@ -607,9 +605,8 @@ def test_configure_flow_can_list_pipeline_fields_with_list_values(
     assert "override: " not in output
 
 
-def test_clipboard_failure_falls_back_to_terminal_clipboard() -> None:
+def test_clipboard_failure_reports_setup_guidance() -> None:
     output: list[str] = []
-    terminal_copies: list[str] = []
 
     def unavailable(_: str) -> None:
         raise pyperclip.PyperclipException("no clipboard backend")
@@ -618,65 +615,41 @@ def test_clipboard_failure_falls_back_to_terminal_clipboard() -> None:
         "uv run stage indexing",
         copy_fn=unavailable,
         output_fn=output.append,
-        terminal_copy_fn=terminal_copies.append,
-    )
-
-    assert terminal_copies == ["uv run stage indexing"]
-    assert output == ["Command copied to clipboard via terminal."]
-
-
-def test_clipboard_failure_reports_unavailable_terminal_fallback() -> None:
-    output: list[str] = []
-
-    def unavailable(_: str) -> None:
-        raise pyperclip.PyperclipException("no clipboard backend")
-
-    def no_terminal(_: str) -> None:
-        raise RuntimeError("output is not a terminal")
-
-    build_command._copy_command_to_clipboard(
-        "uv run stage indexing",
-        copy_fn=unavailable,
-        output_fn=output.append,
-        terminal_copy_fn=no_terminal,
+        guidance_fn=lambda: ("DISPLAY is unset.", "Reconnect with X forwarding."),
     )
 
     assert output == [
-        "Could not copy command to clipboard: no clipboard backend "
-        "Terminal fallback unavailable: output is not a terminal"
+        "Could not copy command to clipboard: no clipboard backend",
+        "  DISPLAY is unset.",
+        "  Reconnect with X forwarding.",
     ]
 
 
-def test_terminal_clipboard_uses_osc52() -> None:
-    command = "uv run stage indexing dataset=toy"
-    stream = _InteractiveStringIO()
+def test_clipboard_guidance_explains_headless_xclip_session() -> None:
+    installed = {"xclip": "/usr/bin/xclip"}
 
-    build_command._copy_command_via_terminal(
-        command,
-        stream=stream,
+    guidance = build_command._clipboard_setup_guidance(
+        system_name="Linux",
         environment={},
+        executable_lookup=installed.get,
     )
 
-    encoded = base64.b64encode(command.encode("utf-8")).decode("ascii")
-    assert stream.getvalue() == f"\x1b]52;c;{encoded}\x07"
+    assert "DISPLAY=unset" in guidance[0]
+    assert "xclip=installed" in guidance[0]
+    assert any("Installing xclip alone is insufficient" in line for line in guidance)
+    assert any("ssh -X" in line for line in guidance)
 
 
-def test_terminal_clipboard_wraps_osc52_for_tmux() -> None:
-    stream = _InteractiveStringIO()
-
-    build_command._copy_command_via_terminal(
-        "command",
-        stream=stream,
-        environment={"TMUX": "/tmp/tmux-1000/default,1,0"},
+def test_clipboard_guidance_recommends_xclip_when_display_is_set() -> None:
+    guidance = build_command._clipboard_setup_guidance(
+        system_name="Linux",
+        environment={"DISPLAY": "localhost:10.0"},
+        executable_lookup=lambda _: None,
     )
 
-    encoded = base64.b64encode(b"command").decode("ascii")
-    assert stream.getvalue() == f"\x1bPtmux;\x1b\x1b]52;c;{encoded}\x07\x1b\\"
-
-
-class _InteractiveStringIO(io.StringIO):
-    def isatty(self) -> bool:
-        return True
+    assert guidance[-1] == (
+        "DISPLAY is set; install xclip (recommended) or xsel on the server."
+    )
 
 
 def _run_with_answers(

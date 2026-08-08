@@ -90,6 +90,9 @@ Run configs express only identity through their filename and true experimental d
 defaults:
   - /base-experiment-configs/inference
   - _self_
+
+stage:
+  run_id: <experiment slug>--baseline
 ```
 
 ```yaml
@@ -98,6 +101,9 @@ defaults:
   - /base-experiment-configs/inference
   - override /pipeline/inference@pipeline: <treatment pipeline choice>
   - _self_
+
+stage:
+  run_id: <experiment slug>--treatment
 ```
 
 ```yaml
@@ -107,7 +113,8 @@ defaults:
   - _self_
 
 stage:
+  run_id: <experiment slug>--baseline-evaluation
   inference_run_id: <experiment slug>--baseline
 ```
 
-Use the analogous exact treatment run ID for treatment evaluation. Never add launcher-controlled `stage.run_id`, `paths.project_root`, or `experiment.*` values.
+Use the analogous exact treatment and treatment-evaluation run IDs. Every run file owns its `stage.run_id`; never add launcher-controlled `paths.project_root` or `experiment.*` values.
