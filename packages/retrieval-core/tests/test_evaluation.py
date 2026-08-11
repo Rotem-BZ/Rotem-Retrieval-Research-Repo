@@ -59,6 +59,57 @@ def test_evaluation_reads_prediction_mapping_json(tmp_path: Path) -> None:
     assert stage.run() == {"Recall@1": 1.0, "MRR@1": 1.0}
 
 
+def test_evaluation_scores_only_queries_present_in_predictions(tmp_path: Path) -> None:
+    predictions_path = tmp_path / "predictions.json"
+    qrels_path = tmp_path / "qrels.jsonl"
+    write_predictions(
+        predictions_path,
+        [
+            {
+                EVALUATION_DATA_SCHEMA.query_id: "external-q1",
+                EVALUATION_DATA_SCHEMA.IN: "q1",
+                EVALUATION_DATA_SCHEMA.query_content: "selected query",
+                "documents": [{"id": "d1", "content": "doc", "meta": {}, "score": 1.0}],
+            }
+        ],
+    )
+    write_jsonl(
+        qrels_path,
+        [
+            {
+                EVALUATION_DATA_SCHEMA.IN: "q1",
+                EVALUATION_DATA_SCHEMA.doc_id: "d1",
+                EVALUATION_DATA_SCHEMA.label: 1,
+            },
+            {
+                EVALUATION_DATA_SCHEMA.IN: "q2",
+                EVALUATION_DATA_SCHEMA.doc_id: "d2",
+                EVALUATION_DATA_SCHEMA.label: 1,
+            },
+        ],
+    )
+    cfg = OmegaConf.create(
+        {
+            "stage": {
+                "name": "evaluation",
+                "run_id": "subset-evaluation",
+                "output_dir": str(tmp_path / "run"),
+                "predictions_path": str(predictions_path),
+                "metrics_path": str(tmp_path / "metrics.json"),
+                "inference_run_id": None,
+            },
+            "paths": {"runs_dir": str(tmp_path / "runs")},
+            "dataset": {"qrels_path": str(qrels_path)},
+            "metrics": ["Recall@1", "MRR@1"],
+        }
+    )
+
+    stage = EvaluationStage(cfg)
+    stage.prepare()
+
+    assert stage.run() == {"Recall@1": 1.0, "MRR@1": 1.0}
+
+
 def test_evaluation_resolves_prediction_path_from_exact_inference_run_id(tmp_path: Path) -> None:
     predictions_path = tmp_path / "runs" / "inference" / "bge_20260101_010101" / "predictions.json"
     write_predictions(

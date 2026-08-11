@@ -125,6 +125,7 @@ def test_explicit_stage_selections_compose() -> None:
     }
     assert mapping_cfg.input_mapping_recipe.type == "generated"
     assert mapping_cfg.input_mapping_recipe.name == "dev_tiny"
+    assert mapping_cfg.input_mapping_recipe.include_annotated_docs is True
     assert mapping_cfg.stage.run_id == "toy_dev_tiny"
     assert evaluation_cfg.dataset.name == "toy"
     assert evaluation_cfg.dataset.qrels_path.endswith("data/processed/toy/qrels.jsonl")

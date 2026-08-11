@@ -22,6 +22,7 @@ GENERATION_KEYS = (
     "seed",
     "query_subset_size",
     "document_subset_size",
+    "include_annotated_docs",
     "use_all_selected_documents_for_every_query",
     "random_docs_per_query",
     "easy_negative_docs_per_query",
@@ -212,24 +213,32 @@ def _resolve_file_mapping(
 def input_mapping_generation_params(mapping_cfg: DictConfig) -> dict[str, Any]:
     """Return the generation parameters represented by an input-mapping recipe."""
 
+    missing_keys = [key for key in GENERATION_KEYS if key not in mapping_cfg]
+    if missing_keys:
+        raise ValueError(
+            "Input-mapping recipe is missing required generation parameters: "
+            f"{missing_keys}"
+        )
+
     def optional_count(name: str) -> int | None:
-        value = mapping_cfg.get(name, 0)
+        value = mapping_cfg[name]
         return None if value is None else int(value)
 
     params = {
-        "seed": int(mapping_cfg.get("seed", 0)),
+        "seed": int(mapping_cfg.seed),
         "query_subset_size": (
             None
-            if mapping_cfg.get("query_subset_size") is None
-            else int(mapping_cfg.get("query_subset_size"))
+            if mapping_cfg.query_subset_size is None
+            else int(mapping_cfg.query_subset_size)
         ),
         "document_subset_size": (
             None
-            if mapping_cfg.get("document_subset_size") is None
-            else int(mapping_cfg.get("document_subset_size"))
+            if mapping_cfg.document_subset_size is None
+            else int(mapping_cfg.document_subset_size)
         ),
+        "include_annotated_docs": bool(mapping_cfg.include_annotated_docs),
         "use_all_selected_documents_for_every_query": bool(
-            mapping_cfg.get("use_all_selected_documents_for_every_query", False)
+            mapping_cfg.use_all_selected_documents_for_every_query
         ),
         "random_docs_per_query": optional_count("random_docs_per_query"),
         "easy_negative_docs_per_query": optional_count("easy_negative_docs_per_query"),
@@ -298,6 +307,7 @@ def generate_input_mapping(
     seed: int,
     query_subset_size: int | None = None,
     document_subset_size: int | None = None,
+    include_annotated_docs: bool = True,
     use_all_selected_documents_for_every_query: bool = False,
     random_docs_per_query: int | None = 0,
     easy_negative_docs_per_query: int | None = 0,
@@ -360,28 +370,16 @@ def generate_input_mapping(
         annotated_by_query.setdefault(query_input, set()).add(document_id)
         if int(qrel[EVALUATION_DATA_SCHEMA.label]) > 0:
             positive_by_query.setdefault(query_input, set()).add(document_id)
-    required_document_ids = set().union(
-        *(annotated_by_query.get(query_input, set()) for query_input in selected_query_inputs)
-    )
     if document_subset_size is None:
         active_document_ids = document_ids
     else:
         if document_subset_size < 0:
             raise ValueError("document_subset_size must be non-negative.")
-        if document_subset_size < len(required_document_ids):
-            raise ValueError(
-                "document_subset_size is smaller than the number of annotated documents "
-                "required for the selected queries."
-            )
         if document_subset_size > len(document_ids):
             raise ValueError(
                 f"Requested {document_subset_size} documents, but only {len(document_ids)} exist."
             )
-        remaining_pool = [
-            document_id for document_id in document_ids if document_id not in required_document_ids
-        ]
-        sampled = set(required_document_ids)
-        sampled.update(rng.sample(remaining_pool, document_subset_size - len(sampled)))
+        sampled = set(rng.sample(document_ids, document_subset_size))
         active_document_ids = [
             document_id for document_id in document_ids if document_id in sampled
         ]
@@ -405,19 +403,16 @@ def generate_input_mapping(
 
         mapping = {}
         for query_input in selected_query_inputs:
-            included = [
-                document_id
-                for document_id in document_ids
-                if document_id in annotated_by_query.get(query_input, set())
-            ]
-            missing_required = [
-                document_id for document_id in included if document_id not in active_document_set
-            ]
-            if missing_required:
-                raise ValueError(
-                    f"Document subset excludes annotated documents for query input {query_input}: "
-                    f"{missing_required}"
-                )
+            included = (
+                [
+                    document_id
+                    for document_id in document_ids
+                    if document_id in active_document_set
+                    and document_id in annotated_by_query.get(query_input, set())
+                ]
+                if include_annotated_docs
+                else []
+            )
 
             included_set = set(included)
             included.extend(
@@ -470,6 +465,7 @@ def generate_input_mapping(
         "seed": seed,
         "query_subset_size": query_subset_size,
         "document_subset_size": document_subset_size,
+        "include_annotated_docs": include_annotated_docs,
         "use_all_selected_documents_for_every_query": (use_all_selected_documents_for_every_query),
         **sampling_counts,
         "query_count": len(mapping),

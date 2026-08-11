@@ -44,12 +44,15 @@ class EvaluationStage(Stage):
 
     def run(self) -> dict[str, float]:
         predictions = read_predictions(self.cfg.stage.predictions_path)
+        predicted_query_inputs = {
+            str(prediction[EVALUATION_DATA_SCHEMA.IN]) for prediction in predictions
+        }
         qrels: dict[str, dict[str, int]] = {}
         for record in read_jsonl(self.cfg.dataset.qrels_path):
             EVALUATION_DATA_SCHEMA.validate_qrel(record)
             label = int(record[EVALUATION_DATA_SCHEMA.label])
-            if label > 0:
-                query_input = str(record[EVALUATION_DATA_SCHEMA.IN])
+            query_input = str(record[EVALUATION_DATA_SCHEMA.IN])
+            if label > 0 and query_input in predicted_query_inputs:
                 document_id = str(record[EVALUATION_DATA_SCHEMA.doc_id])
                 qrels.setdefault(query_input, {})[document_id] = label
         logger.info(

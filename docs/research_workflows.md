@@ -482,6 +482,9 @@ component; each pipeline decides which internal components consume them.
 
 Useful built-in recipes live under `configs/input_mapping_recipe/`:
 
+See [`docs/stages/prepare_mapping.md`](stages/prepare_mapping.md) for the complete recipe
+parameter contract and candidate-construction rules.
+
 - `judged_only`: all queries, but only documents with qrel annotations for each query.
 - `dev_tiny`: two-query development pool with easy negatives and cross-query positives.
 - `random_smoke`: two-query smoke-test pool with one random extra document per query.
@@ -494,15 +497,16 @@ disable the mutually exclusive per-query sampling counts with either `null` or `
 ```yaml
 query_subset_size: 10
 document_subset_size: 100
+include_annotated_docs: true
 use_all_selected_documents_for_every_query: true
 random_docs_per_query: null
 easy_negative_docs_per_query: null
 gold_passage_docs_per_query: null
 ```
 
-The document subset still contains every qrel-annotated document required by the
-selected queries. The generated mapping assigns the entire resulting subset to each
-selected query.
+The document subset is sampled randomly from the full document collection, independently
+of qrel annotations. It may therefore exclude annotated documents. The generated mapping
+assigns the entire resulting subset to each selected query.
 
 Prepared mappings are stored outside the dataset tree:
 
@@ -514,9 +518,12 @@ artifacts/input_mappings/<run-id>/meta.json
 The mapping JSON remains pure candidate data. `meta.json` records the run id,
 dataset, recipe parameters, subset sizes, and candidate-count summary. Run ids
 are unique: preparation refuses to overwrite an existing mapping directory.
-Generation always includes every document with any qrel annotation for each
-selected query. Gold-passage negatives are sampled from documents relevant to a
-different query while excluding every document annotated for the current query.
+Without a document subset, generation includes every document with a qrel annotation for
+each selected query. With a document subset, only annotations inside the sampled subset
+are included. Set `include_annotated_docs: false` to disable that automatic inclusion;
+annotated documents may still be selected by another configured sampling rule.
+Gold-passage negatives are sampled from documents relevant to a different query while
+excluding every document annotated for the current query.
 
 A complete reranking example over the toy dataset is:
 
@@ -1041,4 +1048,3 @@ runtime overrides.
 Evaluation is deliberately not a Haystack pipeline because metrics need
 dataset-level aggregation. It remains a first-class immutable stage with the
 same resolved-config, result, and manifest provenance as pipeline-backed stages.
-

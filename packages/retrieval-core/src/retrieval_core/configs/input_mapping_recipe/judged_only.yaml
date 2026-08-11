@@ -6,6 +6,7 @@ name: judged_only
 seed: 0
 query_subset_size: null
 document_subset_size: null
+include_annotated_docs: true
 use_all_selected_documents_for_every_query: false
 random_docs_per_query: 0
 easy_negative_docs_per_query: 0

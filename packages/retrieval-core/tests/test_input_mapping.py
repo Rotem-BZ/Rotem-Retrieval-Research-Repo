@@ -127,15 +127,12 @@ def test_file_input_mapping_runs_only_mapped_queries(tmp_path: Path) -> None:
 def test_generated_recipe_is_prepared_in_run_id_directory(tmp_path: Path) -> None:
     cfg = _cfg(
         tmp_path,
-        {
-            "type": "generated",
-            "name": "dev_small",
-            "seed": 13,
-            "query_subset_size": 1,
-            "random_docs_per_query": 0,
-            "easy_negative_docs_per_query": 1,
-            "gold_passage_docs_per_query": 1,
-        },
+        _generated_recipe(
+            seed=13,
+            query_subset_size=1,
+            easy_negative_docs_per_query=1,
+            gold_passage_docs_per_query=1,
+        ),
         run_id="toy_dev_small",
     )
     mapping_path = prepared_mapping_path(cfg)
@@ -209,12 +206,21 @@ def test_prepare_mapping_requires_run_id(tmp_path: Path) -> None:
 def test_prepare_mapping_refuses_to_overwrite_run_id(tmp_path: Path) -> None:
     cfg = _cfg(
         tmp_path,
-        {"type": "generated", "name": "dev_small", "seed": 13},
+        _generated_recipe(seed=13),
         run_id="existing",
     )
     prepare_generated_input_mapping(cfg)
 
     with pytest.raises(FileExistsError, match="choose another stage.run_id"):
+        prepare_generated_input_mapping(cfg)
+
+
+def test_prepare_mapping_requires_every_generation_parameter(tmp_path: Path) -> None:
+    recipe = _generated_recipe()
+    del recipe["include_annotated_docs"]
+    cfg = _cfg(tmp_path, recipe, run_id="missing-parameter")
+
+    with pytest.raises(ValueError, match="include_annotated_docs"):
         prepare_generated_input_mapping(cfg)
 
 
@@ -261,6 +267,20 @@ def test_generated_mapping_includes_judged_random_easy_and_gold_passage_negative
     assert generated.metadata["candidate_count_max"] == 5
 
 
+def test_generated_mapping_can_skip_automatically_included_annotated_documents() -> None:
+    generated = generate_input_mapping(
+        dataset_name="toy",
+        documents=DOCUMENTS,
+        queries=QUERIES,
+        qrels=QRELS,
+        seed=1,
+        include_annotated_docs=False,
+    )
+
+    assert generated.mapping == {"q1": [], "q2": []}
+    assert generated.metadata["include_annotated_docs"] is False
+
+
 def test_generated_mapping_uses_every_selected_document_for_each_selected_query() -> None:
     documents = [_document(f"d{index}") for index in range(1, 7)]
     queries = [_query(f"q{index}") for index in range(1, 4)]
@@ -290,6 +310,29 @@ def test_generated_mapping_uses_every_selected_document_for_each_selected_query(
     assert generated.metadata["candidate_count_max"] == 4
     assert generated.metadata["use_all_selected_documents_for_every_query"] is True
     assert generated.metadata["random_docs_per_query"] is None
+
+
+def test_document_subset_is_random_and_does_not_reserve_annotated_documents() -> None:
+    documents = [_document(f"d{index}") for index in range(1, 6)]
+    queries = [_query(f"q{index}") for index in range(1, 6)]
+    qrels = [_qrel(f"q{index}", f"d{index}", 1) for index in range(1, 6)]
+
+    generated = generate_input_mapping(
+        dataset_name="toy",
+        documents=documents,
+        queries=queries,
+        qrels=qrels,
+        seed=7,
+        document_subset_size=2,
+    )
+
+    selected_document_ids = {
+        document_id
+        for candidate_ids in generated.mapping.values()
+        for document_id in candidate_ids
+    }
+    assert len(selected_document_ids) == 2
+    assert generated.metadata["active_document_count"] == 2
 
 
 @pytest.mark.parametrize(
@@ -325,17 +368,16 @@ def test_prepared_recipe_accepts_null_sampling_counts_in_all_documents_mode(
 ) -> None:
     cfg = _cfg(
         tmp_path,
-        {
-            "type": "generated",
-            "name": "shared_pool",
-            "seed": 13,
-            "query_subset_size": 1,
-            "document_subset_size": 3,
-            "use_all_selected_documents_for_every_query": True,
-            "random_docs_per_query": None,
-            "easy_negative_docs_per_query": None,
-            "gold_passage_docs_per_query": None,
-        },
+        _generated_recipe(
+            name="shared_pool",
+            seed=13,
+            query_subset_size=1,
+            document_subset_size=3,
+            use_all_selected_documents_for_every_query=True,
+            random_docs_per_query=None,
+            easy_negative_docs_per_query=None,
+            gold_passage_docs_per_query=None,
+        ),
         run_id="toy_shared_pool",
     )
 
@@ -398,6 +440,23 @@ def test_mapping_metadata_is_written_as_sidecar(tmp_path: Path) -> None:
     assert written_metadata == output_dir / INPUT_MAPPING_METADATA_FILENAME
     assert written_mapping.exists()
     assert written_metadata.exists()
+
+
+def _generated_recipe(**overrides: Any) -> dict[str, Any]:
+    recipe = {
+        "type": "generated",
+        "name": "dev_small",
+        "seed": 0,
+        "query_subset_size": None,
+        "document_subset_size": None,
+        "include_annotated_docs": True,
+        "use_all_selected_documents_for_every_query": False,
+        "random_docs_per_query": 0,
+        "easy_negative_docs_per_query": 0,
+        "gold_passage_docs_per_query": 0,
+    }
+    recipe.update(overrides)
+    return recipe
 
 
 def _cfg(tmp_path: Path, input_mapping: object, *, run_id: str | None = None):
