@@ -1,13 +1,13 @@
 metadata:
-  description: Tiny development pool with two queries, easy negatives, and cross-query positives.
+  description: Tiny development pool with two queries, each mapped to three random documents.
 
 type: generated
 name: dev_tiny
 seed: 13
 query_subset_size: 2
 document_subset_size: null
-include_annotated_docs: true
+include_annotated_docs: false
 use_all_selected_documents_for_every_query: false
-random_docs_per_query: 0
-easy_negative_docs_per_query: 1
-gold_passage_docs_per_query: 1
+random_docs_per_query: 3
+easy_negative_docs_per_query: 0
+gold_passage_docs_per_query: 0
