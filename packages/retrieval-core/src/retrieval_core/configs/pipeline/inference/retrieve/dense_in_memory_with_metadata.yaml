@@ -1,0 +1,51 @@
+defaults:
+  - /selections@_global_.selections: index
+  - /selections/embedding_model@_global_.selections.embedding_model: ???
+  - /component/query_metadata_enricher@components.query_metadata_enricher: jsonl
+  - /component/query_preprocessor@components.query_preprocessor: prefix_cleanup
+  - /component/query_embedder@components.query_embedder: sentence_transformers
+  - /component/retriever@components.retriever: persisted_in_memory
+  - _self_
+
+components:
+  input:
+    type: retrieval_components.interfaces.inference.InferenceInput
+  query_preprocessor:
+    init_parameters:
+      prefix: ${selections.embedding_model.query_prefix}
+  query_embedder:
+    init_parameters:
+      model: ${selections.embedding_model.checkpoint}
+      normalize_embeddings: ${selections.embedding_model.normalize_embeddings}
+      tokenizer_kwargs: ${selections.embedding_model.tokenizer_kwargs}
+  output:
+    type: retrieval_components.interfaces.inference.InferenceOutput
+
+connections:
+  - sender: input.query
+    receiver: query_metadata_enricher.query
+  - sender: query_metadata_enricher.query
+    receiver: query_preprocessor.query
+  - sender: query_metadata_enricher.query
+    receiver: output.query
+  - sender: input.candidate_document_ids
+    receiver: retriever.candidate_document_ids
+  - sender: query_preprocessor.query
+    receiver: query_embedder.query
+  - sender: query_embedder.embedding
+    receiver: retriever.query_embedding
+  - sender: retriever.documents
+    receiver: output.documents
+
+max_runs_per_component: 100
+metadata:
+  description: Dense retrieval with query metadata loaded from JSONL.
+  role: retrieve
+  maturity: reusable
+  input_mode: index
+  storage_backend: persisted_in_memory
+  compatible_index_granularity: [document, chunk]
+  requires:
+    - selections.index_id
+    - selections.embedding_model
+    - components.query_metadata_enricher.init_parameters.mapping_path

@@ -1,0 +1,54 @@
+defaults:
+  - /selections@_global_.selections: index
+  - /selections/embedding_model@_global_.selections.embedding_model: ???
+  - /component/document_parser@components.document_parser: identity
+  - /component/document_metadata_enricher@components.document_metadata_enricher: jsonl
+  - /component/chunker@components.splitter: recursive_char
+  - /component/document_preprocessor@components.document_prefixer: prefix_cleanup
+  - /component/document_embedder@components.embedder: sentence_transformers
+  - /component/indexer@components.indexer: persisted_in_memory
+  - _self_
+
+components:
+  input:
+    type: retrieval_components.interfaces.indexing.IndexingInput
+  document_prefixer:
+    init_parameters:
+      prefix: ${selections.embedding_model.document_prefix}
+  embedder:
+    init_parameters:
+      model: ${selections.embedding_model.checkpoint}
+      normalize_embeddings: ${selections.embedding_model.normalize_embeddings}
+      tokenizer_kwargs: ${selections.embedding_model.tokenizer_kwargs}
+  output:
+    type: retrieval_components.interfaces.indexing.IndexingOutput
+
+connections:
+  - sender: input.documents
+    receiver: document_parser.documents
+  - sender: document_parser.documents
+    receiver: document_metadata_enricher.documents
+  - sender: document_metadata_enricher.documents
+    receiver: splitter.documents
+  - sender: splitter.documents
+    receiver: document_prefixer.documents
+  - sender: document_prefixer.documents
+    receiver: embedder.documents
+  - sender: embedder.documents
+    receiver: indexer.documents
+  - sender: indexer.index_path
+    receiver: output.index_path
+  - sender: indexer.indexed_count
+    receiver: output.indexed_count
+
+max_runs_per_component: 100
+metadata:
+  description: Dense chunk indexing with source metadata loaded from JSONL before splitting.
+  role: indexing
+  maturity: reusable
+  storage_backend: persisted_in_memory
+  document_granularity: chunk
+  requires:
+    - selections.index_id
+    - selections.embedding_model
+    - components.document_metadata_enricher.init_parameters.mapping_path

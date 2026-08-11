@@ -29,6 +29,10 @@ COMPONENT_MODULES = {
     },
     "retrieval_components.models.transformers_similarity_ranker": {"TransformersSimilarityRanker"},
     "retrieval_components.preprocessing.document_text_prefixer": {"DocumentTextPrefixer"},
+    "retrieval_components.preprocessing.file_metadata_enricher": {
+        "DocumentMetadataEnricher",
+        "QueryMetadataEnricher",
+    },
     "retrieval_components.preprocessing.identity_parser": {"IdentityParser"},
     "retrieval_components.preprocessing.query_text_preprocessor": {"QueryTextPreprocessor"},
     "retrieval_components.preprocessing.query_to_string": {"QueryToString"},

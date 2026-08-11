@@ -1,0 +1,3 @@
+type: retrieval_components.preprocessing.file_metadata_enricher.QueryMetadataEnricher
+init_parameters:
+  mapping_path: ???

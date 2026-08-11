@@ -441,3 +441,53 @@ def test_materialized_native_haystack_pipeline_keeps_query_to_string_adapter() -
         "sender": "query_to_string.text",
         "receiver": "query_embedder.text",
     } in pipeline_config["connections"]
+
+
+def test_metadata_enriched_sample_pipelines_load(tmp_path: Path) -> None:
+    mapping_path = tmp_path / "metadata.jsonl"
+    mapping_path.write_text('{"id": "example", "meta": {"nested": {"value": 1}}}\n')
+    mapping_override = mapping_path.as_posix()
+    indexing_cfg = compose_stage_config(
+        "indexing",
+        [
+            "dataset=toy",
+            "runtime=cpu",
+            "pipeline/indexing@pipeline=dense/chunks_in_memory_with_metadata",
+            "selections.index_id=toy-metadata",
+            "selections/embedding_model=e5/small_v2",
+            (
+                "pipeline.components.document_metadata_enricher.init_parameters.mapping_path="
+                f"{mapping_override}"
+            ),
+        ],
+    )
+    inference_cfg = compose_stage_config(
+        "inference",
+        [
+            "dataset=toy",
+            "runtime=cpu",
+            "pipeline/inference@pipeline=retrieve/dense_in_memory_with_metadata",
+            "selections.index_id=toy-metadata",
+            "selections/embedding_model=e5/small_v2",
+            (
+                "pipeline.components.query_metadata_enricher.init_parameters.mapping_path="
+                f"{mapping_override}"
+            ),
+        ],
+    )
+    indexing_pipeline = load_async_pipeline(indexing_cfg.pipeline)
+    inference_pipeline = load_async_pipeline(inference_cfg.pipeline)
+    indexing_config = to_container(indexing_cfg.pipeline)
+    inference_config = to_container(inference_cfg.pipeline)
+    assert {"document_metadata_enricher", "splitter"} <= set(indexing_pipeline.graph.nodes)
+    assert {"query_metadata_enricher", "query_preprocessor"} <= set(
+        inference_pipeline.graph.nodes
+    )
+    assert {
+        "sender": "document_metadata_enricher.documents",
+        "receiver": "splitter.documents",
+    } in indexing_config["connections"]
+    assert {
+        "sender": "query_metadata_enricher.query",
+        "receiver": "query_preprocessor.query",
+    } in inference_config["connections"]

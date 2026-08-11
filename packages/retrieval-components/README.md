@@ -27,6 +27,7 @@ full module paths; package initializers deliberately do not re-export them.
 | `retrieval_components.models.sentence_transformers_text_embedder` | `SentenceTransformersTextEmbedder` | Embed a materialized Query with a sentence-transformer model. |
 | `retrieval_components.models.transformers_similarity_ranker` | `TransformersSimilarityRanker` | Rank documents with a Query-aware Transformers model. |
 | `retrieval_components.preprocessing.document_text_prefixer` | `DocumentTextPrefixer` | Prefix, suffix, or clean materialized document content. |
+| `retrieval_components.preprocessing.file_metadata_enricher` | `DocumentMetadataEnricher`, `QueryMetadataEnricher` | Enrich documents or queries from a preloaded JSONL metadata mapping. |
 | `retrieval_components.preprocessing.identity_parser` | `IdentityParser` | Validate already-materialized document content. |
 | `retrieval_components.preprocessing.query_text_preprocessor` | `QueryTextPreprocessor` | Prefix, suffix, or clean materialized Query content. |
 | `retrieval_components.preprocessing.query_to_string` | `QueryToString` | Adapt a materialized Query to a plain string. |
@@ -54,6 +55,11 @@ required contract:
   directly from Haystack.
 - `DocumentTextPrefixer` and `QueryTextPreprocessor` add prefix/suffix and small
   regex transforms beyond the relevant native cleaner contracts.
+- `DocumentMetadataEnricher` and `QueryMetadataEnricher` load an absolute UTF-8 JSONL
+  mapping during warm-up. Each nonblank line must be `{"id": "...", "meta": {...}}`.
+  Inputs require a matching ID, and mapped metadata must not overlap existing top-level
+  keys; nested JSON objects and arrays are preserved. Documents prefer a valid
+  `meta.source_document_id` over their chunk ID.
 - `QueryToString` is retained for regular Haystack or project-owned components that
   still require a plain text socket.
 - `IdentityParser` is the minimal document-parser implementation: it verifies that
