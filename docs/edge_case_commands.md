@@ -327,28 +327,28 @@ Invoke-EdgeStage evaluation `
 
 ## Data-Schema Probes
 
-Valid records with extra fields:
+Valid canonical records:
 
 ```powershell
-uv run --project packages/retrieval-core python -c 'from retrieval_core import EVALUATION_DATA_SCHEMA as s; s.validate_query({s.query_id:"external",s.IN:"join-key",s.query_content:"query","language":"en"}); s.validate_document({s.doc_id:"d1",s.text:"text","title":"extra"}); s.validate_qrel({s.IN:"join-key",s.doc_id:"d1",s.label:2,"annotator":"extra"}); print("schema accepted optional fields")'
+uv run --project packages/retrieval-core python -c 'from retrieval_core import Qrel, document_from_dict, query_from_dict; print(query_from_dict({"id":"q1","content":"query","IN":"need-1","meta":{"language":"en"}})); print(document_from_dict({"id":"d1","content":"text","meta":{"title":"example"}})); print(Qrel.from_dict({"IN":"need-1","document_id":"d1","label":2}))'
 ```
 
 Missing query content, expected failure:
 
 ```powershell
-uv run --project packages/retrieval-core python -c 'from retrieval_core import EVALUATION_DATA_SCHEMA as s; s.validate_query({s.query_id:"q1",s.IN:"input-1"})'
+uv run --project packages/retrieval-core python -c 'from retrieval_core import query_from_dict; query_from_dict({"id":"q1","IN":"need-1","meta":{}})'
 ```
 
-Missing document text, expected failure:
+Missing document content, expected failure:
 
 ```powershell
-uv run --project packages/retrieval-core python -c 'from retrieval_core import EVALUATION_DATA_SCHEMA as s; s.validate_document({s.doc_id:"d1"})'
+uv run --project packages/retrieval-core python -c 'from retrieval_core import document_from_dict; document_from_dict({"id":"d1","meta":{}})'
 ```
 
 Missing qrel label, expected failure:
 
 ```powershell
-uv run --project packages/retrieval-core python -c 'from retrieval_core import EVALUATION_DATA_SCHEMA as s; s.validate_qrel({s.IN:"input-1",s.doc_id:"d1"})'
+uv run --project packages/retrieval-core python -c 'from retrieval_core import Qrel; Qrel.from_dict({"IN":"need-1","document_id":"d1"})'
 ```
 
 ## Component Edge Cases

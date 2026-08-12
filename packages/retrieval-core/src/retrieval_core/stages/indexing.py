@@ -13,7 +13,7 @@ from haystack import Document
 from omegaconf import DictConfig
 from tqdm import tqdm
 
-from retrieval_core.data_schema import EVALUATION_DATA_SCHEMA
+from retrieval_core.data_schema import document_from_dict
 from retrieval_core.stages.base import Stage
 from retrieval_core.utils.artifacts import index_artifact_path
 from retrieval_core.utils.io import project_path
@@ -85,13 +85,6 @@ class IndexingStage(Stage):
         indexed_count = 0
         batch_count = 0
         batch: list[Document] = []
-        reserved_fields = {
-            EVALUATION_DATA_SCHEMA.doc_id,
-            EVALUATION_DATA_SCHEMA.text,
-            "meta",
-            "score",
-            "embedding",
-        }
 
         async def index_batch(documents: list[Document]) -> int:
             result = await pipeline.run_async(
@@ -133,25 +126,13 @@ class IndexingStage(Stage):
                             f"Invalid JSON in documents file at line {line_number}: "
                             f"{documents_path}"
                         ) from error
-                    EVALUATION_DATA_SCHEMA.validate_document(record)
-                    document_id = str(record[EVALUATION_DATA_SCHEMA.doc_id])
+                    document = document_from_dict(record)
+                    document_id = str(document.id)
                     if document_id in document_ids:
                         raise ValueError(f"Duplicate document id in dataset: {document_id}")
                     document_ids.add(document_id)
 
-                    meta = {
-                        key: value for key, value in record.items() if key not in reserved_fields
-                    }
-                    meta.update(dict(record.get("meta") or {}))
-                    batch.append(
-                        Document(
-                            id=document_id,
-                            content=str(record[EVALUATION_DATA_SCHEMA.text]),
-                            meta=meta,
-                            score=record.get("score"),
-                            embedding=record.get("embedding"),
-                        )
-                    )
+                    batch.append(document)
                     document_count += 1
 
                     if len(batch) < batch_size:

@@ -3,7 +3,6 @@ from pathlib import Path
 import pytest
 from omegaconf import OmegaConf
 
-from retrieval_core.data_schema import EVALUATION_DATA_SCHEMA
 from retrieval_core.stages.evaluation import EvaluationStage
 from retrieval_core.utils.artifacts import discover_inference_run_ids
 from retrieval_core.utils.io import write_json, write_jsonl, write_predictions
@@ -11,6 +10,7 @@ from retrieval_core.utils.io import write_json, write_jsonl, write_predictions
 
 def test_evaluation_reads_prediction_mapping_json(tmp_path: Path) -> None:
     predictions_path = tmp_path / "predictions.json"
+    queries_path = _write_queries(tmp_path, [("external-q1", "q1")])
     qrels_path = tmp_path / "qrels.jsonl"
     metrics_path = tmp_path / "metrics.json"
     output_dir = tmp_path / "run"
@@ -19,10 +19,8 @@ def test_evaluation_reads_prediction_mapping_json(tmp_path: Path) -> None:
         predictions_path,
         [
             {
-                EVALUATION_DATA_SCHEMA.query_id: "external-q1",
-                EVALUATION_DATA_SCHEMA.IN: "q1",
-                EVALUATION_DATA_SCHEMA.query_content: "test query",
-                "documents": [{"id": "d1", "content": "doc", "meta": {}, "score": 0.5}],
+                "id": "external-q1",
+                "results": [{"id": "d1", "document_id": "d1", "score": 0.5}],
             }
         ],
     )
@@ -30,10 +28,7 @@ def test_evaluation_reads_prediction_mapping_json(tmp_path: Path) -> None:
         qrels_path,
         [
             {
-                EVALUATION_DATA_SCHEMA.IN: "q1",
-                EVALUATION_DATA_SCHEMA.doc_id: "d1",
-                EVALUATION_DATA_SCHEMA.label: 1,
-                "annotation_source": "test",
+                "IN": "q1", "document_id": "d1", "label": 1,
             }
         ],
     )
@@ -49,7 +44,7 @@ def test_evaluation_reads_prediction_mapping_json(tmp_path: Path) -> None:
                 "inference_run_id": None,
             },
             "paths": {"runs_dir": str(tmp_path / "runs")},
-            "dataset": {"qrels_path": str(qrels_path)},
+            "dataset": {"queries_path": str(queries_path), "qrels_path": str(qrels_path)},
             "metrics": ["Recall@1", "MRR@1"],
         }
     )
@@ -61,15 +56,14 @@ def test_evaluation_reads_prediction_mapping_json(tmp_path: Path) -> None:
 
 def test_evaluation_scores_only_queries_present_in_predictions(tmp_path: Path) -> None:
     predictions_path = tmp_path / "predictions.json"
+    queries_path = _write_queries(tmp_path, [("external-q1", "q1"), ("external-q2", "q2")])
     qrels_path = tmp_path / "qrels.jsonl"
     write_predictions(
         predictions_path,
         [
             {
-                EVALUATION_DATA_SCHEMA.query_id: "external-q1",
-                EVALUATION_DATA_SCHEMA.IN: "q1",
-                EVALUATION_DATA_SCHEMA.query_content: "selected query",
-                "documents": [{"id": "d1", "content": "doc", "meta": {}, "score": 1.0}],
+                "id": "external-q1",
+                "results": [{"id": "d1", "document_id": "d1", "score": 1.0}],
             }
         ],
     )
@@ -77,14 +71,10 @@ def test_evaluation_scores_only_queries_present_in_predictions(tmp_path: Path) -
         qrels_path,
         [
             {
-                EVALUATION_DATA_SCHEMA.IN: "q1",
-                EVALUATION_DATA_SCHEMA.doc_id: "d1",
-                EVALUATION_DATA_SCHEMA.label: 1,
+                "IN": "q1", "document_id": "d1", "label": 1,
             },
             {
-                EVALUATION_DATA_SCHEMA.IN: "q2",
-                EVALUATION_DATA_SCHEMA.doc_id: "d2",
-                EVALUATION_DATA_SCHEMA.label: 1,
+                "IN": "q2", "document_id": "d2", "label": 1,
             },
         ],
     )
@@ -99,7 +89,7 @@ def test_evaluation_scores_only_queries_present_in_predictions(tmp_path: Path) -
                 "inference_run_id": None,
             },
             "paths": {"runs_dir": str(tmp_path / "runs")},
-            "dataset": {"qrels_path": str(qrels_path)},
+            "dataset": {"queries_path": str(queries_path), "qrels_path": str(qrels_path)},
             "metrics": ["Recall@1", "MRR@1"],
         }
     )
@@ -110,15 +100,49 @@ def test_evaluation_scores_only_queries_present_in_predictions(tmp_path: Path) -
     assert stage.run() == {"Recall@1": 1.0, "MRR@1": 1.0}
 
 
+def test_evaluation_rejects_conflicting_duplicate_qrels(tmp_path: Path) -> None:
+    predictions_path = tmp_path / "predictions.json"
+    queries_path = _write_queries(tmp_path, [("q1", "need-1")])
+    qrels_path = tmp_path / "qrels.jsonl"
+    write_predictions(
+        predictions_path,
+        [{"id": "q1", "results": []}],
+    )
+    write_jsonl(
+        qrels_path,
+        [
+            {"IN": "need-1", "document_id": "d1", "label": 0},
+            {"IN": "need-1", "document_id": "d1", "label": 1},
+        ],
+    )
+    cfg = OmegaConf.create(
+        {
+            "stage": {
+                "name": "evaluation",
+                "run_id": "duplicate-qrels",
+                "output_dir": str(tmp_path / "run"),
+                "predictions_path": str(predictions_path),
+                "metrics_path": str(tmp_path / "metrics.json"),
+                "inference_run_id": None,
+            },
+            "paths": {"runs_dir": str(tmp_path / "runs")},
+            "dataset": {"queries_path": str(queries_path), "qrels_path": str(qrels_path)},
+            "metrics": ["Recall@1"],
+        }
+    )
+    stage = EvaluationStage(cfg)
+    stage.prepare()
+    with pytest.raises(ValueError, match="Conflicting qrels"):
+        stage.run()
+
+
 def test_evaluation_resolves_prediction_path_from_exact_inference_run_id(tmp_path: Path) -> None:
     predictions_path = tmp_path / "runs" / "inference" / "bge_20260101_010101" / "predictions.json"
     write_predictions(
         predictions_path,
         [
             {
-                EVALUATION_DATA_SCHEMA.query_id: "external-q1",
-                EVALUATION_DATA_SCHEMA.IN: "q1",
-                EVALUATION_DATA_SCHEMA.query_content: "test query",
+                "id": "external-q1", "IN": "q1", "content": "test query", "meta": {},
                 "documents": [{"id": "d1", "content": "doc", "meta": {}, "score": 0.5}],
             }
         ],
@@ -191,3 +215,13 @@ def _write_inference_run(
             f"dataset:\n  name: {dataset_name}\n",
             encoding="utf-8",
         )
+
+
+def _write_queries(path: Path, queries: list[tuple[str, str]]) -> Path:
+    return write_jsonl(
+        path / "queries.jsonl",
+        [
+            {"id": query_id, "content": "query", "IN": query_input, "meta": {}}
+            for query_id, query_input in queries
+        ],
+    )

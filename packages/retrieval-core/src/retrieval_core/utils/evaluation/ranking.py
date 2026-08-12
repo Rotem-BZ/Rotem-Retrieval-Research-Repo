@@ -17,9 +17,6 @@ from torchmetrics.retrieval import (
     RetrievalRecall,
 )
 
-from retrieval_core.data_schema import EVALUATION_DATA_SCHEMA
-
-
 Qrels = dict[str, dict[str, int]]
 
 _METRIC_PATTERN = re.compile(r"^(?P<name>[A-Za-z][A-Za-z0-9 _-]*)@(?P<k>[1-9][0-9]*)$")
@@ -60,13 +57,17 @@ def evaluate_rankings(
     predictions: list[dict[str, Any]],
     qrels: Qrels,
     metric_configs: list[str],
+    query_inputs_by_id: dict[str, str],
 ) -> dict[str, float]:
     metric_specs = [_parse_metric_spec(metric_config) for metric_config in metric_configs]
     if not metric_specs:
         return {}
 
     tensors = _build_retrieval_tensors(
-        predictions, qrels, max_k=max(spec.k for spec in metric_specs)
+        predictions,
+        qrels,
+        query_inputs_by_id,
+        max_k=max(spec.k for spec in metric_specs),
     )
     if tensors is None:
         return {spec.label: 0.0 for spec in metric_specs}
@@ -107,19 +108,25 @@ def _parse_metric_spec(metric_config: str) -> MetricSpec:
 def _build_retrieval_tensors(
     predictions: list[dict[str, Any]],
     qrels: Qrels,
+    query_inputs_by_id: dict[str, str],
     max_k: int,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor] | None:
     indexes: list[int] = []
     preds: list[float] = []
     target: list[int] = []
-    prediction_by_query = {str(record[EVALUATION_DATA_SCHEMA.IN]): record for record in predictions}
-
-    for query_index, query_id in enumerate(qrels):
-        judged_documents = qrels[query_id]
+    for query_index, prediction in enumerate(predictions):
+        query_id = prediction.get("id")
+        if not isinstance(query_id, str) or not query_id:
+            raise ValueError("Every prediction requires a non-empty string `id`.")
+        try:
+            query_input = query_inputs_by_id[query_id]
+        except KeyError as error:
+            raise ValueError(f"Prediction references unknown query id {query_id!r}.") from error
+        judged_documents = qrels.get(query_input, {})
         if not judged_documents:
             continue
 
-        retrieved_scores = _collapsed_retrieved_scores(prediction_by_query.get(query_id, {}))
+        retrieved_scores = _collapsed_retrieved_scores(prediction)
         min_retrieved_score = min(retrieved_scores.values(), default=0.0)
         dummy_score_start = min_retrieved_score - 1.0
         missing_score_start = dummy_score_start - max_k - 1.0
@@ -157,9 +164,8 @@ def _build_retrieval_tensors(
 def _collapsed_retrieved_scores(record: dict[str, Any]) -> dict[str, float]:
     retrieved_scores: dict[str, float] = {}
 
-    for rank, document in enumerate(record.get("documents", []), start=1):
-        meta = document.get("meta") or {}
-        document_id = meta.get("source_document_id") or document.get("id")
+    for rank, document in enumerate(record.get("results", []), start=1):
+        document_id = document.get("document_id")
         if document_id is None:
             continue
 

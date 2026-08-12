@@ -6,12 +6,11 @@ import asyncio
 import logging
 from typing import Any
 
-from haystack import AsyncPipeline
+from haystack import AsyncPipeline, Document
 from omegaconf import DictConfig, OmegaConf
+from retrieval_components.dataclasses.query import Query
 from tqdm import tqdm
 
-from retrieval_components.dataclasses.query import Query
-from retrieval_core.data_schema import EVALUATION_DATA_SCHEMA
 from retrieval_core.input_mapping import (
     InferenceMapping,
     configured_input_mapping_path,
@@ -25,6 +24,7 @@ from retrieval_core.utils.pipelines import load_async_pipeline, without_componen
 INFERENCE_INPUT_COMPONENT = "input"
 INFERENCE_OUTPUT_COMPONENT = "output"
 INFERENCE_DOCUMENTS_FIELD = "documents"
+EXTRA_DATA_META_KEY = "_extra_data"
 
 logger = logging.getLogger(__name__)
 
@@ -139,7 +139,7 @@ async def _run_queries(
 
     semaphore = asyncio.Semaphore(query_concurrency_limit)
 
-    async def run_query(query: dict[str, Any], progress: tqdm[Any]) -> dict[str, Any]:
+    async def run_query(query: Query, progress: tqdm[Any]) -> dict[str, Any]:
         async with semaphore:
             prediction = await _run_query(
                 pipeline,
@@ -165,18 +165,17 @@ async def _run_queries(
 async def _run_query(
     pipeline: AsyncPipeline,
     inference_mapping: InferenceMapping,
-    query: dict[str, Any],
+    query: Query,
     *,
     pipeline_concurrency_limit: int,
 ) -> dict[str, Any]:
-    EVALUATION_DATA_SCHEMA.validate_query(query)
-    query_id = str(query[EVALUATION_DATA_SCHEMA.query_id])
-    query_input = str(query[EVALUATION_DATA_SCHEMA.IN])
-    pipeline_query = Query(
-        id=query_id,
-        content=str(query[EVALUATION_DATA_SCHEMA.query_content]),
-        meta=_query_meta(query),
-    )
+    query_id = query.id
+    query_input = query.IN
+    if query_input is None:
+        raise ValueError(f"The inference Query {query_id!r} has no IN.")
+    if query.content is None:
+        raise ValueError(f"The inference Query {query_id!r} is without content.")
+    pipeline_query = query
     candidate_document_ids = list(inference_mapping.candidate_ids(query_input))
     result = await pipeline.run_async(
         data={
@@ -203,36 +202,33 @@ async def _run_query(
         )
     if parsed_query.content is None:
         raise ValueError(f"The inference pipeline returned Query {query_id!r} without content.")
-    prediction = {
-        EVALUATION_DATA_SCHEMA.query_id: query_id,
-        EVALUATION_DATA_SCHEMA.IN: query_input,
-        EVALUATION_DATA_SCHEMA.query_content: parsed_query.content,
-        "documents": [
-            {
-                "id": document.id,
-                "content": document.content,
-                "meta": dict(document.meta or {}),
-                "score": getattr(document, "score", None),
-            }
-            for document in documents
-        ],
+    prediction: dict[str, Any] = {
+        "id": query_id,
+        "results": [_prediction_result(document) for document in documents],
     }
-    EVALUATION_DATA_SCHEMA.validate_prediction(prediction)
+    query_extra_data = parsed_query.meta.get(EXTRA_DATA_META_KEY)
+    if query_extra_data is not None:
+        prediction["data"] = query_extra_data
     return prediction
 
 
-def _query_meta(query: dict[str, Any]) -> dict[str, Any]:
-    """Return non-canonical query fields as metadata."""
-
-    reserved_fields = {
-        EVALUATION_DATA_SCHEMA.query_id,
-        EVALUATION_DATA_SCHEMA.IN,
-        EVALUATION_DATA_SCHEMA.query_content,
-        "meta",
+def _prediction_result(document: Document) -> dict[str, Any]:
+    source_document_id = document.meta.get("source_document_id")
+    if source_document_id is not None and (
+        not isinstance(source_document_id, str) or not source_document_id
+    ):
+        raise ValueError(
+            f"Document {document.id!r} has an invalid `meta.source_document_id`."
+        )
+    result: dict[str, Any] = {
+        "id": document.id,
+        "document_id": source_document_id or document.id,
+        "score": document.score,
     }
-    meta = {key: value for key, value in query.items() if key not in reserved_fields}
-    meta.update(dict(query.get("meta") or {}))
-    return meta
+    extra_data = document.meta.get(EXTRA_DATA_META_KEY)
+    if extra_data is not None:
+        result["data"] = extra_data
+    return result
 
 
 def _index_parameters(cfg: DictConfig) -> list[DictConfig]:
@@ -245,7 +241,7 @@ def _index_parameters(cfg: DictConfig) -> list[DictConfig]:
     parameters: list[DictConfig] = []
     for component in components.values():
         init_parameters = component.get("init_parameters")
-        if init_parameters is not None and "index_path" in init_parameters.keys():
+        if init_parameters is not None and "index_path" in init_parameters:
             parameters.append(init_parameters)
     return parameters
 

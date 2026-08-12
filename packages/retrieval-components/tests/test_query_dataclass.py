@@ -8,12 +8,13 @@ from retrieval_components.dataclasses.query import Query
 def test_query_preserves_nested_meta() -> None:
     source_meta = {"filters": {"language": "en"}, "weights": [1, 2]}
 
-    query = Query(id="q1", meta=source_meta)
+    query = Query(id="q1", IN="need-1", meta=source_meta)
     source_meta["filters"]["language"] = "fr"
 
     assert query.to_dict() == {
         "id": "q1",
         "content": None,
+        "IN": "need-1",
         "meta": {"filters": {"language": "en"}, "weights": [1, 2]},
     }
     assert Query.from_dict(query.to_dict()) == query
@@ -22,6 +23,11 @@ def test_query_preserves_nested_meta() -> None:
 def test_query_deserialization_requires_all_serialized_fields() -> None:
     with pytest.raises(KeyError, match="content"):
         Query.from_dict({"id": "q1"})
+
+
+def test_query_rejects_invalid_information_need() -> None:
+    with pytest.raises(ValueError, match="Query IN"):
+        Query(id="q1", IN="")
 
 
 def test_with_content_returns_a_new_query_without_changing_the_source() -> None:

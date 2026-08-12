@@ -10,8 +10,9 @@ from typing import Any
 
 from haystack import Document
 from omegaconf import DictConfig
+from retrieval_components.dataclasses.query import Query
 
-from retrieval_core.data_schema import EVALUATION_DATA_SCHEMA
+from retrieval_core.data_schema import Qrel, document_from_dict, query_from_dict
 from retrieval_core.utils.io import project_path, read_json, read_jsonl, write_json_atomic
 
 INPUT_MAPPING_FILENAME = "input_mapping.json"
@@ -34,7 +35,7 @@ GENERATION_KEYS = (
 class InferenceMapping:
     """Resolved query subset and candidates for one inference run."""
 
-    queries: list[dict[str, Any]]
+    queries: list[Query]
     candidate_ids_by_query: dict[str, list[str]]
     documents_by_id: dict[str, Document]
     default_candidate_ids: list[str] | None = None
@@ -56,23 +57,7 @@ class GeneratedInputMapping:
 
 
 def _document_from_record(record: dict[str, Any]) -> Document:
-    EVALUATION_DATA_SCHEMA.validate_document(record)
-    reserved_fields = {
-        EVALUATION_DATA_SCHEMA.doc_id,
-        EVALUATION_DATA_SCHEMA.text,
-        "meta",
-        "score",
-        "embedding",
-    }
-    meta = {key: value for key, value in record.items() if key not in reserved_fields}
-    meta.update(dict(record.get("meta") or {}))
-    return Document(
-        id=str(record[EVALUATION_DATA_SCHEMA.doc_id]),
-        content=str(record[EVALUATION_DATA_SCHEMA.text]),
-        meta=meta,
-        score=record.get("score"),
-        embedding=record.get("embedding"),
-    )
+    return document_from_dict(record)
 
 
 def resolve_inference_mapping(cfg: DictConfig) -> InferenceMapping:
@@ -87,19 +72,21 @@ def resolve_inference_mapping(cfg: DictConfig) -> InferenceMapping:
         if document_id in documents_by_id:
             raise ValueError(f"Duplicate document id in dataset: {document_id}")
         documents_by_id[document_id] = document
-    queries_by_input: dict[str, dict[str, Any]] = {}
-    for query in queries:
-        EVALUATION_DATA_SCHEMA.validate_query(query)
-        query_input = str(query[EVALUATION_DATA_SCHEMA.IN])
-        if query_input in queries_by_input:
-            raise ValueError(f"Duplicate query input in dataset: {query_input}")
-        queries_by_input[query_input] = query
+    parsed_queries = [query_from_dict(record) for record in queries]
+    query_ids: set[str] = set()
+    queries_by_input: dict[str, list[Query]] = {}
+    for query in parsed_queries:
+        if query.id in query_ids:
+            raise ValueError(f"Duplicate query id in dataset: {query.id}")
+        query_ids.add(query.id)
+        assert query.IN is not None
+        queries_by_input.setdefault(query.IN, []).append(query)
     all_document_ids = list(documents_by_id)
 
     mapping_path = configured_input_mapping_path(cfg)
     if mapping_path is None:
         return InferenceMapping(
-            queries=queries,
+            queries=parsed_queries,
             candidate_ids_by_query={},
             documents_by_id=documents_by_id,
             default_candidate_ids=all_document_ids,
@@ -175,21 +162,21 @@ def discover_input_mapping_ids(
 def _resolve_file_mapping(
     mapping_path: Path,
     *,
-    queries_by_input: dict[str, dict[str, Any]],
+    queries_by_input: dict[str, list[Query]],
     documents_by_id: dict[str, Document],
 ) -> InferenceMapping:
     if not mapping_path.is_file():
         raise FileNotFoundError(f"Prepared input mapping does not exist: {mapping_path}")
     raw_mapping = read_json(mapping_path)
     if not isinstance(raw_mapping, dict):
-        raise ValueError("Input mapping JSON must be an object keyed by query input (`IN`).")
+        raise TypeError("Input mapping JSON must be an object keyed by query input (`IN`).")
     candidate_ids_by_query: dict[str, list[str]] = {}
     for raw_query_input, raw_candidate_ids in raw_mapping.items():
         query_input = str(raw_query_input)
         if query_input not in queries_by_input:
             raise ValueError(f"Input mapping references unknown query input: {query_input}")
         if not isinstance(raw_candidate_ids, list):
-            raise ValueError(f"Input mapping for query input {query_input} must be a list.")
+            raise TypeError(f"Input mapping for query input {query_input} must be a list.")
 
         candidate_ids = [str(document_id) for document_id in raw_candidate_ids]
         missing_document_ids = [
@@ -201,7 +188,11 @@ def _resolve_file_mapping(
                 f"{missing_document_ids}"
             )
         candidate_ids_by_query[query_input] = list(dict.fromkeys(candidate_ids))
-    selected_queries = [queries_by_input[query_input] for query_input in candidate_ids_by_query]
+    selected_queries = [
+        query
+        for query_input in candidate_ids_by_query
+        for query in queries_by_input[query_input]
+    ]
 
     return InferenceMapping(
         queries=selected_queries,
@@ -340,15 +331,12 @@ def generate_input_mapping(
     easy_negative_docs_per_query = normalized_sampling_counts["easy_negative_docs_per_query"]
     gold_passage_docs_per_query = normalized_sampling_counts["gold_passage_docs_per_query"]
     rng = random.Random(seed)
-    for document in documents:
-        EVALUATION_DATA_SCHEMA.validate_document(document)
-    for query in queries:
-        EVALUATION_DATA_SCHEMA.validate_query(query)
-    for qrel in qrels:
-        EVALUATION_DATA_SCHEMA.validate_qrel(qrel)
+    parsed_documents = [document_from_dict(document) for document in documents]
+    parsed_queries = [query_from_dict(query) for query in queries]
+    parsed_qrels = [Qrel.from_dict(qrel) for qrel in qrels]
 
-    document_ids = [str(document[EVALUATION_DATA_SCHEMA.doc_id]) for document in documents]
-    query_inputs = [str(query[EVALUATION_DATA_SCHEMA.IN]) for query in queries]
+    document_ids = [str(document.id) for document in parsed_documents]
+    query_inputs = list(dict.fromkeys(query.IN for query in parsed_queries if query.IN is not None))
     if query_subset_size is None:
         selected_query_inputs = query_inputs
     else:
@@ -364,11 +352,20 @@ def generate_input_mapping(
 
     annotated_by_query: dict[str, set[str]] = {}
     positive_by_query: dict[str, set[str]] = {}
-    for qrel in qrels:
-        query_input = str(qrel[EVALUATION_DATA_SCHEMA.IN])
-        document_id = str(qrel[EVALUATION_DATA_SCHEMA.doc_id])
+    labels_by_pair: dict[tuple[str, str], int] = {}
+    for qrel in parsed_qrels:
+        query_input = qrel.IN
+        document_id = qrel.document_id
+        pair = (query_input, document_id)
+        existing_label = labels_by_pair.get(pair)
+        if existing_label is not None and existing_label != qrel.label:
+            raise ValueError(
+                f"Conflicting qrels for IN {query_input!r} and document {document_id!r}: "
+                f"{existing_label} != {qrel.label}."
+            )
+        labels_by_pair[pair] = qrel.label
         annotated_by_query.setdefault(query_input, set()).add(document_id)
-        if int(qrel[EVALUATION_DATA_SCHEMA.label]) > 0:
+        if qrel.label > 0:
             positive_by_query.setdefault(query_input, set()).add(document_id)
     if document_subset_size is None:
         active_document_ids = document_ids
@@ -487,9 +484,8 @@ def write_generated_mapping(
 
     mapping_path = output_dir / INPUT_MAPPING_FILENAME
     metadata_path = metadata_path_for(mapping_path)
-    if not overwrite:
-        if output_dir.exists():
-            raise FileExistsError(f"Refusing to overwrite existing directory: {output_dir}")
+    if not overwrite and output_dir.exists():
+        raise FileExistsError(f"Refusing to overwrite existing directory: {output_dir}")
 
     write_json_atomic(mapping_path, generated.mapping)
     write_json_atomic(metadata_path, generated.metadata)

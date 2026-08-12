@@ -2,6 +2,7 @@ import asyncio
 import json
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import ClassVar
 
 import pytest
 from omegaconf import OmegaConf
@@ -125,14 +126,7 @@ def test_indexing_stage_loads_documents_and_supplies_batched_pipeline_input(
     documents_path = write_jsonl(
         tmp_path / "documents.jsonl",
         [
-            {
-                "doc_id": "d1",
-                "text": "document text",
-                "title": "Title",
-                "meta": {"split": "test"},
-                "score": 0.5,
-                "embedding": [1.0, 0.0],
-            }
+            {"id": "d1", "content": "document text", "meta": {"title": "Title", "split": "test"}}
         ],
     )
     pipeline = CapturingPipeline()
@@ -151,8 +145,6 @@ def test_indexing_stage_loads_documents_and_supplies_batched_pipeline_input(
         "title": "Title",
         "split": "test",
     }
-    assert documents[0].score == 0.5
-    assert documents[0].embedding == [1.0, 0.0]
     assert pipeline.include_outputs_from == {"output"}
     assert pipeline.concurrency_limit == 3
     assert result["source_document_count"] == 1
@@ -168,11 +160,11 @@ def test_indexing_stage_streams_multiple_batches_and_hashes_during_read(
     documents_path = write_jsonl(
         tmp_path / "documents.jsonl",
         [
-            {"doc_id": "d1", "text": "one"},
-            {"doc_id": "d2", "text": "two"},
-            {"doc_id": "d3", "text": "three"},
-            {"doc_id": "d4", "text": "four"},
-            {"doc_id": "d5", "text": "five"},
+            {"id": "d1", "content": "one", "meta": {}},
+            {"id": "d2", "content": "two", "meta": {}},
+            {"id": "d3", "content": "three", "meta": {}},
+            {"id": "d4", "content": "four", "meta": {}},
+            {"id": "d5", "content": "five", "meta": {}},
         ],
     )
     pipeline = CapturingPipeline()
@@ -204,7 +196,7 @@ def test_indexing_stage_uses_one_progress_bar_across_batches(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     class RecordingProgress:
-        instances = []
+        instances: ClassVar[list] = []
 
         def __init__(self, **kwargs) -> None:
             self.kwargs = kwargs
@@ -223,7 +215,7 @@ def test_indexing_stage_uses_one_progress_bar_across_batches(
 
     documents_path = write_jsonl(
         tmp_path / "documents.jsonl",
-        [{"doc_id": f"d{number}", "text": str(number)} for number in range(5)],
+        [{"id": f"d{number}", "content": str(number), "meta": {}} for number in range(5)],
     )
     pipeline = CapturingPipeline()
     monkeypatch.setattr(
@@ -253,9 +245,9 @@ def test_indexing_stage_removes_temporary_index_when_a_later_batch_fails(
     documents_path = write_jsonl(
         tmp_path / "documents.jsonl",
         [
-            {"doc_id": "d1", "text": "one"},
-            {"doc_id": "d2", "text": "two"},
-            {"doc_id": "d3", "text": "three"},
+            {"id": "d1", "content": "one", "meta": {}},
+            {"id": "d2", "content": "two", "meta": {}},
+            {"id": "d3", "content": "three", "meta": {}},
         ],
     )
     pipeline = CapturingPipeline(fail_on_batch=2)
@@ -297,8 +289,8 @@ def test_indexing_stage_rejects_duplicate_document_ids(tmp_path: Path) -> None:
     documents_path = write_jsonl(
         tmp_path / "documents.jsonl",
         [
-            {"doc_id": "duplicate", "text": "first"},
-            {"doc_id": "duplicate", "text": "second"},
+            {"id": "duplicate", "content": "first", "meta": {}},
+            {"id": "duplicate", "content": "second", "meta": {}},
         ],
     )
 
@@ -306,11 +298,22 @@ def test_indexing_stage_rejects_duplicate_document_ids(tmp_path: Path) -> None:
         _run_stage(_config(tmp_path, documents_path))
 
 
-def test_indexing_stage_rejects_documents_without_ids(tmp_path: Path) -> None:
+def test_indexing_stage_uses_document_defaults_for_missing_ids(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     documents_path = write_jsonl(
         tmp_path / "documents.jsonl",
-        [{"text": "missing id"}],
+        [{"content": "missing id", "meta": {}}],
     )
 
-    with pytest.raises(ValueError, match="Document record is missing required fields"):
-        _run_stage(_config(tmp_path, documents_path))
+    pipeline = CapturingPipeline()
+    monkeypatch.setattr(
+        "retrieval_core.stages.indexing.load_async_pipeline",
+        _capture_pipeline(pipeline),
+    )
+
+    result = _run_stage(_config(tmp_path, documents_path))
+
+    assert pipeline.batches[0][0].id
+    assert result["source_document_count"] == 1

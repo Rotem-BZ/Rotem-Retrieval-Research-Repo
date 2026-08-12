@@ -3,13 +3,17 @@
 from __future__ import annotations
 
 import json
+import logging
 from copy import deepcopy
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
 from haystack import Document, component
 
 from retrieval_components.dataclasses.query import Query
+
+logger = logging.getLogger(__name__)
 
 
 def _validate_mapping_path(mapping_path: str) -> Path:
@@ -84,8 +88,21 @@ class _MetadataMappingMixin:
     def warm_up(self) -> None:
         """Load and validate the complete mapping exactly once."""
 
-        if self._metadata_by_id is None:
-            self._metadata_by_id = _load_metadata_mapping(self._mapping_file)
+        if self._metadata_by_id is not None:
+            logger.debug(
+                "Metadata mapping is already loaded from %s with %d records.",
+                self._mapping_file,
+                len(self._metadata_by_id),
+            )
+            return
+
+        logger.debug("Loading metadata mapping from %s.", self._mapping_file)
+        self._metadata_by_id = _load_metadata_mapping(self._mapping_file)
+        logger.debug(
+            "Loaded %d metadata records from %s.",
+            len(self._metadata_by_id),
+            self._mapping_file,
+        )
 
     def _metadata_for(self, record_id: str, *, owner: str) -> dict[str, Any]:
         self.warm_up()
@@ -107,9 +124,8 @@ class QueryMetadataEnricher(_MetadataMappingMixin):
     def run(self, query: Query) -> dict[str, Query]:
         mapped = self._metadata_for(query.id, owner=f"Query {query.id!r}")
         return {
-            "query": Query(
-                id=query.id,
-                content=query.content,
+            "query": replace(
+                query,
                 meta=_merged_metadata(query.meta, mapped, owner=f"Query {query.id!r}"),
             )
         }
@@ -138,11 +154,14 @@ class DocumentMetadataEnricher(_MetadataMappingMixin):
                     "`meta.source_document_id`."
                 )
             mapped = self._metadata_for(lookup_id, owner=f"Document {document.id!r}")
-            document_data = document.to_dict(flatten=False)
-            document_data["meta"] = _merged_metadata(
-                document.meta,
-                mapped,
-                owner=f"Document {document.id!r}",
+            enriched.append(
+                replace(
+                    document,
+                    meta=_merged_metadata(
+                        document.meta,
+                        mapped,
+                        owner=f"Document {document.id!r}",
+                    ),
+                )
             )
-            enriched.append(Document.from_dict(document_data))
         return {"documents": enriched}

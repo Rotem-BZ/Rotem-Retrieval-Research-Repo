@@ -4,15 +4,14 @@ from typing import Any
 import pytest
 from omegaconf import OmegaConf
 
-from retrieval_core.data_schema import EVALUATION_DATA_SCHEMA
 from retrieval_core.input_mapping import (
     INPUT_MAPPING_FILENAME,
     INPUT_MAPPING_METADATA_FILENAME,
     discover_input_mapping_ids,
     generate_input_mapping,
     metadata_path_for,
-    prepared_mapping_path,
     prepare_generated_input_mapping,
+    prepared_mapping_path,
     resolve_inference_mapping,
     write_generated_mapping,
 )
@@ -20,28 +19,15 @@ from retrieval_core.utils.io import read_json, write_json, write_jsonl
 
 
 def _document(doc_id: str, text: str = "", **extra: Any) -> dict[str, Any]:
-    return {
-        EVALUATION_DATA_SCHEMA.doc_id: doc_id,
-        EVALUATION_DATA_SCHEMA.text: text,
-        **extra,
-    }
+    return {"id": doc_id, "content": text, "meta": extra}
 
 
 def _query(query_input: str, content: str = "", **extra: Any) -> dict[str, Any]:
-    return {
-        EVALUATION_DATA_SCHEMA.query_id: f"query-{query_input}",
-        EVALUATION_DATA_SCHEMA.IN: query_input,
-        EVALUATION_DATA_SCHEMA.query_content: content,
-        **extra,
-    }
+    return {"id": f"query-{query_input}", "IN": query_input, "content": content, "meta": extra}
 
 
 def _qrel(query_input: str, doc_id: str, label: int) -> dict[str, Any]:
-    return {
-        EVALUATION_DATA_SCHEMA.IN: query_input,
-        EVALUATION_DATA_SCHEMA.doc_id: doc_id,
-        EVALUATION_DATA_SCHEMA.label: label,
-    }
+    return {"IN": query_input, "document_id": doc_id, "label": label}
 
 
 DOCUMENTS = [
@@ -67,12 +53,40 @@ def test_full_input_mapping_runs_all_queries_against_all_documents(tmp_path: Pat
 
     mapping = resolve_inference_mapping(cfg)
 
-    assert [query[EVALUATION_DATA_SCHEMA.IN] for query in mapping.queries] == ["q1", "q2"]
+    assert [query.IN for query in mapping.queries] == ["q1", "q2"]
     assert mapping.candidate_ids_by_query == {}
     assert mapping.candidate_ids("q1") == ["d1", "d2", "d3", "d4", "d5"]
     assert mapping.candidate_ids("q2") == ["d1", "d2", "d3", "d4", "d5"]
     assert mapping.documents_by_id["d1"].meta["title"] == "Optional title"
-    assert mapping.queries[0]["language"] == "en"
+    assert mapping.queries[0].meta["language"] == "en"
+
+
+def test_multiple_queries_can_share_one_information_need(tmp_path: Path) -> None:
+    cfg = _cfg(tmp_path, None)
+    write_jsonl(
+        cfg.dataset.queries_path,
+        [
+            {"id": "q1-a", "IN": "need-1", "content": "first wording", "meta": {}},
+            {"id": "q1-b", "IN": "need-1", "content": "second wording", "meta": {}},
+        ],
+    )
+
+    mapping = resolve_inference_mapping(cfg)
+
+    assert [query.id for query in mapping.queries] == ["q1-a", "q1-b"]
+    assert [query.IN for query in mapping.queries] == ["need-1", "need-1"]
+    assert mapping.candidate_ids("need-1") == ["d1", "d2", "d3", "d4", "d5"]
+
+
+def test_conflicting_duplicate_qrels_are_rejected() -> None:
+    with pytest.raises(ValueError, match="Conflicting qrels"):
+        generate_input_mapping(
+            dataset_name="test",
+            documents=[_document("d1")],
+            queries=[_query("need-1")],
+            qrels=[_qrel("need-1", "d1", 0), _qrel("need-1", "d1", 1)],
+            seed=1,
+        )
 
 
 def test_inference_mapping_materializes_canonical_document_content(tmp_path: Path) -> None:
@@ -80,21 +94,13 @@ def test_inference_mapping_materializes_canonical_document_content(tmp_path: Pat
     write_jsonl(
         cfg.dataset.documents_path,
         [
-            {
-                EVALUATION_DATA_SCHEMA.doc_id: "d1",
-                EVALUATION_DATA_SCHEMA.text: "document text",
-                "title": "metadata title",
-            }
+            {"id": "d1", "content": "document text", "meta": {"title": "metadata title"}}
         ],
     )
     write_jsonl(
         cfg.dataset.queries_path,
         [
-            {
-                EVALUATION_DATA_SCHEMA.query_id: "external-q1",
-                EVALUATION_DATA_SCHEMA.IN: "q1",
-                EVALUATION_DATA_SCHEMA.query_content: "query text",
-            }
+            {"id": "external-q1", "IN": "q1", "content": "query text", "meta": {}}
         ],
     )
 
@@ -113,7 +119,7 @@ def test_file_input_mapping_runs_only_mapped_queries(tmp_path: Path) -> None:
 
     mapping = resolve_inference_mapping(cfg)
 
-    assert [query[EVALUATION_DATA_SCHEMA.IN] for query in mapping.queries] == ["q2"]
+    assert [query.IN for query in mapping.queries] == ["q2"]
     assert mapping.candidate_ids_by_query == {"q2": ["d3", "d4"]}
     mapped_document_ids = [
         mapping.documents_by_id[document_id].id for document_id in mapping.candidate_ids("q2")
@@ -137,7 +143,7 @@ def test_generated_recipe_is_prepared_in_run_id_directory(tmp_path: Path) -> Non
     )
     mapping_path = prepared_mapping_path(cfg)
 
-    generated, prepared_path = prepare_generated_input_mapping(cfg)
+    _generated, prepared_path = prepare_generated_input_mapping(cfg)
     inference_cfg = _cfg(tmp_path, "toy_dev_small")
     mapping = resolve_inference_mapping(inference_cfg)
 
@@ -147,7 +153,7 @@ def test_generated_recipe_is_prepared_in_run_id_directory(tmp_path: Path) -> Non
     assert mapping_path.exists()
     assert metadata_path_for(mapping_path).exists()
     assert metadata_path_for(mapping_path).name == INPUT_MAPPING_METADATA_FILENAME
-    assert [query[EVALUATION_DATA_SCHEMA.IN] for query in mapping.queries] == ["q2"]
+    assert [query.IN for query in mapping.queries] == ["q2"]
     assert set(mapping.candidate_ids("q2")) >= {"d3"}
     metadata = read_json(metadata_path_for(mapping_path))
     assert metadata["dataset"] == "toy"

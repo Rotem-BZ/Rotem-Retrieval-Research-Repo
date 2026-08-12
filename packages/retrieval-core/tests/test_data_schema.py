@@ -1,83 +1,85 @@
-from dataclasses import is_dataclass
+from dataclasses import FrozenInstanceError, is_dataclass
 
 import pytest
 
-from retrieval_core.data_schema import EVALUATION_DATA_SCHEMA, EvaluationDataSchema
+from retrieval_core.data_schema import Qrel, document_from_dict, query_from_dict
 
 
-def test_evaluation_data_schema_is_an_immutable_dataclass() -> None:
-    assert is_dataclass(EvaluationDataSchema)
-    assert EVALUATION_DATA_SCHEMA == EvaluationDataSchema()
-    assert EVALUATION_DATA_SCHEMA.query_id == "query_id"
-    assert EVALUATION_DATA_SCHEMA.IN == "IN"
-    assert EVALUATION_DATA_SCHEMA.query_content == "query_content"
-    assert EVALUATION_DATA_SCHEMA.doc_id == "doc_id"
-    assert EVALUATION_DATA_SCHEMA.text == "text"
-    assert EVALUATION_DATA_SCHEMA.label == "label"
+def test_qrel_is_an_immutable_round_trippable_dataclass() -> None:
+    qrel = Qrel(IN="need-1", document_id="doc-1", label=2)
+    assert is_dataclass(qrel)
+    assert qrel.to_dict() == {"IN": "need-1", "document_id": "doc-1", "label": 2}
+    assert Qrel.from_dict(qrel.to_dict()) == qrel
+    with pytest.raises(FrozenInstanceError):
+        qrel.label = 1  # type: ignore[misc]
 
 
-def test_schema_validation_allows_additional_fields() -> None:
-    EVALUATION_DATA_SCHEMA.validate_query(
-        {
-            EVALUATION_DATA_SCHEMA.query_id: "query-1",
-            EVALUATION_DATA_SCHEMA.IN: "1",
-            EVALUATION_DATA_SCHEMA.query_content: "content",
-            "language": "en",
-        }
+def test_canonical_query_and_document_records_materialize_dataclasses() -> None:
+    query = query_from_dict(
+        {"id": "query-1", "content": "question", "IN": "need-1", "meta": {}}
     )
-    EVALUATION_DATA_SCHEMA.validate_document(
-        {
-            EVALUATION_DATA_SCHEMA.doc_id: "doc-1",
-            EVALUATION_DATA_SCHEMA.text: "text",
-            "title": "Optional title",
-        }
+    document = document_from_dict(
+        {"id": "doc-1", "content": "answer", "meta": {"source": "test"}}
     )
-    EVALUATION_DATA_SCHEMA.validate_qrel(
+    assert query.id == "query-1"
+    assert query.IN == "need-1"
+    assert document.id == "doc-1"
+    assert document.meta == {"source": "test"}
+
+
+def test_document_loader_accepts_document_fields_and_applies_defaults() -> None:
+    document = document_from_dict(
         {
-            EVALUATION_DATA_SCHEMA.IN: "1",
-            EVALUATION_DATA_SCHEMA.doc_id: "doc-1",
-            EVALUATION_DATA_SCHEMA.label: 2,
-            "annotator": "test",
+            "content": "answer",
+            "score": 0.75,
+            "embedding": [0.1, 0.2],
         }
     )
 
+    assert document.id
+    assert document.meta == {}
+    assert document.score == 0.75
+    assert document.embedding == [0.1, 0.2]
 
-def test_schema_validation_requires_content_fields() -> None:
-    with pytest.raises(ValueError, match="query_content"):
-        EVALUATION_DATA_SCHEMA.validate_query(
+
+@pytest.mark.parametrize(
+    ("loader", "record", "message"),
+    [
+        (query_from_dict, {"id": "q", "content": "x", "IN": "n"}, "meta"),
+        (document_from_dict, {"id": "d", "meta": {}}, "content"),
+        (Qrel.from_dict, {"IN": "n", "document_id": "d"}, "label"),
+    ],
+)
+def test_canonical_records_require_all_fields(loader, record, message: str) -> None:
+    with pytest.raises(ValueError, match=message):
+        loader(record)
+
+
+def test_canonical_records_reject_unknown_top_level_fields() -> None:
+    with pytest.raises(ValueError, match="unexpected fields.*language"):
+        query_from_dict(
             {
-                EVALUATION_DATA_SCHEMA.query_id: "query-1",
-                EVALUATION_DATA_SCHEMA.IN: "1",
-            }
-        )
-
-    with pytest.raises(ValueError, match="text"):
-        EVALUATION_DATA_SCHEMA.validate_document(
-            {EVALUATION_DATA_SCHEMA.doc_id: "doc-1"}
-        )
-
-
-def test_schema_validation_reports_missing_required_identity_fields() -> None:
-    with pytest.raises(ValueError, match="query_id"):
-        EVALUATION_DATA_SCHEMA.validate_query({EVALUATION_DATA_SCHEMA.IN: "1"})
-
-    with pytest.raises(ValueError, match="doc_id"):
-        EVALUATION_DATA_SCHEMA.validate_document({"body": "document"})
-
-    with pytest.raises(ValueError, match="label"):
-        EVALUATION_DATA_SCHEMA.validate_qrel(
-            {
-                EVALUATION_DATA_SCHEMA.IN: "1",
-                EVALUATION_DATA_SCHEMA.doc_id: "doc-1",
+                "id": "q",
+                "content": "x",
+                "IN": "n",
+                "meta": {},
+                "language": "en",
             }
         )
 
 
-def test_prediction_validation_still_requires_rendered_query_content() -> None:
-    with pytest.raises(ValueError, match="query_content"):
-        EVALUATION_DATA_SCHEMA.validate_prediction(
-            {
-                EVALUATION_DATA_SCHEMA.query_id: "query-1",
-                EVALUATION_DATA_SCHEMA.IN: "1",
-            }
-        )
+@pytest.mark.parametrize(
+    "qrel",
+    [
+        {"IN": "", "document_id": "d", "label": 1},
+        {"IN": "n", "document_id": "", "label": 1},
+    ],
+)
+def test_qrel_requires_nonempty_identifiers(qrel: dict[str, object]) -> None:
+    with pytest.raises(ValueError):
+        Qrel.from_dict(qrel)
+
+
+def test_qrel_requires_an_integer_label() -> None:
+    with pytest.raises(TypeError, match="integer"):
+        Qrel.from_dict({"IN": "n", "document_id": "d", "label": 1.5})

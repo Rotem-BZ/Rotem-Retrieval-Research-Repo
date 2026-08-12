@@ -1,53 +1,79 @@
-"""Canonical field names for evaluation datasets."""
+"""Canonical typed records for retrieval datasets and prediction artifacts."""
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, fields
 from typing import Any
+
+from haystack import Document
+from retrieval_components.dataclasses.query import Query
 
 
 @dataclass(frozen=True)
-class EvaluationDataSchema:
-    """Canonical JSONL fields shared by queries, documents, and qrels.
+class Qrel:
+    """A relevance judgment shared by every query representing one information need."""
 
-    `IN` is the query-to-qrel join key; `query_id` is the external query identifier.
-    Query and document content fields are required at the dataset boundary and are
-    materialized when stage inputs are constructed.
-    """
+    IN: str
+    document_id: str
+    label: int
 
-    query_id: str = "query_id"
-    IN: str = "IN"
-    query_content: str = "query_content"
-    doc_id: str = "doc_id"
-    text: str = "text"
-    label: str = "label"
+    def __post_init__(self) -> None:
+        if not isinstance(self.IN, str) or not self.IN:
+            raise ValueError("Qrel IN must be a non-empty string.")
+        if not isinstance(self.document_id, str) or not self.document_id:
+            raise ValueError("Qrel document_id must be a non-empty string.")
+        if isinstance(self.label, bool) or not isinstance(self.label, int):
+            raise TypeError("Qrel label must be an integer.")
 
-    def validate_query(self, record: Mapping[str, Any]) -> None:
-        self._validate(record, (self.query_id, self.IN, self.query_content), "Query")
+    def to_dict(self) -> dict[str, str | int]:
+        return asdict(self)
 
-    def validate_document(self, record: Mapping[str, Any]) -> None:
-        self._validate(record, (self.doc_id, self.text), "Document")
-
-    def validate_prediction(self, record: Mapping[str, Any]) -> None:
-        self._validate(
-            record,
-            (self.query_id, self.IN, self.query_content),
-            "Prediction",
-        )
-
-    def validate_qrel(self, record: Mapping[str, Any]) -> None:
-        self._validate(record, (self.IN, self.doc_id, self.label), "Qrel")
-
-    @staticmethod
-    def _validate(
-        record: Mapping[str, Any],
-        required_fields: tuple[str, ...],
-        record_type: str,
-    ) -> None:
-        missing_fields = [field for field in required_fields if field not in record]
-        if missing_fields:
-            raise ValueError(f"{record_type} record is missing required fields: {missing_fields}")
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Qrel:
+        if not isinstance(data, dict):
+            raise TypeError("Qrel record must be an object.")
+        expected = {field.name for field in fields(cls)}
+        missing = expected - data.keys()
+        unexpected = data.keys() - expected
+        if missing:
+            raise ValueError(f"Qrel record is missing required fields: {sorted(missing)}")
+        if unexpected:
+            raise ValueError(f"Qrel record has unexpected fields: {sorted(unexpected)}")
+        return cls(**data)
 
 
-EVALUATION_DATA_SCHEMA = EvaluationDataSchema()
+def query_from_dict(data: dict[str, Any]) -> Query:
+    """Validate and construct one canonical dataset query."""
+
+    if not isinstance(data, dict):
+        raise TypeError("Query record must be an object.")
+    expected = {field.name for field in fields(Query)}
+    missing = expected - data.keys()
+    unexpected = data.keys() - expected
+    if missing:
+        raise ValueError(f"Query record is missing required fields: {sorted(missing)}")
+    if unexpected:
+        raise ValueError(f"Query record has unexpected fields: {sorted(unexpected)}")
+    query = Query.from_dict(data)
+    if query.content is None:
+        raise ValueError("Dataset Query content must be a string.")
+    if query.IN is None:
+        raise ValueError("Dataset Query IN must be a non-empty string.")
+    return query
+
+
+def document_from_dict(data: dict[str, Any]) -> Document:
+    """Validate and construct one canonical dataset document."""
+
+    if not isinstance(data, dict):
+        raise TypeError("Document record must be an object.")
+    document = Document.from_dict(data)
+    if not isinstance(document.id, str) or not document.id:
+        raise ValueError("Document id must be a non-empty string.")
+    if document.content is None:
+        raise ValueError("Dataset Document content must be a string.")
+    if not isinstance(document.content, str):
+        raise TypeError("Document content must be a string.")
+    if not isinstance(document.meta, dict):  # pragma: no cover - enforced by Haystack
+        raise TypeError("Document meta must be a dictionary.")
+    return document

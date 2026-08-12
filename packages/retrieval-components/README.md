@@ -41,9 +41,11 @@ component implementations or optional integrations. This matches the full defini
 paths required by serialized Haystack component types.
 Query-aware model subclasses remain under `retrieval_components.models`.
 The shared inference value is available as
-`from retrieval_components.dataclasses.query import Query`; it carries `id`, optional
-`content`, and arbitrary nested metadata between query-aware components. Treat it as an
-immutable value and use `query.with_content(...)` in transformation components.
+`from retrieval_components.dataclasses.query import Query`; it carries a unique query
+`id`, optional `content`, optional information-need identifier `IN`, and arbitrary nested
+metadata between query-aware components. Dataset queries require `IN`, while ad-hoc
+component calls may omit it. Treat the Query as immutable and use
+`query.with_content(...)` in transformation components.
 
 ## Haystack overlap
 

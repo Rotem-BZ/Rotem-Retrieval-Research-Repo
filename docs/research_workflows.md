@@ -397,10 +397,10 @@ fixture is in:
 - `data/processed/toy/queries.jsonl`
 - `data/processed/toy/qrels.jsonl`
 
-The canonical field names live in the `EvaluationDataSchema` dataclass in
-`retrieval_core.data_schema`. `IN` is the join key shared by query and qrel
-records; `query_id` remains the query's external identifier. Records may include
-any additional fields.
+Canonical records are materialized as `Query`, Haystack `Document`, and `Qrel`
+dataclasses. `IN` is the information-need join key shared by queries and qrels;
+multiple query instances may share one `IN` and therefore reuse its judgments.
+Arbitrary nested attributes belong under each query or document's `meta` field.
 
 BEIR datasets are prepared with the cell-marked Python script at
 `packages/retrieval-core/src/retrieval_core/notebooks/prepare_beir.py`, exposed as
@@ -651,7 +651,7 @@ Every stage has a narrow contract:
 | `prepare_mapping` | Dataset plus an `input_mapping_recipe` and run id | `input_mapping`, `input_mapping_metadata` |
 | `indexing` | Dataset plus an indexing pipeline | `index`, `pipeline_visualization` |
 | `inference` | Dataset, inference pipeline, mapping, and any required exact index | `predictions`, `pipeline_visualization` |
-| `evaluation` | Qrels plus an exact inference run or explicit predictions path | `metrics` |
+| `evaluation` | Dataset queries and qrels plus an exact inference run or explicit predictions path | `metrics` |
 
 Generated input mappings are stored under the prepare-mapping run id. Leaving
 inference `selections.input_mapping` null needs no preparation:
@@ -781,26 +781,24 @@ qrels_path: ${paths.processed_data_dir}/my_dataset/qrels.jsonl
 Document JSONL records should look like:
 
 ```json
-{"doc_id":"doc-1","text":"Text to index.","title":"An optional extra field"}
+{"id":"doc-1","content":"Text to index.","meta":{"title":"An optional field"}}
 ```
 
-Both `doc_id` and `text` are required by the dataset schema. The stage materializes
-`text` as `Document.content`; other JSON-serializable fields are preserved as document
-metadata. Built-in pipelines use `IdentityParser`, which verifies that content exists
+`id`, `content`, and `meta` are required and map directly to a Haystack `Document`.
+Built-in pipelines use `IdentityParser`, which verifies that content exists
 and otherwise returns documents unchanged. The parser slot remains an extension point
 for future parsers that intentionally transform document content.
 
 Query JSONL records should look like:
 
 ```json
-{"query_id":"external-q-1","IN":"q-1","query_content":"Search text.","language":"en"}
+{"id":"query-wording-1","content":"Search text.","IN":"need-1","meta":{"language":"en"}}
 ```
 
-`query_id`, `IN`, and `query_content` are required by the dataset schema. The inference stage
-creates a `Query` (importable with
-`from retrieval_components.dataclasses.query import Query`) whose
-`id` is `query_id`, whose `content` is `query_content`, and whose `meta` preserves
-the other query fields, including nested dictionaries. Query preprocessors,
+All four fields are required in dataset files. `id` uniquely identifies the query
+wording, while `IN` identifies the information need used to join qrels; several
+queries may share it. The inference stage creates a `Query` importable from
+`retrieval_components.dataclasses.query`. Query preprocessors,
 retrievers, and query-aware model subclasses consume or return
 `Query` values. `QueryToString` unwraps the final content only where a regular
 Haystack or project-owned component still requires a text socket.
@@ -808,8 +806,26 @@ Haystack or project-owned component still requires a text socket.
 Qrels JSONL records should look like:
 
 ```json
-{"IN":"q-1","doc_id":"doc-1","label":1,"annotator":"optional"}
+{"IN":"need-1","document_id":"doc-1","label":1}
 ```
+
+These fields map directly to the immutable `retrieval_core.data_schema.Qrel` dataclass.
+Judgments are stored once per information need and document, rather than duplicated
+for every query wording representing the same `IN`.
+
+Prediction artifacts deliberately do not duplicate query content, `IN`, or dataset
+metadata. They are keyed by query id and contain ordered retrieval results:
+
+```json
+{"query-wording-1":{"results":[{"id":"doc-1::chunk-2","document_id":"doc-1","score":0.91,"data":{"chunk_index":2}}],"data":{"final_query":"Rewritten search text."}}}
+```
+
+`id` identifies the exact returned unit, while `document_id` identifies the source
+dataset document used for evaluation. Components may attach JSON-compatible run data
+under `Query.meta["_extra_data"]` or `Document.meta["_extra_data"]`; inference saves
+only that reserved namespace as `data`, excluding ordinary dataset metadata.
+Evaluation resolves each prediction query id through `queries.jsonl` to obtain `IN`
+and collapses multiple chunks of one source document to its highest-scoring result.
 
 Then select those paths from a project-local dataset config and run the relevant
 dense pipelines:

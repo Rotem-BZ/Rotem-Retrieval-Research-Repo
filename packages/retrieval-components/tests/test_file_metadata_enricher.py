@@ -1,4 +1,5 @@
 import json
+import logging
 from pathlib import Path
 
 import pytest
@@ -99,6 +100,30 @@ def test_warm_up_is_idempotent_and_does_not_reload_changes(tmp_path: Path) -> No
     _mapping_file(tmp_path, [{"id": "q1", "meta": {"version": 2}}])
     enricher.warm_up()
     assert enricher.run(Query(id="q1"))["query"].meta == {"version": 1}
+
+
+def test_warm_up_logs_load_and_reuse_at_debug_level(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    path = _mapping_file(
+        tmp_path,
+        [
+            {"id": "q1", "meta": {}},
+            {"id": "q2", "meta": {}},
+        ],
+    )
+    enricher = QueryMetadataEnricher(str(path))
+
+    with caplog.at_level(
+        logging.DEBUG,
+        logger="retrieval_components.preprocessing.file_metadata_enricher",
+    ):
+        enricher.warm_up()
+        enricher.warm_up()
+
+    assert f"Loading metadata mapping from {path}." in caplog.messages
+    assert f"Loaded 2 metadata records from {path}." in caplog.messages
+    assert f"Metadata mapping is already loaded from {path} with 2 records." in caplog.messages
 
 
 def test_mapping_allows_blank_lines(tmp_path: Path) -> None:
